@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "drizzle-kit push --config=drizzle.config.tsx",
+    "db:studio": "drizzle-kit studio --config=drizzle.config.tsx --host 0.0.0.0"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@types/js-cookie": "^3.0.6",
     "drizzle-orm": "^0.45.2",
     "js-cookie": "^3.0.7",

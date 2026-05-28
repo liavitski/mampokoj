@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import Image from 'next/image';
 import RegionNavigation from '@/components/RegionNavigation';
+import { db } from '@/db';
 
 const mockUrls = [
   'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ79HczNRSpUD2m5kinJXFqcGTw6bloRj4ZEeLv',
@@ -13,7 +14,10 @@ const mockUrls = [
   'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7ZftpyHl38t4VLg12fshBdTpUK5qiYEyjaGH0',
 ];
 
-export default function Home() {
+export default async function Home() {
+  const users = await db.query.users.findMany();
+
+  console.log(users);
   return (
     <Wrapper>
       <RegionNavigation />

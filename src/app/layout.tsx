@@ -1,10 +1,12 @@
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
 import { cookies } from 'next/headers';
+import type { Theme } from '@/types/theme';
+import StyledComponentsRegistry from '@/lib/registry';
 import './globals.css';
+
 import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
-import type { Theme } from '@/types/theme';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: '--font-family',
@@ -42,10 +44,12 @@ export default async function RootLayout({
       className={`${plusJakartaSans.variable}`}
     >
       <body>
-        <MaxWidthWrapper>
-          <Header initialTheme={theme} />
-          {children}
-        </MaxWidthWrapper>
+        <StyledComponentsRegistry>
+          <MaxWidthWrapper>
+            <Header initialTheme={theme} />
+            {children}
+          </MaxWidthWrapper>
+        </StyledComponentsRegistry>
       </body>
     </html>
   );

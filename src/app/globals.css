@@ -51,8 +51,10 @@ html {
   );
   --min-tap-target-height: 32px;
   --min-tap-target-width: 32px;
+}
 
-  @media (pointer: coarse) {
+@media (pointer: coarse) {
+  html {
     --min-tap-target-width: 48px;
     --min-tap-target-height: 48px;
   }

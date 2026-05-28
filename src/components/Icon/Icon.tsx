@@ -38,6 +38,9 @@ const Wrapper = styled.div<{ $strokeWidth: number }>`
   width: var(--min-tap-target-width);
   height: var(--min-tap-target-height);
   cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 
   & > svg {
     display: block;

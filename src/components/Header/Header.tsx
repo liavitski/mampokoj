@@ -14,7 +14,6 @@ function Header({ initialTheme }: HeaderProps) {
     <Wrapper>
       <Logo />
       <DarkLightToggle initialTheme={initialTheme} />
-      
     </Wrapper>
   );
 }

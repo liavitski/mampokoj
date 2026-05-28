@@ -11,6 +11,7 @@
     "db:studio": "drizzle-kit studio --config=drizzle.config.tsx --host 0.0.0.0"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.4.0",
     "@neondatabase/serverless": "^1.1.0",
     "@types/js-cookie": "^3.0.6",
     "drizzle-orm": "^0.45.2",

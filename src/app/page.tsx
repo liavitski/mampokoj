@@ -17,7 +17,6 @@ const mockUrls = [
 export default async function Home() {
   const users = await db.query.users.findMany();
 
-  console.log(users);
   return (
     <Wrapper>
       <RegionNavigation />
@@ -37,6 +36,7 @@ export default async function Home() {
             </ImageWrapper>
           );
         })}
+        {users.map((user) => JSON.stringify(user))}
       </RoomList>
     </Wrapper>
   );

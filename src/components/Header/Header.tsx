@@ -14,6 +14,7 @@ function Header({ initialTheme }: HeaderProps) {
     <Wrapper>
       <Logo />
       <DarkLightToggle initialTheme={initialTheme} />
+      
     </Wrapper>
   );
 }
@@ -24,6 +25,7 @@ const Wrapper = styled.header`
   height: var(--header-height);
   align-items: center;
   margin-bottom: 1.5rem;
+  border-bottom: 4px dotted var(--color-border);
 `;
 
 export default Header;

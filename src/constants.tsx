@@ -8,7 +8,8 @@ export const LIGHT_COLORS = {
   '--color-link-hover': 'hsl(220deg 9% 56%)',
   '--color-border': 'hsl(24deg 5.7% 83%)',
 
-  '--color-primary': 'hsl(223deg 33% 53%)',
+  '--color-primary': 'hsl(238.7deg 83.5% 66.6%)',
+  '--color-primary-foreground': '#ffffff',
   '--color-secondary': 'hsl(24deg 5.7% 83%)',
   '--color-secondary-foreground': 'hsl(215deg 13.7% 34%)',
   '--color-focus-ring': 'hsl(239deg 83.5% 66.6%)',
@@ -21,7 +22,8 @@ export const DARK_COLORS = {
   '--color-link-hover': 'hsl(217.8deg 10.6% 75%)',
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
 
-  '--color-primary': 'hsl(223deg 33% 47%)',
+  '--color-primary': 'hsl(234.4deg 89.4% 74%)',
+  '--color-primary-foreground': '#1e1b18',
   '--color-secondary': 'hsl(25.7deg 6.4% 21.3%)',
   '--color-secondary-foreground': 'hsl(216deg 12% 84%)',
   '--color-focus-ring': 'hsl(234.4deg 89.4% 74%)',

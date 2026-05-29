@@ -7,6 +7,8 @@ import './globals.css';
 
 import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
+import SessionProvider from '@/components/SessionProvider';
+import { getServerSession } from 'next-auth';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: '--font-family',
@@ -35,6 +37,7 @@ export default async function RootLayout({
       : 'light';
 
   const themeColors = theme === 'light' ? LIGHT_TOKENS : DARK_TOKENS;
+  const session = await getServerSession();
 
   return (
     <html
@@ -46,8 +49,10 @@ export default async function RootLayout({
       <body>
         <StyledComponentsRegistry>
           <MaxWidthWrapper>
-            <Header initialTheme={theme} />
-            {children}
+            <SessionProvider session={session}>
+              <Header initialTheme={theme} />
+              {children}
+            </SessionProvider>
           </MaxWidthWrapper>
         </StyledComponentsRegistry>
       </body>

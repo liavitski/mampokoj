@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import Logo from '../Logo';
 import DarkLightToggle from '../DarkLightToggle';
 import { Theme } from '@/types/theme';
+import AuthButton from '../AuthButton';
 
 type HeaderProps = {
   initialTheme: Theme;
@@ -13,7 +14,10 @@ function Header({ initialTheme }: HeaderProps) {
   return (
     <Wrapper>
       <Logo />
-      <DarkLightToggle initialTheme={initialTheme} />
+      <ButtonsWrapper>
+        <DarkLightToggle initialTheme={initialTheme} />
+        <AuthButton />
+      </ButtonsWrapper>
     </Wrapper>
   );
 }
@@ -26,5 +30,11 @@ const Wrapper = styled.header`
   margin-bottom: 1.5rem;
   border-bottom: 4px dotted var(--color-border);
 `;
+
+const ButtonsWrapper = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+`
 
 export default Header;

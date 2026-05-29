@@ -11,6 +11,7 @@ export async function getAdsWithImages() {
     with: {
       images: true,
     },
+    orderBy: (model, { desc }) => desc(model.createdAt),
     limit: 10,
   });
 

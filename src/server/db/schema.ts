@@ -1,6 +1,6 @@
 import { pgTableCreator, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import type { InferSelectModel } from 'drizzle-orm';
+
 
 export const createTable = pgTableCreator(
   (name) => `mampokoj_${name}`
@@ -64,8 +64,3 @@ export const imagesRelations = relations(images, ({ one }) => ({
   ad: one(ads, { fields: [images.adId], references: [ads.id] }),
 }));
 
-export type Ad = InferSelectModel<typeof ads>;
-export type Image = InferSelectModel<typeof images>;
-export type AdWithImages = Ad & {
-  images: Image[];
-};

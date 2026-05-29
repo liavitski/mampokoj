@@ -1,18 +1,24 @@
 import * as React from 'react';
 import AdCard from '../AdCard';
+import styled from 'styled-components';
 import { getAdsWithImages } from '@/server/queries/select';
-
 
 async function AdGrid() {
   const adsWithImages = await getAdsWithImages();
 
   return (
-    <div>
+    <Wrapper>
       {adsWithImages.map((adWithImage) => (
         <AdCard key={adWithImage.id} ad={adWithImage} />
       ))}
-    </div>
+    </Wrapper>
   );
 }
+
+const Wrapper = styled.div`
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+`;
 
 export default AdGrid;

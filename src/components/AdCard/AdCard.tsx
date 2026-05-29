@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { AdWithImages } from '@/server/db/schema';
+import { AdWithImages } from '@/types/db-types';
 
 type AdCardProps = {
   ad: AdWithImages;
@@ -24,7 +24,6 @@ function AdCard({ ad }: AdCardProps) {
     <div>
       <h3>{title}</h3>
       <img src={images[0].url} />
-
     </div>
   );
 }

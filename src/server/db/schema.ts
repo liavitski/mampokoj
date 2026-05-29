@@ -38,8 +38,6 @@ export const ads = createTable(
   ]
 );
 
-export type Ad = InferSelectModel<typeof ads>;
-
 export const images = createTable(
   'images',
   (d) => ({
@@ -66,4 +64,8 @@ export const imagesRelations = relations(images, ({ one }) => ({
   ad: one(ads, { fields: [images.adId], references: [ads.id] }),
 }));
 
+export type Ad = InferSelectModel<typeof ads>;
 export type Image = InferSelectModel<typeof images>;
+export type AdWithImages = Ad & {
+  images: Image[];
+};

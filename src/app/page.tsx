@@ -27,7 +27,7 @@ const MainColumn = styled.div`
   flex: 1;
 `;
 
-const LeftColumn = styled.div`
+const LeftColumn = styled.aside`
   flex-basis: 248px;
 
   @media ${QUERIES.tabletAndSmaller} {

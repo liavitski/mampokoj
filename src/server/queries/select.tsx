@@ -5,3 +5,14 @@ export async function getAds() {
 
   return first10Ads;
 }
+
+export async function getAdsWithImages() {
+  const adsWithImages = await db.query.ads.findMany({
+    with: {
+      images: true,
+    },
+    limit: 10,
+  });
+
+  return adsWithImages;
+}

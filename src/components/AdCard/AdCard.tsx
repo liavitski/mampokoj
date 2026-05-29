@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { Ad } from '@/server/db/schema';
+import { AdWithImages } from '@/server/db/schema';
 
 type AdCardProps = {
-  ad: Ad;
+  ad: AdWithImages;
 };
 
 function AdCard({ ad }: AdCardProps) {
@@ -18,8 +18,15 @@ function AdCard({ ad }: AdCardProps) {
     contactPhone,
     createdAt,
     updatedAt,
+    images,
   } = ad;
-  return <div>{title}</div>;
+  return (
+    <div>
+      <h3>{title}</h3>
+      <img src={images[0].url} />
+
+    </div>
+  );
 }
 
 export default AdCard;

@@ -1,14 +1,15 @@
 import * as React from 'react';
-import { getAds } from '@/server/queries/select';
 import AdCard from '../AdCard';
+import { getAdsWithImages } from '@/server/queries/select';
+
 
 async function AdGrid() {
-  const ads = await getAds();
+  const adsWithImages = await getAdsWithImages();
 
   return (
     <div>
-      {ads.map((ad) => (
-        <AdCard key={ad.id} ad={ad} />
+      {adsWithImages.map((adWithImage) => (
+        <AdCard key={adWithImage.id} ad={adWithImage} />
       ))}
     </div>
   );

@@ -5,18 +5,20 @@ import Logo from '../Logo';
 import DarkLightToggle from '../DarkLightToggle';
 import { Theme } from '@/types/theme';
 import AuthButton from '../AuthButton';
+import UploadBtn from '../UploadBtn';
 
 type HeaderProps = {
   initialTheme: Theme;
 };
 
-function Header({ initialTheme }: HeaderProps) {
+async function Header({ initialTheme }: HeaderProps) {
   return (
     <Wrapper>
       <Logo />
       <ButtonsWrapper>
-        <DarkLightToggle initialTheme={initialTheme} />
         <AuthButton />
+        <UploadBtn adId="2f6c9c7e-1c3a-4c2b-9f2e-8d5a6b1c4e90" />
+        <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
     </Wrapper>
   );
@@ -35,6 +37,6 @@ const ButtonsWrapper = styled.div`
   display: flex;
   gap: 16px;
   align-items: center;
-`
+`;
 
 export default Header;

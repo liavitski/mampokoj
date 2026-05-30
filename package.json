@@ -14,6 +14,7 @@
     "@faker-js/faker": "^10.4.0",
     "@neondatabase/serverless": "^1.1.0",
     "@types/js-cookie": "^3.0.6",
+    "@uploadthing/react": "^7.3.3",
     "drizzle-orm": "^0.45.2",
     "js-cookie": "^3.0.7",
     "motion": "^12.40.0",
@@ -24,6 +25,7 @@
     "react-dom": "19.2.4",
     "react-feather": "^2.0.10",
     "styled-components": "^6.4.1",
+    "uploadthing": "^7.7.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {

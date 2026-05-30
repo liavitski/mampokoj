@@ -1,7 +1,6 @@
 import { pgTableCreator, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-
 export const createTable = pgTableCreator(
   (name) => `mampokoj_${name}`
 );
@@ -64,3 +63,7 @@ export const imagesRelations = relations(images, ({ one }) => ({
   ad: one(ads, { fields: [images.adId], references: [ads.id] }),
 }));
 
+export const testimg = createTable('testimg', (d) => ({
+  id: d.uuid().primaryKey().defaultRandom(),
+  url: d.varchar({ length: 512 }).notNull(),
+}));

@@ -4,6 +4,11 @@ import { cookies } from 'next/headers';
 import type { Theme } from '@/types/theme';
 import StyledComponentsRegistry from '@/lib/registry';
 import './globals.css';
+import '@uploadthing/react/styles.css';
+
+import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin';
+import { extractRouterConfig } from 'uploadthing/server';
+import { ourFileRouter } from '@/app/api/uploadthing/core';
 
 import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
@@ -53,6 +58,9 @@ export default async function RootLayout({
               <Header initialTheme={theme} />
               {children}
             </SessionProvider>
+            <NextSSRPlugin
+              routerConfig={extractRouterConfig(ourFileRouter)}
+            />
           </MaxWidthWrapper>
         </StyledComponentsRegistry>
       </body>

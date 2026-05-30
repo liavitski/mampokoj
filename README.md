@@ -6,8 +6,9 @@
 - [x] Scaffold basic UI with mock data
 - [x] Set up a database
 - [x] Attach database to UI
-- [ ] Add Authentication (Clerk)
+- [x] Add Authentication (NextAuth)
 - [ ] Add image upload
+- [ ] "taint" (server-only)
 - [ ] Error management (Sentry)
 - [ ] Routing/image page (parallel routes)
 - [ ] Delete button with Server Actions

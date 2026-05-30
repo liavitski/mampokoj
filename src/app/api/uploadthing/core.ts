@@ -25,25 +25,12 @@ export const ourFileRouter = {
     .input(
       z.object({
         adId: uuidSchema,
+        userId: z.string(), // passed from client
       })
     )
-    // Set permissions and file types for this FileRoute
-    .middleware(async ({ req, input }) => {
-      // This code runs on your server before upload
-      const token = await getToken({
-        req,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-
-      // If you throw, the user will not be able to upload
-      if (!token) throw new UploadThingError('Unauthorized');
-
-      // Whatever is returned here is accessible in onUploadComplete as `metadata`
-      return { userId: token.sub as string, adId: input.adId };
-    })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
-      console.log('Upload complete for userId:', metadata.userId);
+      // console.log('Upload complete for userId:', metadata.userId);
 
       console.log('file url', file.ufsUrl);
 
@@ -60,7 +47,7 @@ export const ourFileRouter = {
       }
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
-      return { uploadedBy: metadata.userId };
+      return { success: true };
     }),
 } satisfies FileRouter;
 

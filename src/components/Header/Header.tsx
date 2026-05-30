@@ -6,18 +6,22 @@ import DarkLightToggle from '../DarkLightToggle';
 import { Theme } from '@/types/theme';
 import AuthButton from '../AuthButton';
 import UploadBtn from '../UploadBtn';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 type HeaderProps = {
   initialTheme: Theme;
 };
 
 async function Header({ initialTheme }: HeaderProps) {
+    const session = await getServerSession(authOptions);
+
   return (
     <Wrapper>
       <Logo />
       <ButtonsWrapper>
         <AuthButton />
-        <UploadBtn adId="2f6c9c7e-1c3a-4c2b-9f2e-8d5a6b1c4e90" />
+        <UploadBtn adId="2f6c9c7e-1c3a-4c2b-9f2e-8d5a6b1c4e90" userId={session?.user}/>
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
     </Wrapper>

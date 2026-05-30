@@ -28,18 +28,8 @@ export const ourFileRouter = {
       })
     )
     // Set permissions and file types for this FileRoute
-    .middleware(async ({ req, input }) => {
-      // This code runs on your server before upload
-      const token = await getToken({
-        req,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-
-      // If you throw, the user will not be able to upload
-      if (!token) throw new UploadThingError('Unauthorized');
-
-      // Whatever is returned here is accessible in onUploadComplete as `metadata`
-      return { userId: token.sub as string, adId: input.adId };
+    .middleware(async () => {
+      return { userId: 'debug', adId: 'debug' };
     })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
@@ -52,9 +42,12 @@ export const ourFileRouter = {
       //   adId: metadata.adId,
       //   url: file.ufsUrl,
       // });
-      await db.insert(testimg).values({
-        url: file.ufsUrl,
-      });
+      try {
+        await db.insert(testimg).values({ url: file.ufsUrl });
+      } catch (e) {
+        console.error('DB insert failed:', e);
+        throw e;
+      }
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return { uploadedBy: metadata.userId };

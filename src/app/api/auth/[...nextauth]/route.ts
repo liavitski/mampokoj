@@ -1,8 +1,8 @@
-import NextAuth from 'next-auth';
+import NextAuth, { type NextAuthOptions } from 'next-auth';
 import Github from 'next-auth/providers/github';
 import Google from 'next-auth/providers/google';
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     Github({
       clientId: process.env.GITHUB_ID!,
@@ -13,6 +13,23 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
+
+  callbacks: {
+    async jwt({ token, user }) {
+      // runs on sign in
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
+  },
 };
 
 export const handler = NextAuth(authOptions);

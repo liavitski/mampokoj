@@ -14,14 +14,30 @@ type HeaderProps = {
 };
 
 async function Header({ initialTheme }: HeaderProps) {
-    const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
 
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return (
+      <Wrapper>
+        <Logo />
+        <ButtonsWrapper>
+          <AuthButton />
+        </ButtonsWrapper>
+      </Wrapper>
+    );
+  }
+  
   return (
     <Wrapper>
       <Logo />
       <ButtonsWrapper>
         <AuthButton />
-        <UploadBtn adId="2f6c9c7e-1c3a-4c2b-9f2e-8d5a6b1c4e90" userId={session?.user}/>
+        <UploadBtn
+          adId="2f6c9c7e-1c3a-4c2b-9f2e-8d5a6b1c4e90"
+          userId={userId}
+        />
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
     </Wrapper>

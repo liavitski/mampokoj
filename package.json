@@ -8,13 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push --config=drizzle.config.tsx",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.tsx --host 0.0.0.0"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^10.4.0",
     "@neondatabase/serverless": "^1.1.0",
     "@types/js-cookie": "^3.0.6",
-    "@uploadthing/react": "^7.3.3",
+      "@uploadthing/react": "^7.3.3",
     "drizzle-orm": "^0.45.2",
     "js-cookie": "^3.0.7",
     "motion": "^12.40.0",

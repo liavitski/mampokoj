@@ -36,7 +36,7 @@ async function Header({ initialTheme }: HeaderProps) {
         <AuthButton />
         <UploadBtn
           adId="2f6c9c7e-1c3a-4c2b-9f2e-8d5a6b1c4e90"
-          userId={userId}
+          // userId={userId}
         />
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>

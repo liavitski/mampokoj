@@ -4,16 +4,14 @@ import { UploadButton } from '@/utils/uploadthing';
 
 type UploadBtnProps = {
   adId: string;
-  userId: string;
 };
 
-function UploadBtn({ adId, userId }: UploadBtnProps) {
+function UploadBtn({ adId }: UploadBtnProps) {
   return (
     <UploadButton
       endpoint="imageUploader"
       input={{
         adId,
-        userId,
       }}
     />
   );

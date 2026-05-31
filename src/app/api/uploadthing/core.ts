@@ -23,11 +23,6 @@ export const ourFileRouter = {
       maxFileCount: 1,
     },
   })
-    .input(
-      z.object({
-        adId: uuidSchema,
-      })
-    )
     .middleware(async () => {
       const session = await getServerSession(authOptions);
 

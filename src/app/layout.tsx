@@ -1,25 +1,25 @@
-import { Plus_Jakarta_Sans } from 'next/font/google';
-import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
-import { cookies } from 'next/headers';
-import type { Theme } from '@/types/theme';
-import StyledComponentsRegistry from '@/lib/registry';
-import './globals.css';
-import '@uploadthing/react/styles.css';
+import { Plus_Jakarta_Sans } from "next/font/google";
+import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from "@/constants";
+import { cookies } from "next/headers";
+import type { Theme } from "@/types/theme";
+import StyledComponentsRegistry from "@/lib/registry";
+import "./globals.css";
+import "@uploadthing/react/styles.css";
 
-import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin';
-import { extractRouterConfig } from 'uploadthing/server';
-import { ourFileRouter } from '@/app/api/uploadthing/core';
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
+import { extractRouterConfig } from "uploadthing/server";
+import { ourFileRouter } from "@/app/api/uploadthing/core";
 
-import Header from '@/components/Header';
-import MaxWidthWrapper from '@/components/MaxWidthWrapper';
-import SessionProvider from '@/components/SessionProvider';
-import { getServerSession } from 'next-auth';
+import Header from "@/components/Header";
+import MaxWidthWrapper from "@/components/MaxWidthWrapper";
+import SessionProvider from "@/components/SessionProvider";
+import { getServerSession } from "next-auth";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: '--font-family',
-  subsets: ['latin'],
-  display: 'fallback',
-  weight: 'variable',
+  variable: "--font-family",
+  subsets: ["latin"],
+  display: "fallback",
+  weight: "variable",
 });
 
 export const metadata = {
@@ -27,8 +27,10 @@ export const metadata = {
     template: `%s • ${APP_TITLE}`,
     default: APP_TITLE,
   },
-  description: 'App that helps you to rent a room',
+  description: "App that helps you to rent a room",
 };
+
+// TODO Do this and that
 
 export default async function RootLayout({
   children,
@@ -37,11 +39,9 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const theme: Theme =
-    cookieStore.get('color-theme')?.value === 'dark'
-      ? 'dark'
-      : 'light';
+    cookieStore.get("color-theme")?.value === "dark" ? "dark" : "light";
 
-  const themeColors = theme === 'light' ? LIGHT_TOKENS : DARK_TOKENS;
+  const themeColors = theme === "light" ? LIGHT_TOKENS : DARK_TOKENS;
   const session = await getServerSession();
 
   return (
@@ -58,9 +58,7 @@ export default async function RootLayout({
               <Header initialTheme={theme} />
               {children}
             </SessionProvider>
-            <NextSSRPlugin
-              routerConfig={extractRouterConfig(ourFileRouter)}
-            />
+            <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
           </MaxWidthWrapper>
         </StyledComponentsRegistry>
       </body>

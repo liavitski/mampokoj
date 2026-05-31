@@ -1,7 +1,6 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next';
 import { UploadThingError } from 'uploadthing/server';
-import { db } from '@/server/db';
-import { images, testimg } from '@/server/db/schema';
+import { uploadImage } from '@/server/actions';
 import { z } from 'zod';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -36,21 +35,12 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
-      // console.log('Upload complete for userId:', metadata.userId);
 
-      console.log('file url', file.ufsUrl);
-
-      // await db.insert(images).values({
-      //   userId: metadata.userId,
-      //   adId: metadata.adId,
-      //   url: file.ufsUrl,
-      // });
-      try {
-        await db.insert(testimg).values({ url: file.ufsUrl });
-      } catch (e) {
-        console.error('DB insert failed:', e);
-        throw e;
+      if (!metadata?.userId) {
+        throw new Error('Missing user context');
       }
+
+      await uploadImage({ url: file.ufsUrl });
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return { success: true };
@@ -58,3 +48,9 @@ export const ourFileRouter = {
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;
+
+// await db.insert(images).values({
+//   userId: metadata.userId,
+//   adId: metadata.adId,
+//   url: file.ufsUrl,
+// });

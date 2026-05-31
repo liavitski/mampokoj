@@ -7,7 +7,7 @@
 - [x] Set up a database
 - [x] Attach database to UI
 - [x] Add Authentication (NextAuth)
-- [ ] Add image upload
+- [x] Add image upload
 - [ ] "taint" (server-only)
 - [ ] Error management (Sentry)
 - [ ] Routing/image page (parallel routes)

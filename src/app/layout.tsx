@@ -1,25 +1,26 @@
-import { Plus_Jakarta_Sans } from "next/font/google";
-import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from "@/constants";
-import { cookies } from "next/headers";
-import type { Theme } from "@/types/theme";
-import StyledComponentsRegistry from "@/lib/registry";
-import "./globals.css";
-import "@uploadthing/react/styles.css";
+import { Plus_Jakarta_Sans } from 'next/font/google';
+import { cookies } from 'next/headers';
+import type { Theme } from '@/types/theme';
 
-import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
-import { extractRouterConfig } from "uploadthing/server";
-import { ourFileRouter } from "@/app/api/uploadthing/core";
+import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin';
+import { extractRouterConfig } from 'uploadthing/server';
+import { ourFileRouter } from '@/app/api/uploadthing/core';
 
-import Header from "@/components/Header";
-import MaxWidthWrapper from "@/components/MaxWidthWrapper";
-import SessionProvider from "@/components/SessionProvider";
-import { getServerSession } from "next-auth";
+import '@uploadthing/react/styles.css';
+import GlobalStyles from '@/components/GlobalStyles';
+import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
+
+import StyledComponentsRegistry from '@/lib/registry';
+import Header from '@/components/Header';
+import MaxWidthWrapper from '@/components/MaxWidthWrapper';
+import SessionProvider from '@/components/SessionProvider';
+import { getServerSession } from 'next-auth';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-family",
-  subsets: ["latin"],
-  display: "fallback",
-  weight: "variable",
+  variable: '--font-family',
+  subsets: ['latin'],
+  display: 'fallback',
+  weight: 'variable',
 });
 
 export const metadata = {
@@ -27,29 +28,31 @@ export const metadata = {
     template: `%s • ${APP_TITLE}`,
     default: APP_TITLE,
   },
-  description: "App that helps you to rent a room",
+  description: 'App that helps you to rent a room',
 };
 
-// TODO Do this and that
-
-export default async function RootLayout({
-  children,
-}: Readonly<{
+type RootLayoutProps = Readonly<{
   children: React.ReactNode;
-}>) {
+  modal: React.ReactNode;
+}>;
+
+async function RootLayout({ children, modal }: RootLayoutProps) {
   const cookieStore = await cookies();
   const theme: Theme =
-    cookieStore.get("color-theme")?.value === "dark" ? "dark" : "light";
+    cookieStore.get('color-theme')?.value === 'dark'
+      ? 'dark'
+      : 'light';
 
-  const themeColors = theme === "light" ? LIGHT_TOKENS : DARK_TOKENS;
+  const themeColors = theme === 'light' ? LIGHT_TOKENS : DARK_TOKENS;
   const session = await getServerSession();
 
   return (
     <html
       lang="en"
+      translate="no"
       data-color-theme={theme}
       style={themeColors as React.CSSProperties}
-      className={`${plusJakartaSans.variable}`}
+      className={`${plusJakartaSans.variable} notranslate`}
     >
       <body>
         <StyledComponentsRegistry>
@@ -57,11 +60,17 @@ export default async function RootLayout({
             <SessionProvider session={session}>
               <Header initialTheme={theme} />
               {children}
+              {modal}
+              <GlobalStyles />
             </SessionProvider>
-            <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
           </MaxWidthWrapper>
+          <NextSSRPlugin
+            routerConfig={extractRouterConfig(ourFileRouter)}
+          />
         </StyledComponentsRegistry>
       </body>
     </html>
   );
 }
+
+export default RootLayout;

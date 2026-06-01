@@ -1,20 +1,26 @@
 'use client';
+// This is required so that the CSS is extracted and injected on
+// the server, to avoid a Flash of Unstyled Content.
+//
+// More info:
+// https://nextjs.org/docs/app/building-your-application/styling/css-in-js#styled-components
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useServerInsertedHTML } from 'next/navigation';
 import {
   ServerStyleSheet,
   StyleSheetManager,
 } from 'styled-components';
+import { type ReactNode } from 'react';
+
+type Props = {
+  children: ReactNode;
+};
 
 export default function StyledComponentsRegistry({
   children,
-}: {
-  children: React.ReactNode;
-}) {
-  // Only create stylesheet once with lazy initial state
-  // x-ref: https://reactjs.org/docs/hooks-reference.html#lazy-initial-state
-  const [styledComponentsStyleSheet] = useState(
+}: Props) {
+  const [styledComponentsStyleSheet] = React.useState(
     () => new ServerStyleSheet()
   );
 
@@ -24,7 +30,9 @@ export default function StyledComponentsRegistry({
     return <>{styles}</>;
   });
 
-  if (typeof window !== 'undefined') return <>{children}</>;
+  if (typeof window !== 'undefined') {
+    return <>{children}</>;
+  }
 
   return (
     <StyleSheetManager sheet={styledComponentsStyleSheet.instance}>

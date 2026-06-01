@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { AdWithImages } from '@/types/db-types';
+import type { AdWithImages } from '@/types/db-types';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
+import Link from 'next/link';
 
 type AdCardProps = {
   ad: AdWithImages;
@@ -33,26 +34,33 @@ function AdCard({ ad }: AdCardProps) {
   }).format(Number(price));
 
   return (
-    <Wrapper>
-      <ImageWrapper>
-        <PriceTag>{formattedPrice}</PriceTag>
-        <CoverImage
-          alt={title}
-          src={image}
-          width={100}
-          height={100}
-        />
-      </ImageWrapper>
-      <InfoWrapper>
-        <Title>{title}</Title>
-        <Description>{description}</Description>
-        <City>
-          City: <span>{city}</span>
-        </City>
-      </InfoWrapper>
-    </Wrapper>
+    <LinkWrapper href={`/ad/${id}`}>
+      <Wrapper>
+        <ImageWrapper>
+          <PriceTag>{formattedPrice}</PriceTag>
+          <CoverImage
+            alt={title}
+            src={image}
+            width={100}
+            height={100}
+          />
+        </ImageWrapper>
+        <InfoWrapper>
+          <Title>{title}</Title>
+          <Description>{description}</Description>
+          <City>
+            City: <span>{city}</span>
+          </City>
+        </InfoWrapper>
+      </Wrapper>
+    </LinkWrapper>
   );
 }
+
+const LinkWrapper = styled(Link)`
+  text-decoration: none;
+  color: inherit;
+`;
 
 const Wrapper = styled.article`
   height: 420px;

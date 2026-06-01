@@ -1,3 +1,6 @@
+import { createGlobalStyle } from 'styled-components';
+
+const GlobalStyles = createGlobalStyle`
 /*
   CSS RESET
   https://www.joshwcomeau.com/css/custom-css-reset/
@@ -11,7 +14,13 @@
   margin: 0;
 }
 html {
-  scrollbar-gutter: stable;
+  /* scrollbar-gutter: stable; */ // Dont using it because of Radix UI
+  /*
+    Create a stacking context, without a z-index.
+    This ensures that all portal content (modals and tooltips) will
+    float above the app.
+  */
+  isolation: isolate;
 }
 body {
   line-height: 1.5;
@@ -83,3 +92,7 @@ p {
 button {
   padding: 0;
 }
+
+`;
+
+export default GlobalStyles;

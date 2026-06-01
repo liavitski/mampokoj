@@ -6,3 +6,6 @@ export type Image = InferSelectModel<typeof images>;
 export type AdWithImages = Ad & {
   images: Image[];
 };
+export type AdWithImage = Ad & {
+  images: Image;
+};

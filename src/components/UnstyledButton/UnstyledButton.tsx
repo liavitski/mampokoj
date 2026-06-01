@@ -1,10 +1,18 @@
 import styled from 'styled-components';
 
-type UnstyledButtonProps = {
-  display?: string;
-};
+type UnstyledButtonProps =
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    display?: string;
+  };
+  
+export default function UnstyledButton({
+  display,
+  ...delegated
+}: UnstyledButtonProps) {
+  return <EmptyButton display={display} {...delegated} />;
+}
 
-export default styled.button<UnstyledButtonProps>`
+const EmptyButton = styled.button<UnstyledButtonProps>`
   display: ${(props) => props.display || 'block'};
   margin: 0;
   padding: 0;

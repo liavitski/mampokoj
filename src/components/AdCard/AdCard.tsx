@@ -7,9 +7,10 @@ import Link from 'next/link';
 
 type AdCardProps = {
   ad: AdWithImages;
+  asLink?: boolean;
 };
 
-function AdCard({ ad }: AdCardProps) {
+function AdCard({ ad, asLink }: AdCardProps) {
   const {
     id,
     userId,
@@ -33,37 +34,48 @@ function AdCard({ ad }: AdCardProps) {
     maximumFractionDigits: 0,
   }).format(Number(price));
 
+  const content = (
+    <Wrapper>
+      <ImageWrapper>
+        <PriceTag>{formattedPrice}</PriceTag>
+        <CoverImage
+          alt={title}
+          src={image}
+          width={100}
+          height={100}
+        />
+      </ImageWrapper>
+      <InfoWrapper>
+        <Title>{title}</Title>
+        <Description>{description}</Description>
+        <City>
+          City: <span>{city}</span>
+        </City>
+      </InfoWrapper>
+    </Wrapper>
+  );
+
+  if (!asLink) {
+    return <CardWrapper>{content}</CardWrapper>;
+  }
+
   return (
-    <LinkWrapper href={`/ad/${id}`}>
-      <Wrapper>
-        <ImageWrapper>
-          <PriceTag>{formattedPrice}</PriceTag>
-          <CoverImage
-            alt={title}
-            src={image}
-            width={100}
-            height={100}
-          />
-        </ImageWrapper>
-        <InfoWrapper>
-          <Title>{title}</Title>
-          <Description>{description}</Description>
-          <City>
-            City: <span>{city}</span>
-          </City>
-        </InfoWrapper>
-      </Wrapper>
-    </LinkWrapper>
+    <Link
+      href={`/ad/${id}`}
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <CardWrapper>{content}</CardWrapper>
+    </Link>
   );
 }
 
-const LinkWrapper = styled(Link)`
-  text-decoration: none;
-  color: inherit;
+const CardWrapper = styled.div`
+  height: 420px;
+  display: block;
 `;
 
 const Wrapper = styled.article`
-  height: 420px;
+  height: 100%;
   background-color: var(--color-card-background);
   border: 1px solid var(--color-border);
   border-radius: 16px;

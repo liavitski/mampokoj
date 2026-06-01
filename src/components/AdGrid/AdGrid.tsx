@@ -14,7 +14,11 @@ async function AdGrid() {
       {!session && <h3>Please log in to see ads.</h3>}
       {session &&
         adsWithImages.map((adWithImage) => (
-          <AdCard key={adWithImage.id} ad={adWithImage} />
+          <AdCard
+            key={adWithImage.id}
+            ad={adWithImage}
+            asLink={true}
+          />
         ))}
     </Wrapper>
   );

@@ -8,9 +8,9 @@
 - [x] Attach database to UI
 - [x] Add Authentication (NextAuth)
 - [x] Add image upload
-- [ ] "taint" (server-only)
-- [ ] Error management (Sentry)
+- [x] "taint" (server-only)
 - [ ] Routing/image page (parallel routes)
 - [ ] Delete button with Server Actions
+- [ ] Error management (Sentry)
 - [ ] Analytics (Posthog)
 - [ ] Rate limiting (Upstash)

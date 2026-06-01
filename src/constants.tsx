@@ -7,6 +7,8 @@ export const LIGHT_COLORS = {
   '--color-link': 'hsl(220deg 9% 46%)',
   '--color-link-hover': 'hsl(220deg 9% 56%)',
   '--color-border': 'hsl(24deg 5.7% 83%)',
+  '--color-card-background': 'hsl(60deg 4.7% 95.8%)',
+  '--color-pricetag-background': '#e7e5e4',
 
   '--color-primary': 'hsl(238.7deg 83.5% 66.6%)',
   '--color-primary-foreground': '#ffffff',
@@ -21,6 +23,8 @@ export const DARK_COLORS = {
   '--color-link': 'hsl(217.8deg 10.6% 65%)',
   '--color-link-hover': 'hsl(217.8deg 10.6% 75%)',
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
+  '--color-card-background': 'hsl(25.7deg 8.6% 15.8%)',
+  '--color-pricetag-background': '#1f1c19',
 
   '--color-primary': 'hsl(234.4deg 89.4% 74%)',
   '--color-primary-foreground': '#1e1b18',
@@ -30,22 +34,14 @@ export const DARK_COLORS = {
 };
 
 export const LIGHT_SHADOWS = {
-  '--shadow-page': `
-    0px 1px 2px hsl(50deg 60% 50% / 0.25),
-    0px 3px 6px hsl(50deg 60% 50% / 0.25),
-    0px 9px 18px hsl(50deg 60% 50% / 0.25),
-    0px 18px 36px hsl(50deg 60% 50% / 0.25),
-    0px 54px 108px hsl(50deg 60% 50% / 0.25)
-  `,
   '--shadow-card': `
-    0px 1px 2px hsl(50deg 20% 50% / 0.2),
-    0px 2px 4px hsl(50deg 20% 50% / 0.2),
-    0px 4px 8px hsl(50deg 20% 50% / 0.2),
-    0px 8px 16px hsl(50deg 20% 50% / 0.2)
+    0.1px 0.2px 0.3px hsl(24deg 3% 43% / 0.3),
+    0.4px 0.7px 1px -0.5px hsl(24deg 3% 43% / 0.28),
+    0.9px 1.5px 2.2px -1.1px hsl(24deg 3% 43% / 0.36),
+    2.1px 3.5px 5.1px -1.6px hsl(24deg 3% 43% / 0.24)
   `,
 };
 export const DARK_SHADOWS = {
-  '--shadow-page': 'none',
   '--shadow-card': 'none',
 };
 

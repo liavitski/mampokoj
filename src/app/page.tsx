@@ -20,7 +20,6 @@ export default async function Home() {
 const Wrapper = styled.main`
   display: flex;
   flex-direction: row-reverse;
-  align-items: baseline;
 `;
 
 const MainColumn = styled.div`

@@ -44,12 +44,9 @@ h6 {
 
 /* THEME VARIABLES */
 html {
-  --content-width: 70rem;
+  --content-width: 90rem;
   --viewport-padding: 0px 16px 0;
   --header-height: 5rem;
-  --trimmed-content-width: calc(
-    var(--content-width) - var(--viewport-padding) * 2
-  );
   --min-tap-target-height: 32px;
   --min-tap-target-width: 32px;
 }

@@ -11,6 +11,7 @@ export const LIGHT_COLORS = {
   '--color-pricetag-background': '#e7e5e4',
 
   '--color-primary': 'hsl(238.7deg 83.5% 66.6%)',
+  '--color-primary-hover': 'hsla(238.7deg 83.5% 66.6% / 0.9)',
   '--color-primary-foreground': '#ffffff',
   '--color-secondary': 'hsl(24deg 5.7% 83%)',
   '--color-overlay-modal': 'hsla(24deg 5.7% 83% / 0.346)',
@@ -28,9 +29,10 @@ export const DARK_COLORS = {
   '--color-pricetag-background': '#1f1c19',
 
   '--color-primary': 'hsl(234.4deg 89.4% 74%)',
+  '--color-primary-hover': 'hsla(234.4deg 89.4% 74% / 0.9)',
   '--color-primary-foreground': '#1e1b18',
   '--color-secondary': 'hsl(25.7deg 6.4% 21.3%)',
-  '--color-overlay-modal': 'hsla(25.7deg 6.4% 21.3% / 0.346)', 
+  '--color-overlay-modal': 'hsla(25.7deg 6.4% 21.3% / 0.346)',
   '--color-secondary-foreground': 'hsl(216deg 12% 84%)',
   '--color-focus-ring': 'hsl(234.4deg 89.4% 74%)',
 };

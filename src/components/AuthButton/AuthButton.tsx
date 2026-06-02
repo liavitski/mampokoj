@@ -2,30 +2,49 @@
 import * as React from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import Spinner from '../Spinner';
+import Button from '../Button';
 import styled from 'styled-components';
-import UnstyledButton from '../UnstyledButton';
+import Image from 'next/image';
 
 function AuthButton() {
   const { data: session, status } = useSession();
 
-  if (status === 'loading') return <Spinner />;
+  if (status === 'loading') {
+    return <Spinner />;
+  }
 
-  if (session) {
+  if (!session) {
     return (
-      <>
-        <div>{session?.user?.name}</div>
-        <SignButton onClick={() => signOut()}>Sign Out</SignButton>
-      </>
+      <Button variant="fill" size="small" onClick={() => signIn()}>
+        Sign In
+      </Button>
     );
   }
-  return <SignButton onClick={() => signIn()}>Sign In</SignButton>;
+
+  const userAvatar = session.user?.image || '/globe.svg';
+
+  return (
+    <>
+      <AvatarWrapper>
+        <Image
+          src={userAvatar}
+          alt="user-avatar"
+          width={32}
+          height={32}
+          priority
+        />
+      </AvatarWrapper>
+
+      <Button variant="fill" size="small" onClick={() => signOut()}>
+        Sign Out
+      </Button>
+    </>
+  );
 }
 
-const SignButton = styled(UnstyledButton)`
-  background-color: var(--color-primary);
-  padding: 4px 16px;
-  border-radius: 16px;
-  color: var(--color-primary-foreground);
+const AvatarWrapper = styled.div`
+  border-radius: 50%;
+  overflow: hidden;
 `;
 
 export default AuthButton;

@@ -1,5 +1,7 @@
 import { getValidatedAd } from '@/server/queries/select';
 import { notFound } from 'next/navigation';
+import styled from 'styled-components';
+import AdSummaryCard from '@/components/AdSummaryCard';
 
 export default async function AdPage({
   params,
@@ -13,5 +15,13 @@ export default async function AdPage({
     notFound(); // triggers /404 page or not-found.tsx
   }
 
-  return <h2>{JSON.stringify(ad)}</h2>;
+  return (
+    <AdCardWrapper>
+      <AdSummaryCard ad={ad} />
+    </AdCardWrapper>
+  );
 }
+
+const AdCardWrapper = styled.div`
+  max-width: 500px;
+`;

@@ -52,6 +52,7 @@ const Content = styled(Dialog.Content)`
   left: 50%;
   transform: translate(-50%, -50%);
   height: 420px;
+  width: max-content;
   z-index: 1;
   color: var(--color-text);
    border-radius: 16px;

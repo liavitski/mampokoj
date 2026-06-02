@@ -8,7 +8,6 @@ import Image from 'next/image';
 
 function AuthButton() {
   const { data: session, status } = useSession();
-
   if (status === 'loading') {
     return <Spinner />;
   }
@@ -22,9 +21,11 @@ function AuthButton() {
   }
 
   const userAvatar = session.user?.image || '/globe.svg';
+  const userName = session.user?.name;
 
   return (
     <>
+      <span style={{ userSelect: 'none' }}>{userName}</span>
       <AvatarWrapper>
         <Image
           src={userAvatar}

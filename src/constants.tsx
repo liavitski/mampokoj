@@ -3,12 +3,14 @@ export const COLOR_THEME_COOKIE_NAME = 'color-theme';
 
 export const LIGHT_COLORS = {
   '--color-text': 'hsl(217deg 32.5% 17.4%)',
+  '--color-text-foreground': '#1e293b',
   '--color-background': 'hsl(20deg 5.8% 90%)',
   '--color-link': 'hsl(220deg 9% 46%)',
   '--color-link-hover': 'hsl(220deg 9% 56%)',
   '--color-border': 'hsl(24deg 5.7% 83%)',
   '--color-card-background': 'hsl(60deg 4.7% 95.8%)',
   '--color-pricetag-background': '#e7e5e4',
+  '--color-accent': '#f3e5f5',
 
   '--color-primary': 'hsl(238.7deg 83.5% 66.6%)',
   '--color-primary-hover': 'hsla(238.7deg 83.5% 66.6% / 0.9)',
@@ -21,12 +23,14 @@ export const LIGHT_COLORS = {
 
 export const DARK_COLORS = {
   '--color-text': 'hsl(214deg 31.8% 91%)',
+  '--color-text-foreground': '#e2e8f0',
   '--color-background': 'hsl(30deg 11% 10.5%)',
   '--color-link': 'hsl(217.8deg 10.6% 65%)',
   '--color-link-hover': 'hsl(217.8deg 10.6% 75%)',
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
   '--color-card-background': 'hsl(25.7deg 8.6% 15.8%)',
   '--color-pricetag-background': '#1f1c19',
+  '--color-accent': '#484441',
 
   '--color-primary': 'hsl(234.4deg 89.4% 74%)',
   '--color-primary-hover': 'hsla(234.4deg 89.4% 74% / 0.9)',

@@ -7,8 +7,7 @@ import { Theme } from '@/types/theme';
 import AuthButton from '../AuthButton';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Button from '../Button';
-import Image from 'next/image';
+import Link from 'next/link';
 
 type HeaderProps = {
   initialTheme: Theme;
@@ -26,9 +25,9 @@ async function Header({ initialTheme }: HeaderProps) {
       <ButtonsWrapper>
         <AuthButton />
         {userId && (
-          <Button variant="fill" size="small">
+          <LinkWrapper href={`/dashboard/${userId}`}>
             My Ads
-          </Button>
+          </LinkWrapper>
         )}
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
@@ -49,6 +48,23 @@ const ButtonsWrapper = styled.div`
   display: flex;
   gap: 16px;
   align-items: center;
+`;
+
+const LinkWrapper = styled(Link)`
+  text-decoration: none;
+  padding: 4px 12px;
+  color: var(--color-text-foreground);
+  border-radius: 16px;
+  border: 2px solid transparent;
+
+  &:hover {
+    background-color: var(--color-accent);
+  }
+
+  &:focus {
+    outline-color: var(--color-focus-ring);
+    outline-offset: 4px;
+  }
 `;
 
 export default Header;

@@ -1,6 +1,6 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next';
 import { UploadThingError } from 'uploadthing/server';
-import { uploadImage } from '@/server/actions';
+// import { uploadImage } from '@/server/actions';/
 import { z } from 'zod';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -40,7 +40,7 @@ export const ourFileRouter = {
         throw new Error('Missing user context');
       }
 
-      await uploadImage({ url: file.ufsUrl });
+      // await uploadImage({ url: file.ufsUrl });
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return { success: true };

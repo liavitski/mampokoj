@@ -10,7 +10,7 @@ type AdCardProps = {
   asLink?: boolean;
 };
 
-function AdCard({ ad, asLink }: AdCardProps) {
+function AdSummaryCard({ ad, asLink }: AdCardProps) {
   const {
     id,
     userId,
@@ -156,4 +156,4 @@ const City = styled.p`
   }
 `;
 
-export default AdCard;
+export default AdSummaryCard;

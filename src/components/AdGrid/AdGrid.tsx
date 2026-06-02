@@ -1,5 +1,5 @@
 import * as React from 'react';
-import AdCard from '../AdCard';
+import AdSummaryCard from '../AdSummaryCard';
 import styled from 'styled-components';
 import { getAdsWithImages } from '@/server/queries/select';
 import { getServerSession } from 'next-auth';
@@ -11,15 +11,9 @@ async function AdGrid() {
 
   return (
     <Wrapper>
-      {!session && <h3>Please log in to see ads.</h3>}
-      {session &&
-        adsWithImages.map((adWithImage) => (
-          <AdCard
-            key={adWithImage.id}
-            ad={adWithImage}
-            asLink={true}
-          />
-        ))}
+      {adsWithImages.map((adWithImage) => (
+        <AdSummaryCard key={adWithImage.id} ad={adWithImage} asLink={true} />
+      ))}
     </Wrapper>
   );
 }

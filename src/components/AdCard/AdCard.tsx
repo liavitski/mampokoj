@@ -3,14 +3,13 @@ import type { AdWithImages } from '@/types/db-types';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
-import Link from 'next/link';
+import AdPhotosGallery from '../AdPhotosGallery';
 
 type AdCardProps = {
   ad: AdWithImages;
-  asLink?: boolean;
 };
 
-function AdCard({ ad, asLink }: AdCardProps) {
+function AdCard({ ad }: AdCardProps) {
   const {
     id,
     userId,
@@ -26,7 +25,7 @@ function AdCard({ ad, asLink }: AdCardProps) {
     images,
   } = ad;
 
-  const image = images?.[0]?.url ?? '/globe.svg';
+  const image = images?.[0];
 
   const formattedPrice = new Intl.NumberFormat('cs-CZ', {
     style: 'currency',
@@ -34,17 +33,12 @@ function AdCard({ ad, asLink }: AdCardProps) {
     maximumFractionDigits: 0,
   }).format(Number(price));
 
-  const content = (
+  return (
     <Wrapper>
       <ImageWrapper>
         <PriceTag>{formattedPrice}</PriceTag>
-        <CoverImage
-          alt={title}
-          src={image}
-          width={100}
-          height={100}
-        />
       </ImageWrapper>
+      <AdPhotosGallery photos={[image]} />
       <InfoWrapper>
         <Title>{title}</Title>
         <Description>{description}</Description>
@@ -54,28 +48,11 @@ function AdCard({ ad, asLink }: AdCardProps) {
       </InfoWrapper>
     </Wrapper>
   );
-
-  if (!asLink) {
-    return <CardWrapper>{content}</CardWrapper>;
-  }
-
-  return (
-    <Link
-      href={`/ad/${id}`}
-      style={{ textDecoration: 'none', color: 'inherit' }}
-    >
-      <CardWrapper>{content}</CardWrapper>
-    </Link>
-  );
 }
 
-const CardWrapper = styled.div`
-  height: 420px;
-  display: block;
-`;
-
 const Wrapper = styled.article`
-  height: 100%;
+  height: 420px;
+  width: 500px;
   background-color: var(--color-card-background);
   border: 1px solid var(--color-border);
   border-radius: 16px;

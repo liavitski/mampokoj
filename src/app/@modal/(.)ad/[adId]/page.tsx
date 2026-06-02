@@ -1,6 +1,6 @@
 import { getValidatedAd } from '@/server/queries/select';
-import AdModal from './modal';
-import AdSummaryCard from '@/components/AdSummaryCard';
+import Modal from '@/components/Modal';
+import AdCard from '@/components/AdCard';
 
 export default async function PhotoModal({
   params,
@@ -13,15 +13,15 @@ export default async function PhotoModal({
 
   if (!ad) {
     return (
-      <AdModal>
+      <Modal>
         <h3>Ad not found</h3>
-      </AdModal>
+      </Modal>
     );
   }
 
   return (
-    <AdModal>
-      <AdSummaryCard ad={ad} />
-    </AdModal>
+    <Modal>
+      <AdCard ad={ad} />
+    </Modal>
   );
 }

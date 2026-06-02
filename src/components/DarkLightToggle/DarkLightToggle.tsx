@@ -46,7 +46,7 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
 
   return (
     <UnstyledButton onClick={handleClick}>
-      <Icon id={theme} />
+      <Icon id={theme} strokeWidth={1.5}/>
       <VisuallyHidden>Toggle dark / light mode</VisuallyHidden>
     </UnstyledButton>
   );

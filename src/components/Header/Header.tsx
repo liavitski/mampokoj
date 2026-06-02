@@ -8,6 +8,7 @@ import AuthButton from '../AuthButton';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Link from 'next/link';
+import { WEIGHTS } from '@/constants';
 
 type HeaderProps = {
   initialTheme: Theme;
@@ -56,6 +57,7 @@ const LinkWrapper = styled(Link)`
   color: var(--color-text-foreground);
   border-radius: 16px;
   border: 2px solid transparent;
+  font-weight: ${WEIGHTS.normal};
 
   &:hover {
     background-color: var(--color-accent);

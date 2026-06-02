@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
 import styled from 'styled-components';
-import { CZ_REGIONS } from '@/constants';
+import { CZ_REGIONS, WEIGHTS } from '@/constants';
 import Link from 'next/link';
 
 type RegionCode = (typeof CZ_REGIONS)[number]['code'];
@@ -72,6 +72,7 @@ const LinkBackground = styled(motion.div)`
 
 const RegionLink = styled(Link)<{ $active?: boolean }>`
   font-size: 1rem;
+  font-weight: ${WEIGHTS.normal};
   width: fit-content;
   padding: 4px 8px;
   border-radius: 4px;

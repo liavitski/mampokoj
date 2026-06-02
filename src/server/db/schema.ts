@@ -62,8 +62,3 @@ export const adsRelations = relations(ads, ({ many }) => ({
 export const imagesRelations = relations(images, ({ one }) => ({
   ad: one(ads, { fields: [images.adId], references: [ads.id] }),
 }));
-
-// export const testimg = createTable('testimg', (d) => ({
-//   id: d.uuid().primaryKey().defaultRandom(),
-//   url: d.varchar({ length: 512 }).notNull(),
-// }));

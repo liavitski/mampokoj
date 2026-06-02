@@ -10,7 +10,7 @@ type AdDialogProps = {
   children: React.ReactNode;
 };
 
-function AdModal({ children }: AdDialogProps) {
+function Modal({ children }: AdDialogProps) {
   const router = useRouter();
 
   return (
@@ -69,4 +69,4 @@ const Close = styled(Dialog.Close)`
   box-shadow: var(--shadow-card);
 `;
 
-export default AdModal;
+export default Modal;

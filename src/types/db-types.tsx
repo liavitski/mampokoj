@@ -9,3 +9,5 @@ export type AdWithImages = Ad & {
 export type AdWithImage = Ad & {
   images: Image;
 };
+
+export type AdWithoutUserId = Omit<AdWithImages, "userId">;

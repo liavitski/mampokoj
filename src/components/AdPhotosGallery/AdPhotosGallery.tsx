@@ -23,7 +23,7 @@ function AdPhotosGallery({ photos }: AdPhotosGalleryProps) {
   return (
     <Wrapper>
       <PrimaryPhotoWrapper>
-        <PrimaryPhoto src={image} alt="Ad photo - primary" />
+        <PrimaryPhoto src={image} alt="Ad photo - primary" width={100} height={100}/>
       </PrimaryPhotoWrapper>
     </Wrapper>
   );

@@ -4,14 +4,9 @@ import { UploadThingError } from 'uploadthing/server';
 import { z } from 'zod';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { addImageToAd } from '@/server/actions';
 
 const f = createUploadthing();
-
-const uuidSchema = z
-  .string()
-  .regex(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-  );
 
 // FileRouter for your app, can contain multiple FileRoutes
 export const ourFileRouter = {
@@ -22,7 +17,12 @@ export const ourFileRouter = {
       maxFileCount: 1,
     },
   })
-    .middleware(async () => {
+    .input(
+      z.object({
+        adId: z.uuid(),
+      })
+    )
+    .middleware(async ({ input }) => {
       const session = await getServerSession(authOptions);
 
       if (!session?.user?.id) {
@@ -31,16 +31,19 @@ export const ourFileRouter = {
 
       return {
         userId: session.user.id,
+        adId: input.adId,
       };
     })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
+      const { userId, adId } = metadata;
+      const url = file.ufsUrl;
 
-      if (!metadata?.userId) {
+      if (!userId) {
         throw new Error('Missing user context');
       }
 
-      // await uploadImage({ url: file.ufsUrl });
+      await addImageToAd({ adId, userId, url });
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return { success: true };
@@ -48,9 +51,3 @@ export const ourFileRouter = {
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;
-
-// await db.insert(images).values({
-//   userId: metadata.userId,
-//   adId: metadata.adId,
-//   url: file.ufsUrl,
-// });

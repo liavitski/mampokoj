@@ -1,19 +1,17 @@
 import * as React from 'react';
-import type { AdWithImages } from '@/types/db-types';
+import type { AdWithoutUserId } from '@/types/db-types';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
 import Link from 'next/link';
 
 type AdCardProps = {
-  ad: AdWithImages;
-  asLink?: boolean;
+  ad: AdWithoutUserId;
 };
 
-function AdSummaryCard({ ad, asLink }: AdCardProps) {
+function AdSummaryCard({ ad }: AdCardProps) {
   const {
     id,
-    userId,
     title,
     price,
     city,
@@ -54,10 +52,6 @@ function AdSummaryCard({ ad, asLink }: AdCardProps) {
       </InfoWrapper>
     </Wrapper>
   );
-
-  if (!asLink) {
-    return <CardWrapper>{content}</CardWrapper>;
-  }
 
   return (
     <Link

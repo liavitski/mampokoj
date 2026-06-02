@@ -1,6 +1,7 @@
 import * as React from 'react';
 import styled from 'styled-components';
 import UnstyledButton from '../UnstyledButton';
+import { WEIGHTS } from '@/constants';
 
 type SizeConfig = {
   '--borderRadius': string;
@@ -64,6 +65,7 @@ const ButtonBase = styled(UnstyledButton)`
   border-radius: var(--borderRadius);
   border: 2px solid transparent;
   cursor: pointer;
+  font-weight: ${WEIGHTS.normal};
 
   &:focus {
     outline-color: var(--color-focus-ring);

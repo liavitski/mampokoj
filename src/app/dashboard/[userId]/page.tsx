@@ -1,12 +1,13 @@
-import AdPhotosGallery from '@/components/AdPhotosGallery';
+import React from 'react';
 import { notFound } from 'next/navigation';
 import { getUserAds } from '@/server/queries/select';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
-
-import type { Ad } from '@/types/db-types';
+import styled from 'styled-components';
+import AlertDialog from '@/components/AlertDialog';
+import UploadBtn from '@/components/UploadBtn';
 
 async function UserDashboardPage({
   params,
@@ -33,13 +34,35 @@ async function UserDashboardPage({
     );
 
   return (
-    <>
+    <Wrapper>
       {userAds.map((userAd) => {
-        return <AdCard ad={userAd} key={userAd.id} />;
+        return (
+          <AdCardWrapper key={userAd.id}>
+            <AdCard ad={userAd} />
+            <AdControlButtonsWrapper>
+              <button>Update</button>
+              <button>Delete</button>
+              <UploadBtn adId={userAd.id} />
+            </AdControlButtonsWrapper>
+          </AdCardWrapper>
+        );
       })}
-      <RoomListingForm />
-    </>
+      <AlertDialog>
+        <RoomListingForm />
+      </AlertDialog>
+    </Wrapper>
   );
 }
+
+const Wrapper = styled.div`
+  display: flex;
+  gap: 32px;
+`;
+
+const AdCardWrapper = styled.div``;
+
+const AdControlButtonsWrapper = styled.div`
+  display: flex;
+`;
 
 export default UserDashboardPage;

@@ -5,6 +5,7 @@ import Spinner from '../Spinner';
 import Button from '../Button';
 import styled from 'styled-components';
 import Image from 'next/image';
+import { WEIGHTS } from '@/constants';
 
 function AuthButton() {
   const { data: session, status } = useSession();
@@ -25,7 +26,7 @@ function AuthButton() {
 
   return (
     <>
-      <span style={{ userSelect: 'none' }}>{userName}</span>
+      <UserName style={{ userSelect: 'none' }}>{userName}</UserName>
       <AvatarWrapper>
         <Image
           src={userAvatar}
@@ -46,6 +47,10 @@ function AuthButton() {
 const AvatarWrapper = styled.div`
   border-radius: 50%;
   overflow: hidden;
+`;
+
+const UserName = styled.span`
+  font-weight: ${WEIGHTS.normal};
 `;
 
 export default AuthButton;

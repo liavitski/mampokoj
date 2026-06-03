@@ -4,7 +4,7 @@ type UnstyledButtonProps =
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
     display?: string;
   };
-  
+
 export default function UnstyledButton({
   display,
   ...delegated

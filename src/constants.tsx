@@ -10,6 +10,7 @@ export const LIGHT_COLORS = {
   '--color-border': 'hsl(24deg 5.7% 83%)',
   '--color-card-background': 'hsl(60deg 4.7% 95.8%)',
   '--color-pricetag-background': '#e7e5e4',
+  '--color-pricetag-background-hover': '#d8d6d5',
   '--color-accent': '#f3e5f5',
 
   '--color-primary': 'hsl(238.7deg 83.5% 66.6%)',
@@ -30,6 +31,7 @@ export const DARK_COLORS = {
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
   '--color-card-background': 'hsl(25.7deg 8.6% 15.8%)',
   '--color-pricetag-background': '#1f1c19',
+  '--color-pricetag-background-hover': '#1f1c19e59',
   '--color-accent': '#484441',
 
   '--color-primary': 'hsl(234.4deg 89.4% 74%)',

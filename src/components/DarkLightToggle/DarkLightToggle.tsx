@@ -45,13 +45,24 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
   }
 
   return (
-    <UnstyledButton onClick={handleClick}>
-      <Icon id={theme} strokeWidth={1.5}/>
+    <IconWrapper onClick={handleClick}>
+      <Icon id={theme} strokeWidth={1.5} />
       <VisuallyHidden>Toggle dark / light mode</VisuallyHidden>
-    </UnstyledButton>
+    </IconWrapper>
   );
 }
 
+const IconWrapper = styled(UnstyledButton)`
+  border-radius: 50%;
+  
+  &:hover {
+    background-color: var(--color-accent);
+  }
 
+  &:focus {
+    outline-color: var(--color-focus-ring);
+    outline-offset: 4px;
+  }
+`;
 
 export default DarkLightToggle;

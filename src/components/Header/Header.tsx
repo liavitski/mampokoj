@@ -8,7 +8,9 @@ import AuthButton from '../AuthButton';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Link from 'next/link';
-import { WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
+import Icon from '../Icon';
+import VisuallyHidden from '../VisuallyHidden';
 
 type HeaderProps = {
   initialTheme: Theme;
@@ -26,9 +28,15 @@ async function Header({ initialTheme }: HeaderProps) {
       <ButtonsWrapper>
         <AuthButton />
         {userId && (
-          <LinkWrapper href={`/dashboard/${userId}`}>
-            My Ads
-          </LinkWrapper>
+          <>
+            <LinkWrapper href={`/dashboard/${userId}`}>
+              <LinkText>My Ads</LinkText>
+              <IconWrapper>
+                <Icon id="user" strokeWidth={1.5} />
+                <VisuallyHidden>My ads</VisuallyHidden>
+              </IconWrapper>
+            </LinkWrapper>
+          </>
         )}
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
@@ -66,6 +74,26 @@ const LinkWrapper = styled(Link)`
   &:focus {
     outline-color: var(--color-focus-ring);
     outline-offset: 4px;
+  }
+
+  @media ${QUERIES.phoneAndSmaller} {
+    padding: 0;
+  }
+`;
+
+const LinkText = styled.span`
+  display: inline-block;
+
+  @media ${QUERIES.phoneAndSmaller} {
+    display: none;
+  }
+`;
+
+const IconWrapper = styled.div`
+  display: none;
+
+  @media ${QUERIES.phoneAndSmaller} {
+    display: flex;
   }
 `;
 

@@ -95,7 +95,7 @@ const ImageWrapper = styled.div`
   border-radius: 16px 16px 0px 0px;
 `;
 
-const CoverImage = styled(motion(Image))`
+const CoverImage = styled(motion.create(Image))`
   width: 100%;
   height: 200px;
   object-fit: cover;

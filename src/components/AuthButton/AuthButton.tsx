@@ -5,7 +5,9 @@ import Spinner from '../Spinner';
 import Button from '../Button';
 import styled from 'styled-components';
 import Image from 'next/image';
-import { WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
+import Icon from '../Icon';
+import VisuallyHidden from '../VisuallyHidden';
 
 function AuthButton() {
   const { data: session, status } = useSession();
@@ -15,9 +17,17 @@ function AuthButton() {
 
   if (!session) {
     return (
-      <Button variant="fill" size="small" onClick={() => signIn()}>
-        Sign In
-      </Button>
+      <ButtonWrapper
+        variant="fill"
+        size="small"
+        onClick={() => signIn()}
+      >
+        <ButtonText>Sign In</ButtonText>
+        <IconWrapper>
+          <Icon id="logIn" strokeWidth={1.5} />
+          <VisuallyHidden>Log in</VisuallyHidden>
+        </IconWrapper>
+      </ButtonWrapper>
     );
   }
 
@@ -37,9 +47,17 @@ function AuthButton() {
         />
       </AvatarWrapper>
 
-      <Button variant="fill" size="small" onClick={() => signOut()}>
-        Sign Out
-      </Button>
+      <ButtonWrapper
+        variant="fill"
+        size="small"
+        onClick={() => signOut()}
+      >
+        <ButtonText>Sign Out</ButtonText>
+        <IconWrapper>
+          <Icon id="logOut" strokeWidth={1.5} />
+          <VisuallyHidden>Log out</VisuallyHidden>
+        </IconWrapper>
+      </ButtonWrapper>
     </>
   );
 }
@@ -47,10 +65,44 @@ function AuthButton() {
 const AvatarWrapper = styled.div`
   border-radius: 50%;
   overflow: hidden;
+
+  @media ${QUERIES.phoneAndSmaller} {
+    display: none;
+  }
 `;
 
 const UserName = styled.span`
   font-weight: ${WEIGHTS.normal};
+
+  @media (${QUERIES.phoneAndSmaller}) {
+    display: none;
+  }
+`;
+
+const ButtonWrapper = styled(Button)`
+  @media (${QUERIES.phoneAndSmaller}) {
+    padding: 0;
+    border-radius: 50%;
+  }
+`;
+
+const IconWrapper = styled.div`
+  display: none;
+
+  @media (${QUERIES.phoneAndSmaller}) {
+    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+`;
+
+const ButtonText = styled.span`
+  display: inline;
+
+  @media (${QUERIES.phoneAndSmaller}) {
+    display: none;
+  }
 `;
 
 export default AuthButton;

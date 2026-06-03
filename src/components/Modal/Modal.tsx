@@ -5,6 +5,7 @@ import Icon from '@/components/Icon';
 import UnstyledButton from '@/components/UnstyledButton';
 import VisuallyHidden from '@/components/VisuallyHidden';
 import { useRouter } from 'next/navigation';
+import { QUERIES } from '@/constants';
 
 type AdDialogProps = {
   children: React.ReactNode;
@@ -27,7 +28,7 @@ function Modal({ children }: AdDialogProps) {
           <Dialog.Description style={{ margin: 0 }} />
           <Close asChild>
             <UnstyledButton>
-              <Icon id="x" strokeWidth={1.5}/>
+              <Icon id="x" strokeWidth={1.5} />
               <VisuallyHidden>Close modal</VisuallyHidden>
             </UnstyledButton>
           </Close>
@@ -51,11 +52,19 @@ const Content = styled(Dialog.Content)`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  /* height: 420px; */
   width: max-content;
   z-index: 1;
   color: var(--color-text);
-   border-radius: 16px;
+  border-radius: 16px;
+
+  @media (${QUERIES.phoneAndSmaller}) {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    top: 0;
+    left: 0;
+    transform: none;
+  }
 `;
 
 const Close = styled(Dialog.Close)`
@@ -67,6 +76,17 @@ const Close = styled(Dialog.Close)`
   border-radius: 4px;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: var(--color-pricetag-background-hover);
+    }
+  }
+
+  @media (${QUERIES.phoneAndSmaller}) {
+    top: 8px;
+    right: 8px;
+  }
 `;
 
 export default Modal;

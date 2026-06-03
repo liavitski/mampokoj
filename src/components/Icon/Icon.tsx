@@ -1,11 +1,14 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import { Sun, Moon, X } from 'react-feather';
+import { Sun, Moon, X, LogIn, LogOut, User } from 'react-feather';
 
 const icons = {
   light: Sun,
   dark: Moon,
   x: X,
+  logIn: LogIn,
+  logOut: LogOut,
+  user: User,
 };
 
 type IconId = keyof typeof icons;
@@ -15,9 +18,11 @@ type IconProps = {
   color?: string;
   size?: number;
   strokeWidth?: number;
-};
+  className?: string;
+} & React.HTMLAttributes<HTMLDivElement>;
 
 function Icon({
+  className,
   id,
   color,
   size = 24,
@@ -29,7 +34,11 @@ function Icon({
   if (!Component) throw new Error(`No icon found for ID: ${id}`);
 
   return (
-    <Wrapper $strokeWidth={strokeWidth} {...delegated}>
+    <Wrapper
+      $strokeWidth={strokeWidth}
+      className={className}
+      {...delegated}
+    >
       <Component color={color} size={size} />
     </Wrapper>
   );

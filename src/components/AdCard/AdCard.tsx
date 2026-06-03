@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { AdWithImages } from '@/types/db-types';
 import styled from 'styled-components';
-import { WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
 import AdPhotosGallery from '../AdPhotosGallery';
 
 type AdCardProps = {
@@ -33,6 +33,7 @@ function AdCard({ ad }: AdCardProps) {
   return (
     <Wrapper>
       <AdPhotosGallery photos={images} />
+
       <InfoWrapper>
         <Title>{title}</Title>
         <Description>{description}</Description>
@@ -55,6 +56,14 @@ const Wrapper = styled.article`
   position: relative;
   max-width: 1000px;
   height: 520px;
+  min-width: 600px;
+
+  @media (${QUERIES.phoneAndSmaller}) {
+    min-width: 100%;
+    height: 100%;
+    flex-direction: column;
+    border-radius: 0;
+  }
 `;
 
 const InfoWrapper = styled.div`

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import type { AdWithImages } from '@/types/db-types';
-import Image from 'next/image';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
 import AdPhotosGallery from '../AdPhotosGallery';
@@ -25,8 +24,6 @@ function AdCard({ ad }: AdCardProps) {
     images,
   } = ad;
 
-  const image = images?.[0];
-
   const formattedPrice = new Intl.NumberFormat('cs-CZ', {
     style: 'currency',
     currency: 'CZK',
@@ -35,10 +32,7 @@ function AdCard({ ad }: AdCardProps) {
 
   return (
     <Wrapper>
-      <ImageWrapper>
-        <PriceTag>{formattedPrice}</PriceTag>
-      </ImageWrapper>
-      <AdPhotosGallery photos={[image]} />
+      <AdPhotosGallery photos={images} />
       <InfoWrapper>
         <Title>{title}</Title>
         <Description>{description}</Description>
@@ -51,50 +45,20 @@ function AdCard({ ad }: AdCardProps) {
 }
 
 const Wrapper = styled.article`
-  height: 420px;
-  width: 500px;
   background-color: var(--color-card-background);
   border: 1px solid var(--color-border);
   border-radius: 16px;
   box-shadow: var(--shadow-card);
   padding: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 24px;
-`;
-
-const ImageWrapper = styled.div`
-  height: 100%;
+  gap: 16px;
   position: relative;
-  margin: -16px;
-`;
-
-const CoverImage = styled(Image)`
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 16px 16px 0px 0px;
-`;
-
-const PriceTag = styled.div`
-  position: absolute;
-  top: 8px;
-  right: -8px;
-  background-color: var(--color-pricetag-background);
-  border: 1px solid var(--color-border);
-  border-top-left-radius: 1rem;
-  border-bottom-left-radius: 1rem;
-  border-top-right-radius: 4px;
-  border-bottom-right-radius: 4px;
-  padding-right: 8px;
-  padding-left: 16px;
-  font-size: 1rem;
-  font-weight: ${WEIGHTS.medium};
-  line-height: 2;
-  box-shadow: var(--shadow-card);
+  max-width: 1000px;
+  height: 520px;
 `;
 
 const InfoWrapper = styled.div`
+  flex: 1;
   height: 100%;
   display: grid;
   grid-template-areas:

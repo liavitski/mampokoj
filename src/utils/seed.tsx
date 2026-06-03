@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { db } from '@/server/db';
 import { ads, images } from '@/server/db/schema';
 import { fakerCS_CZ as faker } from '@faker-js/faker';
@@ -70,6 +71,24 @@ const czechTitles = [
   'Pokoj v bytě ihned volný',
 ];
 
+const photosUrls = [
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7AV5yxCqjh0HeMT1kISRYFiyw7bEWGCZcPgpV',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ73Q7yVHJfdAiEXCa4JRuY79qQlWGDe6ZkPw1m',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ70GhZ2Dfo4TSz5NFkUgCeLRZ2yB8KsnMWxq9f',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ79tf8k8SpUD2m5kinJXFqcGTw6bloRj4ZEeLv',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ76rhbwpifg0Ye7VOGLWqo1DkuElc5bwB4MhTZ',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ78LN8Lft4bKNr9EiIPVmAJFfjDnBatCy3qZv1',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7yzqyuBeQ7wnRC6uEJ8WU90VZqtg1AMF5Ks3H',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7Q1FKMRXUAsJ40TzQ5y6CEnIOoMXw8vprPqYt',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7RIXzfsk4jPa5oHiqts6hQYJc29fzIGmdCxew',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7AOHusiqjh0HeMT1kISRYFiyw7bEWGCZcPgpV',
+  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7eZkcu7AGLqXa9sEponcvf8tdVzDB0HxQgKir',
+];
+
+function getRandomPhotoUrl() {
+  return photosUrls[Math.floor(Math.random() * photosUrls.length)];
+}
+
 const getRandomCityByRegion = (regionCode: string) => {
   const cities = CZ_CITIES.filter((c) => c.region === regionCode);
 
@@ -119,7 +138,8 @@ async function seed() {
     return Array.from({ length: imageCount }).map(() => ({
       userId: ad.userId,
       adId: ad.id,
-      url: faker.image.urlPicsumPhotos({ width: 200, height: 300 }), // or faker.image.url()
+      // url: faker.image.urlPicsumPhotos({ width: 200, height: 300 }),
+      url: getRandomPhotoUrl(),
     }));
   });
 

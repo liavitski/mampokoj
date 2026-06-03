@@ -1,12 +1,19 @@
+'use client';
 import * as React from 'react';
 import type { AdWithoutUserId } from '@/types/db-types';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 
 type AdCardProps = {
   ad: AdWithoutUserId;
+};
+
+const imageVariants = {
+  rest: { scale: 1 },
+  hover: { scale: 1.05 },
 };
 
 function AdSummaryCard({ ad }: AdCardProps) {
@@ -32,44 +39,42 @@ function AdSummaryCard({ ad }: AdCardProps) {
     maximumFractionDigits: 0,
   }).format(Number(price));
 
-  const content = (
-    <Wrapper>
-      <ImageWrapper>
-        <PriceTag>{formattedPrice}</PriceTag>
-        <CoverImage
-          alt={title}
-          src={image}
-          width={100}
-          height={100}
-        />
-      </ImageWrapper>
-      <InfoWrapper>
-        <Title>{title}</Title>
-        <Description>{description}</Description>
-        <City>
-          City: <span>{city}</span>
-        </City>
-      </InfoWrapper>
-    </Wrapper>
-  );
-
   return (
     <Link
       href={`/ad/${id}`}
       style={{ textDecoration: 'none', color: 'inherit' }}
     >
-      <CardWrapper>{content}</CardWrapper>
+      <Wrapper initial="rest" whileHover="hover">
+        <PriceTag>{formattedPrice}</PriceTag>
+        <ImageWrapper>
+          <CoverImage
+            alt={title}
+            src={image}
+            fill
+            sizes="(max-width: 600px) 100vw, 600px"
+            variants={imageVariants}
+            transition={{
+              type: 'spring',
+              stiffness: 140,
+              damping: 50,
+              restDelta: 0.01,
+            }}
+          />
+        </ImageWrapper>
+        <InfoWrapper>
+          <Title>{title}</Title>
+          <Description>{description}</Description>
+          <City>
+            City: <span>{city}</span>
+          </City>
+        </InfoWrapper>
+      </Wrapper>
     </Link>
   );
 }
 
-const CardWrapper = styled.div`
+const Wrapper = styled(motion.article)`
   height: 420px;
-  display: block;
-`;
-
-const Wrapper = styled.article`
-  height: 100%;
   background-color: var(--color-card-background);
   border: 1px solid var(--color-border);
   border-radius: 16px;
@@ -78,15 +83,19 @@ const Wrapper = styled.article`
   display: flex;
   flex-direction: column;
   gap: 24px;
+  position: relative;
 `;
 
 const ImageWrapper = styled.div`
   height: 100%;
   position: relative;
   margin: -16px;
+  //truncate image when scaling
+  overflow: hidden;
+  border-radius: 16px 16px 0px 0px;
 `;
 
-const CoverImage = styled(Image)`
+const CoverImage = styled(motion(Image))`
   width: 100%;
   height: 200px;
   object-fit: cover;
@@ -95,6 +104,7 @@ const CoverImage = styled(Image)`
 
 const PriceTag = styled.div`
   position: absolute;
+  z-index: 1;
   top: 8px;
   right: -8px;
   background-color: var(--color-pricetag-background);

@@ -33,7 +33,7 @@ function Modal({ children }: AdDialogProps) {
 
           <Dialog.Title style={{ margin: 0 }} />
           <Dialog.Description style={{ margin: 0 }} />
-          {children}
+          <ScrollArea>{children}</ScrollArea>
         </Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -49,27 +49,23 @@ const Overlay = styled(Dialog.Overlay)`
 
 const Content = styled(Dialog.Content)`
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  max-height: 90dvh;
+  min-width: min(600px, 90vw);
+
   z-index: 1;
   color: var(--color-text);
   border-radius: 16px;
-
-  @media ${QUERIES.tabletAndSmaller} {
-    overflow-y: auto; /* enables vertical scrolling on mobile */
-    -webkit-overflow-scrolling: touch; /* smoother iOS scroll */
-  }
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  justify-self: center;
 
   @media (${QUERIES.phoneAndSmaller}) {
     width: 100vw;
     height: 100dvh;
     max-height: 100dvh;
-
     border-radius: 0;
-    top: 0;
-    left: 0;
-    transform: none;
   }
 `;
 
@@ -91,8 +87,15 @@ const Close = styled(Dialog.Close)`
 
   @media (${QUERIES.tabletAndSmaller}) {
     top: 8px;
-    right: 8px;
+    right: 12px;
   }
+`;
+
+const ScrollArea = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; // smoth scroll on mobile
 `;
 
 export default Modal;

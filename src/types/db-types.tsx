@@ -10,4 +10,4 @@ export type AdWithImage = Ad & {
   images: Image;
 };
 
-export type AdWithoutUserId = Omit<AdWithImages, "userId">;
+export type AdWithoutUserIdAndPhone = Omit<AdWithImages, "userId" | "contactPhone">;

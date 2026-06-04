@@ -6,10 +6,14 @@ import { getAdsWithImages } from '@/server/queries/select';
 async function AdGrid() {
   const adsWithImages = await getAdsWithImages();
 
+  const ads = adsWithImages.map(
+    ({ contactPhone, userId, ...rest }) => rest
+  );
+
   return (
     <Wrapper>
-      {adsWithImages.map((adWithImage) => (
-        <AdSummaryCard key={adWithImage.id} ad={adWithImage} />
+      {ads.map((ad) => (
+        <AdSummaryCard key={ad.id} ad={ad} />
       ))}
     </Wrapper>
   );

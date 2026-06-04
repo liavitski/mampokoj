@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import type { AdWithoutUserId } from '@/types/db-types';
+import type { AdWithoutUserIdAndPhone } from '@/types/db-types';
 import Image from 'next/image';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { motion } from 'motion/react';
 
 type AdCardProps = {
-  ad: AdWithoutUserId;
+  ad: AdWithoutUserIdAndPhone;
 };
 
 const imageVariants = {
@@ -25,7 +25,6 @@ function AdSummaryCard({ ad }: AdCardProps) {
     region,
     availableFrom,
     description,
-    contactPhone,
     createdAt,
     updatedAt,
     images,
@@ -74,10 +73,10 @@ function AdSummaryCard({ ad }: AdCardProps) {
           <Title>{title}</Title>
           <Description>{description}</Description>
           <City>
-            City: <span>{city}</span>
+            <span>City:</span> {city}
           </City>
           <Created>
-            Created: <span>{formattedCreatedAt}</span>
+            <span>Created:</span> {formattedCreatedAt}
           </Created>
         </InfoWrapper>
       </Wrapper>

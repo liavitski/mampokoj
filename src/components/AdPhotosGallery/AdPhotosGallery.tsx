@@ -30,7 +30,7 @@ function AdPhotosGallery({ photos }: AdPhotosGalleryProps) {
           src={image}
           alt="Ad photo - primary"
           fill
-          sizes="(max-width: 600px) 100vw, 600px"
+          sizes="(max-width: 500px) 100vw, 500px"
         />
       </PrimaryPhotoWrapper>
 
@@ -69,8 +69,9 @@ const Wrapper = styled.div`
 
 const PrimaryPhotoWrapper = styled.div`
   position: relative;
-  flex: 1;
+  flex: 1 0 auto;
   margin-bottom: 12px;
+  min-height: 200px;
 `;
 
 const PrimaryPhoto = styled(Image)`

@@ -31,7 +31,7 @@ export const DARK_COLORS = {
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
   '--color-card-background': 'hsl(25.7deg 8.6% 15.8%)',
   '--color-pricetag-background': '#1f1c19',
-  '--color-pricetag-background-hover': '#1f1c19e59',
+  '--color-pricetag-background-hover': '#1f1c19e5',
   '--color-accent': '#484441',
 
   '--color-primary': 'hsl(234.4deg 89.4% 74%)',

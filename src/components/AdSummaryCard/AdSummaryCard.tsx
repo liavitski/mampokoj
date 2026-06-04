@@ -39,6 +39,15 @@ function AdSummaryCard({ ad }: AdCardProps) {
     maximumFractionDigits: 0,
   }).format(Number(price));
 
+  const formattedCreatedAt = new Date(createdAt).toLocaleDateString(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }
+  );
+
   return (
     <Link
       href={`/ad/${id}`}
@@ -55,9 +64,9 @@ function AdSummaryCard({ ad }: AdCardProps) {
             variants={imageVariants}
             transition={{
               type: 'spring',
-              stiffness: 140,
-              damping: 50,
               restDelta: 0.01,
+              stiffness: 100,
+              damping: 30,
             }}
           />
         </ImageWrapper>
@@ -67,6 +76,9 @@ function AdSummaryCard({ ad }: AdCardProps) {
           <City>
             City: <span>{city}</span>
           </City>
+          <Created>
+            Created: <span>{formattedCreatedAt}</span>
+          </Created>
         </InfoWrapper>
       </Wrapper>
     </Link>
@@ -127,9 +139,10 @@ const InfoWrapper = styled.div`
   grid-template-areas:
     'title title'
     'description description'
-    'city city';
+    'city city'
+    'created created';
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 36px 1fr 36px;
+  grid-template-rows: 32px 1fr 28px 28px;
 `;
 
 const Title = styled.h2`
@@ -154,6 +167,17 @@ const Description = styled.p`
 const City = styled.p`
   grid-area: city;
   font-size: 1rem;
+  align-self: center;
+
+  span {
+    font-weight: ${WEIGHTS.medium};
+  }
+`;
+
+const Created = styled.p`
+  grid-area: created;
+  font-size: 1rem;
+  align-self: center;
 
   span {
     font-weight: ${WEIGHTS.medium};

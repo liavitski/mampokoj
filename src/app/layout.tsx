@@ -15,6 +15,7 @@ import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
 import SessionProvider from '@/components/SessionProvider';
 import { getServerSession } from 'next-auth';
+import { MotionConfig } from 'motion/react';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: '--font-family',
@@ -55,19 +56,21 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
       className={`${plusJakartaSans.variable} notranslate`}
     >
       <body>
-        <StyledComponentsRegistry>
-          <MaxWidthWrapper>
-            <SessionProvider session={session}>
-              <Header initialTheme={theme} />
-              {children}
-              {modal}
-              <GlobalStyles />
-            </SessionProvider>
-          </MaxWidthWrapper>
-          <NextSSRPlugin
-            routerConfig={extractRouterConfig(ourFileRouter)}
-          />
-        </StyledComponentsRegistry>
+        <MotionConfig reducedMotion="user">
+          <StyledComponentsRegistry>
+            <MaxWidthWrapper>
+              <SessionProvider session={session}>
+                <Header initialTheme={theme} />
+                {children}
+                {modal}
+                <GlobalStyles />
+              </SessionProvider>
+            </MaxWidthWrapper>
+            <NextSSRPlugin
+              routerConfig={extractRouterConfig(ourFileRouter)}
+            />
+          </StyledComponentsRegistry>
+        </MotionConfig>
       </body>
     </html>
   );

@@ -24,14 +24,15 @@ function Modal({ children }: AdDialogProps) {
       <Dialog.Portal>
         <Overlay />
         <Content>
-          <Dialog.Title style={{ margin: 0 }} />
-          <Dialog.Description style={{ margin: 0 }} />
           <Close asChild>
             <UnstyledButton>
               <Icon id="x" strokeWidth={1.5} />
               <VisuallyHidden>Close modal</VisuallyHidden>
             </UnstyledButton>
           </Close>
+
+          <Dialog.Title style={{ margin: 0 }} />
+          <Dialog.Description style={{ margin: 0 }} />
           {children}
         </Content>
       </Dialog.Portal>
@@ -47,19 +48,24 @@ const Overlay = styled(Dialog.Overlay)`
 `;
 
 const Content = styled(Dialog.Content)`
-  background-color: white;
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: max-content;
   z-index: 1;
   color: var(--color-text);
   border-radius: 16px;
 
+  @media ${QUERIES.tabletAndSmaller} {
+    overflow-y: auto; /* enables vertical scrolling on mobile */
+    -webkit-overflow-scrolling: touch; /* smoother iOS scroll */
+  }
+
   @media (${QUERIES.phoneAndSmaller}) {
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+
     border-radius: 0;
     top: 0;
     left: 0;
@@ -69,10 +75,10 @@ const Content = styled(Dialog.Content)`
 
 const Close = styled(Dialog.Close)`
   position: absolute;
-  top: -42px;
-  right: -8px;
+  top: -40px;
+  right: 0;
   z-index: 1;
-  background-color: var(--color-pricetag-background);
+  background-color: var(--color-card-background);
   border-radius: 4px;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
@@ -83,7 +89,7 @@ const Close = styled(Dialog.Close)`
     }
   }
 
-  @media (${QUERIES.phoneAndSmaller}) {
+  @media (${QUERIES.tabletAndSmaller}) {
     top: 8px;
     right: 8px;
   }

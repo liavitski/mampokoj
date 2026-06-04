@@ -4,7 +4,6 @@ import styled, { keyframes } from 'styled-components';
 import Icon from '@/components/Icon';
 import UnstyledButton from '@/components/UnstyledButton';
 import VisuallyHidden from '@/components/VisuallyHidden';
-import { useRouter } from 'next/navigation';
 import { QUERIES } from '@/constants';
 
 type ModalProps = {
@@ -90,16 +89,13 @@ const Close = styled(Dialog.Close)`
   border-radius: 8px;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 12px;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
       background-color: var(--color-pricetag-background-hover);
     }
-  }
-
-  @media (${QUERIES.tabletAndSmaller}) {
   }
 `;
 

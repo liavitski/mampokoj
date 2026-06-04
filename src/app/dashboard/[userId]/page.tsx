@@ -7,6 +7,7 @@ import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
 import styled from 'styled-components';
 import UploadBtn from '@/components/UploadBtn';
+import DeleteButton from '@/components/DeleteButton';
 
 async function UserDashboardPage({
   params,
@@ -18,9 +19,7 @@ async function UserDashboardPage({
   const { userId } = await params;
 
   if (serverUserId !== userId) return <h3>Not allowed.</h3>;
-  if (!userId) {
-    notFound(); // triggers /404 page or not-found.tsx
-  }
+  if (!userId) notFound();
 
   const userAds = await getUserAds(userId);
 
@@ -40,9 +39,12 @@ async function UserDashboardPage({
         return (
           <AdCardWrapper key={userAd.id}>
             <AdCard ad={userAd} />
+
             <AdControlButtonsWrapper>
               <button>Update</button>
-              <button>Delete</button>
+
+              <DeleteButton adId={userAd.id} />
+
               <UploadBtn adId={userAd.id} />
             </AdControlButtonsWrapper>
           </AdCardWrapper>

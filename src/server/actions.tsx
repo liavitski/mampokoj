@@ -4,6 +4,8 @@ import { ads, images } from './db/schema';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
+import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 
 export async function createAd(formData: FormData) {
   const session = await getServerSession(authOptions);
@@ -35,7 +37,7 @@ export async function createAd(formData: FormData) {
       contactPhone,
     })
     .returning({ id: ads.id });
-
+  console.log(ad);
   redirect(`/dashboard/${sessionUserId}`);
 }
 
@@ -44,6 +46,38 @@ type addImageToAdProps = {
   userId: string;
   url: string;
 };
+
+export async function deleteAdById(adId: string) {
+  const session = await getServerSession(authOptions);
+  const sessionUserId = session?.user?.id;
+
+  if (!sessionUserId) {
+    throw new Error('Unauthorized');
+  }
+
+  const [deleted] = await db
+    .delete(ads)
+    .where(eq(ads.id, adId))
+    .returning({ id: ads.id, userId: ads.userId });
+
+  if (!deleted) {
+    throw new Error('Ad not found');
+  }
+
+  if (deleted.userId !== sessionUserId) {
+    throw new Error('Forbidden');
+  }
+
+  redirect(`/dashboard/${sessionUserId}`);
+}
+
+export async function deleteAdAction(adId: string) {
+  const session = await getServerSession(authOptions);
+  const sessionUserId = session?.user?.id;
+  await deleteAdById(adId);
+
+  revalidatePath(`/dashboard/${sessionUserId}`); 
+}
 
 export async function addImageToAd({
   adId,

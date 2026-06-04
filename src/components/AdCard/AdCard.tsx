@@ -73,7 +73,7 @@ const Wrapper = styled.article`
 
   max-width: 1000px;
 
-  @media (${QUERIES.phoneAndSmaller}) {
+  @media (${QUERIES.tabletAndSmaller}) {
     min-width: 100%;
     min-width: 0;
     flex-direction: column;

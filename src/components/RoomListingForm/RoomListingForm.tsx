@@ -1,11 +1,11 @@
 'use client';
-
 import * as Form from '@radix-ui/react-form';
 import { createAd } from '@/server/actions';
+import styled from 'styled-components';
 
  function CreateAdForm() {
   return (
-    <Form.Root action={createAd}>
+    <Root action={createAd}>
       <Form.Field name="title">
         <Form.Label>Title</Form.Label>
         <Form.Control asChild>
@@ -62,8 +62,16 @@ import { createAd } from '@/server/actions';
       <Form.Submit asChild>
         <button type="submit">Create Ad</button>
       </Form.Submit>
-    </Form.Root>
+    </Root>
   );
 }
+
+const Root = styled(Form.Root)`
+  background-color: var(--color-card-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+`
 
 export default CreateAdForm;

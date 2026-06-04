@@ -71,7 +71,7 @@ const PrimaryPhotoWrapper = styled.div`
   position: relative;
   flex: 1 0 auto;
   margin-bottom: 12px;
-  min-height: 200px;
+  min-height: 400px;
 `;
 
 const PrimaryPhoto = styled(Image)`

@@ -22,10 +22,10 @@ function AuthButton() {
         size="small"
         onClick={() => signIn()}
       >
-        <ButtonText>Sign In</ButtonText>
+        <ButtonText>Sign in</ButtonText>
         <IconWrapper>
-          <Icon id="logIn" strokeWidth={1.5} />
-          <VisuallyHidden>Log in</VisuallyHidden>
+          <Icon id="logIn" strokeWidth={1.5} content="Sign in" />
+          <VisuallyHidden>Sign in</VisuallyHidden>
         </IconWrapper>
       </ButtonWrapper>
     );
@@ -54,8 +54,8 @@ function AuthButton() {
       >
         <ButtonText>Sign Out</ButtonText>
         <IconWrapper>
-          <Icon id="logOut" strokeWidth={1.5} />
-          <VisuallyHidden>Log out</VisuallyHidden>
+          <Icon id="logOut" strokeWidth={1.5} content="Sign out" />
+          <VisuallyHidden>Sign out</VisuallyHidden>
         </IconWrapper>
       </ButtonWrapper>
     </>

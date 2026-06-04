@@ -3,7 +3,6 @@ import * as React from 'react';
 import type { Theme } from '@/types/theme';
 import Cookie from 'js-cookie';
 import styled from 'styled-components';
-
 import { LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
 
 import VisuallyHidden from '../VisuallyHidden';
@@ -46,7 +45,7 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
 
   return (
     <IconWrapper onClick={handleClick}>
-      <Icon id={theme} strokeWidth={1.5} />
+      <Icon id={theme} strokeWidth={1.5} content="Toggle theme" />
       <VisuallyHidden>Toggle dark / light mode</VisuallyHidden>
     </IconWrapper>
   );
@@ -54,7 +53,7 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
 
 const IconWrapper = styled(UnstyledButton)`
   border-radius: 50%;
-  
+
   &:hover {
     background-color: var(--color-accent);
   }

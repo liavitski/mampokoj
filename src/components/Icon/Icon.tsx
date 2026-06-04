@@ -1,6 +1,7 @@
 import * as React from 'react';
 import styled from 'styled-components';
 import { Sun, Moon, X, LogIn, LogOut, User } from 'react-feather';
+import Tooltip from '../Tooltip';
 
 const icons = {
   light: Sun,
@@ -19,6 +20,7 @@ type IconProps = {
   size?: number;
   strokeWidth?: number;
   className?: string;
+  content?: string;
 } & React.HTMLAttributes<HTMLDivElement>;
 
 function Icon({
@@ -27,11 +29,14 @@ function Icon({
   color,
   size = 24,
   strokeWidth = 1.5,
+  content = '',
   ...delegated
 }: IconProps) {
   const Component = icons[id];
 
   if (!Component) throw new Error(`No icon found for ID: ${id}`);
+
+  const TooltipTrigger = <Component color={color} size={size} />;
 
   return (
     <Wrapper
@@ -39,7 +44,7 @@ function Icon({
       className={className}
       {...delegated}
     >
-      <Component color={color} size={size} />
+      <Tooltip trigger={TooltipTrigger} content={content} />
     </Wrapper>
   );
 }

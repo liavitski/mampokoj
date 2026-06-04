@@ -35,6 +35,9 @@ async function UserDashboardPage({
 
   return (
     <Wrapper>
+      <AlertDialog>
+        <RoomListingForm />
+      </AlertDialog>
       {userAds.map((userAd) => {
         return (
           <AdCardWrapper key={userAd.id}>
@@ -47,9 +50,6 @@ async function UserDashboardPage({
           </AdCardWrapper>
         );
       })}
-      <AlertDialog>
-        <RoomListingForm />
-      </AlertDialog>
     </Wrapper>
   );
 }
@@ -57,6 +57,7 @@ async function UserDashboardPage({
 const Wrapper = styled.div`
   display: flex;
   gap: 32px;
+  flex-direction: column;
 `;
 
 const AdCardWrapper = styled.div``;

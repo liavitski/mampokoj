@@ -16,6 +16,7 @@
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-form": "^0.1.8",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@types/js-cookie": "^3.0.6",
     "@uploadthing/react": "^7.3.3",
     "drizzle-orm": "^0.45.2",

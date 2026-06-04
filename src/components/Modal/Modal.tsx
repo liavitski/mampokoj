@@ -1,6 +1,6 @@
 'use client';
 import * as Dialog from '@radix-ui/react-dialog';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import Icon from '@/components/Icon';
 import UnstyledButton from '@/components/UnstyledButton';
 import VisuallyHidden from '@/components/VisuallyHidden';
@@ -40,17 +40,26 @@ function Modal({ children }: AdDialogProps) {
   );
 }
 
+const overlayShow = keyframes`
+    from {
+      opacity: 0
+    } to {
+      opacity: 1
+    }
+  `;
+
 const Overlay = styled(Dialog.Overlay)`
   position: fixed;
   inset: 0;
   z-index: 1;
   background-color: var(--color-overlay-modal);
+  animation: ${overlayShow} 150ms cubic-bezier(0.16, 1, 0.3, 1);
 `;
 
 const Content = styled(Dialog.Content)`
   position: fixed;
   inset: 0;
-  max-height: 90dvh;
+  max-height: 100dvh;
   min-width: min(600px, 90vw);
 
   z-index: 1;
@@ -71,13 +80,13 @@ const Content = styled(Dialog.Content)`
 
 const Close = styled(Dialog.Close)`
   position: absolute;
-  top: -40px;
-  right: 0;
   z-index: 1;
   background-color: var(--color-card-background);
-  border-radius: 4px;
+  border-radius: 8px;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
+  top: 8px;
+  right: 8px;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
@@ -86,8 +95,6 @@ const Close = styled(Dialog.Close)`
   }
 
   @media (${QUERIES.tabletAndSmaller}) {
-    top: 8px;
-    right: 12px;
   }
 `;
 

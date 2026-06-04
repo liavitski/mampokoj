@@ -32,7 +32,11 @@ async function Header({ initialTheme }: HeaderProps) {
             <LinkWrapper href={`/dashboard/${userId}`}>
               <LinkText>My Ads</LinkText>
               <IconWrapper>
-                <Icon id="user" strokeWidth={1.5} />
+                <Icon
+                  id="user"
+                  strokeWidth={1.5}
+                  content="My ads dashboard"
+                />
                 <VisuallyHidden>My ads</VisuallyHidden>
               </IconWrapper>
             </LinkWrapper>

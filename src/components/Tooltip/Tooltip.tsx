@@ -30,7 +30,7 @@ const Content = styled(RadixTooltip.Content)`
   border-radius: 8px;
   box-shadow: var(--shadow-card);
   padding: 4px 8px;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: ${WEIGHTS.normal};
 `;
 

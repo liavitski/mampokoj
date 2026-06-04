@@ -12,23 +12,30 @@ export async function createAd(formData: FormData) {
   if (!sessionUserId) {
     throw new Error('Unauthorized');
   }
+  const title = formData.get('title') as string;
+  const price = String(formData.get('price'));
+  const city = formData.get('city') as string;
+  const region = formData.get('region') as string;
+  const availableFrom = new Date(
+    formData.get('availableFrom') as string
+  );
+  const description = formData.get('description') as string;
+  const contactPhone = formData.get('contactPhone') as string;
 
   const [ad] = await db
     .insert(ads)
     .values({
       userId: sessionUserId,
-      title: formData.get('title') as string,
-      price: String(formData.get('price')),
-      city: formData.get('city') as string,
-      region: formData.get('region') as string,
-      availableFrom: new Date(
-        formData.get('availableFrom') as string
-      ),
-      description: formData.get('description') as string,
-      contactPhone: formData.get('contactPhone') as string,
+      title,
+      price,
+      city,
+      region,
+      availableFrom,
+      description,
+      contactPhone,
     })
     .returning({ id: ads.id });
-  console.log(ad);
+
   redirect(`/dashboard/${sessionUserId}`);
 }
 

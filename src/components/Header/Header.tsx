@@ -68,7 +68,6 @@ const LinkWrapper = styled(Link)`
   padding: 4px 12px;
   color: var(--color-text-foreground);
   border-radius: 16px;
-  border: 2px solid transparent;
   font-weight: ${WEIGHTS.normal};
 
   &:hover {

@@ -1,5 +1,5 @@
 import { getValidatedAd } from '@/server/queries/select';
-import Modal from '@/components/Modal';
+import { RouteModal } from './modal-wrapper';
 import AdCard from '@/components/AdCard';
 
 export default async function PhotoModal({
@@ -12,16 +12,12 @@ export default async function PhotoModal({
   const ad = await getValidatedAd(adId);
 
   if (!ad) {
-    return (
-      <Modal>
-        <h3>Ad not found</h3>
-      </Modal>
-    );
+    return;
   }
 
   return (
-    <Modal>
+    <RouteModal>
       <AdCard ad={ad} />
-    </Modal>
+    </RouteModal>
   );
 }

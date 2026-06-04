@@ -6,7 +6,6 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
 import styled from 'styled-components';
-import AlertDialog from '@/components/AlertDialog';
 import UploadBtn from '@/components/UploadBtn';
 
 async function UserDashboardPage({
@@ -35,9 +34,8 @@ async function UserDashboardPage({
 
   return (
     <Wrapper>
-      <AlertDialog>
-        <RoomListingForm />
-      </AlertDialog>
+      <RoomListingForm />
+
       {userAds.map((userAd) => {
         return (
           <AdCardWrapper key={userAd.id}>

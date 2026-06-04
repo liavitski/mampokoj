@@ -80,6 +80,8 @@ const UserName = styled.span`
 `;
 
 const ButtonWrapper = styled(Button)`
+   border: none;
+   
   @media (${QUERIES.phoneAndSmaller}) {
     padding: 0;
     border-radius: 50%;

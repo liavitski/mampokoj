@@ -19,7 +19,7 @@ function AlertDialog({ children }: AlertDialogProps) {
         <Content>
           <Alert.Title />
           <Alert.Description />
-          {/* <Alert.Action /> */}
+          <Alert.Action />
           {children}
           <Alert.Cancel />
         </Content>

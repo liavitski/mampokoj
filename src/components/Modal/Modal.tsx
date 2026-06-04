@@ -7,19 +7,24 @@ import VisuallyHidden from '@/components/VisuallyHidden';
 import { useRouter } from 'next/navigation';
 import { QUERIES } from '@/constants';
 
-type AdDialogProps = {
+type ModalProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
 };
 
-function Modal({ children }: AdDialogProps) {
-  const router = useRouter();
-
+function Modal({
+  open,
+  defaultOpen,
+  onOpenChange,
+  children,
+}: ModalProps) {
   return (
     <Dialog.Root
-      open={true}
-      onOpenChange={(open) => {
-        if (!open) router.back();
-      }}
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
     >
       <Dialog.Portal>
         <Overlay />

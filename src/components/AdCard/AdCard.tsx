@@ -69,8 +69,9 @@ const Wrapper = styled.article`
   border-radius: 16px;
   display: flex;
   gap: 16px;
-
   max-width: 1000px;
+  height: 100%;
+  z-index: 1;
 
   @media (${QUERIES.tabletAndSmaller}) {
     min-width: 100%;

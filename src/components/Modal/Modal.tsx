@@ -99,7 +99,7 @@ const Close = styled(Dialog.Close)`
 
 const ScrollArea = styled.div`
   flex: 1;
-  /* min-height: 0; */
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch; // smoth scroll on mobile
 `;

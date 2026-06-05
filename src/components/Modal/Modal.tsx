@@ -63,8 +63,8 @@ const Overlay = styled(Dialog.Overlay)`
 const Content = styled(Dialog.Content)`
   position: fixed;
   inset: 0;
-  max-height: 100dvh;
-  min-width: min(600px, 90vw);
+  max-height: 95dvh;
+  width: min(600px, 95vw);
 
   z-index: 1;
   color: var(--color-text);
@@ -75,9 +75,7 @@ const Content = styled(Dialog.Content)`
   justify-self: center;
 
   @media (${QUERIES.phoneAndSmaller}) {
-    width: 100vw;
-    height: 100dvh;
-    max-height: 100dvh;
+    /* height: 100dvh; */
     border-radius: 0;
   }
 `;

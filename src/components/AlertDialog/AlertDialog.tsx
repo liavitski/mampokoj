@@ -2,7 +2,6 @@
 import * as React from 'react';
 import * as Alert from '@radix-ui/react-alert-dialog';
 import styled, { keyframes } from 'styled-components';
-import { WEIGHTS } from '@/constants';
 
 type AlertDialogProps = {
   trigger: React.ReactNode;
@@ -41,28 +40,6 @@ function AlertDialog({
     </Alert.Root>
   );
 }
-
-// const Button = styled.button`
-//   font-size: var(--font-size);
-//   padding: 4px 12px;
-//   border-radius: 16px;
-//   border: 2px solid transparent;
-//   cursor: pointer;
-//   font-weight: ${WEIGHTS.normal};
-//   background-color: var(--color-primary);
-//   color: var(--color-primary-foreground);
-//   height: min-content;
-//   width: max-content;
-
-//   &:focus {
-//     outline-color: var(--color-focus-ring);
-//     outline-offset: 4px;
-//   }
-
-//   &:hover {
-//     background-color: var(--color-primary-hover);
-//   }
-// `;
 
 const overlayShow = keyframes`
     from {

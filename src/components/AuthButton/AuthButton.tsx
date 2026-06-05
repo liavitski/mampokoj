@@ -24,7 +24,7 @@ function AuthButton() {
       >
         <ButtonText>Sign in</ButtonText>
         <IconWrapper>
-          <Icon id="logIn" strokeWidth={1.5} content="Sign in" />
+          <Icon id="logIn" strokeWidth={1.5} />
           <VisuallyHidden>Sign in</VisuallyHidden>
         </IconWrapper>
       </ButtonWrapper>
@@ -54,7 +54,7 @@ function AuthButton() {
       >
         <ButtonText>Sign Out</ButtonText>
         <IconWrapper>
-          <Icon id="logOut" strokeWidth={1.5} content="Sign out" />
+          <Icon id="logOut" strokeWidth={1.5} />
           <VisuallyHidden>Sign out</VisuallyHidden>
         </IconWrapper>
       </ButtonWrapper>

@@ -23,8 +23,11 @@ const StyledUploadButton = styled(UploadButton)`
     background-color: var(--color-primary) !important;
     color: var(--color-primary-foreground) !important;
     border-radius: 16px;
-    font-weight: ${WEIGHTS.normal};
-    padding: 6px 12px;
+    font-weight: ${WEIGHTS.normal} !important;
+    height: 36px;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    width: 118px;
 
     &:hover {
       background-color: var(--color-primary-hover) !important;

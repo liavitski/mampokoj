@@ -7,13 +7,15 @@ import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
 import styled from 'styled-components';
 import UploadBtn from '@/components/UploadBtn';
-import DeleteButton from '@/components/DeleteButton';
+import DeleteAdButton from '@/components/DeleteAdButton';
+import UpdateButton from '@/components/UpdateButton';
 
-async function UserDashboardPage({
-  params,
-}: {
+
+type UserDashboardPageProps = {
   params: Promise<{ userId: string }>;
-}) {
+};
+
+async function UserDashboardPage({ params }: UserDashboardPageProps) {
   const session = await getServerSession(authOptions);
   const serverUserId = session?.user?.id;
   const { userId } = await params;
@@ -31,6 +33,8 @@ async function UserDashboardPage({
       </>
     );
 
+
+
   return (
     <Wrapper>
       <RoomListingForm />
@@ -41,11 +45,12 @@ async function UserDashboardPage({
             <AdCard ad={userAd} />
 
             <AdControlButtonsWrapper>
-              <button>Update</button>
-
-              <DeleteButton adId={userAd.id} />
-
               <UploadBtn adId={userAd.id} />
+
+              <UpdateButton adId={userAd.id} />
+
+              <DeleteAdButton adId={userAd.id} />
+
             </AdControlButtonsWrapper>
           </AdCardWrapper>
         );
@@ -56,14 +61,23 @@ async function UserDashboardPage({
 
 const Wrapper = styled.div`
   display: flex;
-  gap: 32px;
+  gap: 16px;
   flex-direction: column;
 `;
 
-const AdCardWrapper = styled.div``;
+const AdCardWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px dotted var(--color-border);
+  padding-bottom: 16px;
+`;
 
 const AdControlButtonsWrapper = styled.div`
   display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  max-width: 1000px;
 `;
 
 export default UserDashboardPage;

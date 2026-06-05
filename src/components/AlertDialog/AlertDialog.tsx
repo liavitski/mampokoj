@@ -5,51 +5,64 @@ import styled, { keyframes } from 'styled-components';
 import { WEIGHTS } from '@/constants';
 
 type AlertDialogProps = {
-  children: React.ReactNode;
+  trigger: React.ReactNode;
+  action: React.ReactNode;
+  cancel: React.ReactNode;
+  title: React.ReactNode;
+  description: React.ReactNode;
+
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-function AlertDialog({ children }: AlertDialogProps) {
+function AlertDialog({
+  trigger,
+  action,
+  cancel,
+  title,
+  description,
+  open,
+  onOpenChange,
+}: AlertDialogProps) {
   return (
-    <Alert.Root>
-      <Alert.Trigger asChild>
-        <Button>Create ad</Button>
-      </Alert.Trigger>
+    <Alert.Root open={open} onOpenChange={onOpenChange}>
+      <Alert.Trigger asChild>{trigger}</Alert.Trigger>
+
       <Alert.Portal>
         <Overlay />
         <Content>
-          <Alert.Title />
-          <Alert.Description />
-          <Alert.Action />
-          {children}
-          <Alert.Cancel />
+          <Alert.Title>{title}</Alert.Title>
+
+          <Alert.Description>{description}</Alert.Description>
+          <Alert.Cancel asChild>{cancel}</Alert.Cancel>
+          <Alert.Action asChild>{action}</Alert.Action>
         </Content>
       </Alert.Portal>
     </Alert.Root>
   );
 }
 
-const Button = styled.button`
-  font-size: var(--font-size);
-  padding: 4px 12px;
-  border-radius: 16px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  font-weight: ${WEIGHTS.normal};
-  background-color: var(--color-primary);
-  color: var(--color-primary-foreground);
-  height: min-content;
-  width: max-content;
+// const Button = styled.button`
+//   font-size: var(--font-size);
+//   padding: 4px 12px;
+//   border-radius: 16px;
+//   border: 2px solid transparent;
+//   cursor: pointer;
+//   font-weight: ${WEIGHTS.normal};
+//   background-color: var(--color-primary);
+//   color: var(--color-primary-foreground);
+//   height: min-content;
+//   width: max-content;
 
+//   &:focus {
+//     outline-color: var(--color-focus-ring);
+//     outline-offset: 4px;
+//   }
 
-  &:focus {
-    outline-color: var(--color-focus-ring);
-    outline-offset: 4px;
-  }
-
-  &:hover {
-    background-color: var(--color-primary-hover);
-  }
-`;
+//   &:hover {
+//     background-color: var(--color-primary-hover);
+//   }
+// `;
 
 const overlayShow = keyframes`
     from {

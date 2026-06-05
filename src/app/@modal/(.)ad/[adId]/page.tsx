@@ -2,7 +2,7 @@ import { getValidatedAd } from '@/server/queries/select';
 import { RouteModal } from './modal-wrapper';
 import AdCard from '@/components/AdCard';
 
-export default async function PhotoModal({
+export default async function Modal({
   params,
 }: {
   params: Promise<{ adId: string }>;

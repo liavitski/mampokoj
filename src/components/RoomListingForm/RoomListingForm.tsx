@@ -5,13 +5,20 @@ import styled from 'styled-components';
 import { createAd } from '@/server/actions';
 import Modal from '../Modal';
 import React from 'react';
+import Button from '../Button';
 
 function RoomListingForm() {
   const [open, setOpen] = React.useState(false);
 
   return (
     <>
-      <button onClick={() => setOpen(true)}>Open</button>
+      <ModalButton
+        variant="fill"
+        size="small"
+        onClick={() => setOpen(true)}
+      >
+        Create ad
+      </ModalButton>
       <Modal open={open} onOpenChange={setOpen}>
         <Wrapper action={createAd}>
           <Field name="title">
@@ -56,7 +63,7 @@ function RoomListingForm() {
             <Input name="contactPhone" required />
           </Field>
 
-          <Button type="submit">Create Ad</Button>
+          <SubmitButton type="submit">Create ad</SubmitButton>
         </Wrapper>
       </Modal>
     </>
@@ -104,7 +111,7 @@ const Error = styled(Form.Message)`
   font-size: 12px;
 `;
 
-const Button = styled(Form.Submit)`
+const SubmitButton = styled(Form.Submit)`
   padding: 10px;
   border: none;
   border-radius: 6px;
@@ -113,4 +120,7 @@ const Button = styled(Form.Submit)`
   cursor: pointer;
 `;
 
+const ModalButton = styled(Button)`
+  width: max-content;
+`;
 export default RoomListingForm;

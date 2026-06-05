@@ -8,6 +8,7 @@ import { LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
 import VisuallyHidden from '../VisuallyHidden';
 import Icon from '../Icon';
 import UnstyledButton from '../UnstyledButton';
+import Tooltip from '../Tooltip';
 
 type DarkLightToggleProps = {
   initialTheme: Theme;
@@ -43,9 +44,13 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
     });
   }
 
+  const TooltipTrigger = (
+    <Icon id={theme} strokeWidth={1.5} content="Toggle theme" />
+  );
+
   return (
     <IconWrapper onClick={handleClick}>
-      <Icon id={theme} strokeWidth={1.5} content="Toggle theme" />
+      <Tooltip trigger={TooltipTrigger} content="Toggle theme" />
       <VisuallyHidden>Toggle dark / light mode</VisuallyHidden>
     </IconWrapper>
   );

@@ -67,8 +67,6 @@ export async function deleteAdById(adId: string) {
   if (deleted.userId !== sessionUserId) {
     throw new Error('Forbidden');
   }
-
-  redirect(`/dashboard/${sessionUserId}`);
 }
 
 export async function deleteAdAction(adId: string) {
@@ -76,7 +74,7 @@ export async function deleteAdAction(adId: string) {
   const sessionUserId = session?.user?.id;
   await deleteAdById(adId);
 
-  revalidatePath(`/dashboard/${sessionUserId}`); 
+  revalidatePath(`/dashboard/${sessionUserId}`);
 }
 
 export async function addImageToAd({

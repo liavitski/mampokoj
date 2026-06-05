@@ -53,7 +53,10 @@ const Button = ({
   }
 
   return (
-    <Component style={styles} {...delegated}>
+    <Component
+      {...delegated}
+      style={{ ...styles, ...delegated.style }}
+    >
       {children}
     </Component>
   );
@@ -83,12 +86,12 @@ const FillButton = styled(ButtonBase)`
 `;
 
 const OutlineButton = styled(ButtonBase)`
-  background-color: white;
-  color: white;
-  border: 2px solid currentColor;
+  background-color: var(--color-card-background);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 
   &:hover {
-    background-color: white;
+    background-color: var(--color-accent);
   }
 `;
 

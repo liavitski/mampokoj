@@ -2,6 +2,7 @@ import { getValidatedAd } from '@/server/queries/select';
 import { notFound } from 'next/navigation';
 import AdCard from '@/components/AdCard';
 
+
 export default async function AdPage({
   params,
 }: {

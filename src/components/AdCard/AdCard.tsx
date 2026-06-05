@@ -64,10 +64,9 @@ async function AdCard({ ad }: AdCardProps) {
 const Wrapper = styled.article`
   background-color: var(--color-card-background);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
   box-shadow: var(--shadow-card);
   padding: 16px;
-
+  border-radius: 16px;
   display: flex;
   gap: 16px;
 
@@ -77,6 +76,9 @@ const Wrapper = styled.article`
     min-width: 100%;
     min-width: 0;
     flex-direction: column;
+  }
+
+  @media ${QUERIES.phoneAndSmaller} {
     border-radius: 0;
   }
 `;
@@ -99,7 +101,7 @@ const Title = styled.h2`
   grid-area: title;
   font-size: 1.25rem;
   font-weight: ${WEIGHTS.medium};
-   margin-bottom: 8px;
+  margin-bottom: 8px;
 `;
 
 const Description = styled.p`

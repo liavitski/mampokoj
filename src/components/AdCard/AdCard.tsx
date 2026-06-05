@@ -71,7 +71,6 @@ const Wrapper = styled.article`
   gap: 16px;
   max-width: 1000px;
   height: 100%;
-  z-index: 1;
 
   @media (${QUERIES.tabletAndSmaller}) {
     min-width: 100%;

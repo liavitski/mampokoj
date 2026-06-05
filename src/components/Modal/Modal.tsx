@@ -55,7 +55,7 @@ const overlayShow = keyframes`
 const Overlay = styled(Dialog.Overlay)`
   position: fixed;
   inset: 0;
-  z-index: 1;
+  /* z-index: 1; */
   background-color: var(--color-overlay-modal);
   animation: ${overlayShow} 150ms cubic-bezier(0.16, 1, 0.3, 1);
 `;
@@ -63,7 +63,7 @@ const Overlay = styled(Dialog.Overlay)`
 const Content = styled(Dialog.Content)`
   position: fixed;
   inset: 0;
-  max-height: 95dvh;
+  max-height: 100dvh;
   width: min(600px, 95vw);
 
   z-index: 1;
@@ -75,7 +75,7 @@ const Content = styled(Dialog.Content)`
   justify-self: center;
 
   @media (${QUERIES.phoneAndSmaller}) {
-    /* height: 100dvh; */
+    height: 95dvh;
     border-radius: 0;
   }
 `;

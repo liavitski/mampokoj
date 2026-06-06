@@ -70,7 +70,7 @@ const Wrapper = styled.article`
   display: flex;
   gap: 16px;
   max-width: 1000px;
-  height: 100%;
+  height: max-content;
 
   @media (${QUERIES.tabletAndSmaller}) {
     min-width: 100%;

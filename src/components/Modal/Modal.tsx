@@ -63,8 +63,8 @@ const Overlay = styled(Dialog.Overlay)`
 const Content = styled(Dialog.Content)`
   position: fixed;
   inset: 0;
-  max-height: 100dvh;
-  width: min(600px, 95vw);
+  max-height: 95dvh;
+  width: min(800px, 95vw);
 
   z-index: 1;
   color: var(--color-text);

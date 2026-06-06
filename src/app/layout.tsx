@@ -29,7 +29,7 @@ export const metadata = {
     template: `%s • ${APP_TITLE}`,
     default: APP_TITLE,
   },
-  description: 'App that helps you to rent a room',
+  description: 'An app that helps you rent a room',
 };
 
 type RootLayoutProps = Readonly<{

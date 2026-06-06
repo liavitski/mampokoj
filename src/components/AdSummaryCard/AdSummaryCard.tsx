@@ -161,7 +161,7 @@ const Description = styled.p`
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  max-height: min-content;
+  align-self: flex-start;
 `;
 
 const City = styled.p`

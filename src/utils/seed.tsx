@@ -138,7 +138,7 @@ async function seed() {
     return Array.from({ length: imageCount }).map(() => ({
       userId: ad.userId,
       adId: ad.id,
-      // url: faker.image.urlPicsumPhotos({ width: 200, height: 300 }),
+      fileKey: faker.string.uuid(),
       url: getRandomPhotoUrl(),
     }));
   });

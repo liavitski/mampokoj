@@ -1,10 +1,13 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next';
 import { UploadThingError } from 'uploadthing/server';
-// import { uploadImage } from '@/server/actions';/
-import { z } from 'zod';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { addImageToAd } from '@/server/actions';
+import { addImageToAd } from '@/server/actions/addImageToAdd';
+
+import { UTApi } from 'uploadthing/server';
+export const utapi = new UTApi();
+
+import { z } from 'zod';
 
 const f = createUploadthing();
 
@@ -38,12 +41,13 @@ export const ourFileRouter = {
       // This code RUNS ON YOUR SERVER after upload
       const { userId, adId } = metadata;
       const url = file.ufsUrl;
+      const fileKey = file.key;
 
       if (!userId) {
         throw new Error('Missing user context');
       }
 
-      await addImageToAd({ adId, userId, url });
+      await addImageToAd({ adId, userId, url, fileKey });
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return { success: true };

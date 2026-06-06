@@ -1,10 +1,13 @@
 'use client';
+
 import * as React from 'react';
-import Button from '../Button';
-import { deleteAdAction } from '@/server/actions';
-import styled, { keyframes } from 'styled-components';
 import * as Alert from '@radix-ui/react-alert-dialog';
 import { WEIGHTS } from '@/constants';
+import styled, { keyframes } from 'styled-components';
+
+import { deleteAdAction } from '@/server/actions/deleteAd';
+
+import Button from '../Button';
 
 type DeleteButtonProps = {
   adId: string;

@@ -9,8 +9,8 @@ export const ads = createTable(
   'ads',
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.varchar({ length: 256 }).notNull(),
-    title: d.varchar({ length: 256 }).notNull(),
+    userId: d.varchar({ length: 255 }).notNull(),
+    title: d.varchar({ length: 255 }).notNull(),
     price: d.numeric({ precision: 10, scale: 2 }).notNull(),
     city: d.varchar({ length: 128 }).notNull(),
     region: d.varchar({ length: 128 }).notNull(),
@@ -41,12 +41,13 @@ export const images = createTable(
   'images',
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.varchar({ length: 256 }).notNull(),
+    userId: d.varchar({ length: 255 }).notNull(),
     adId: d
       .uuid()
       .notNull()
       .references(() => ads.id, { onDelete: 'cascade' }),
     url: d.varchar({ length: 512 }).notNull(),
+    fileKey: d.varchar({ length: 255 }).notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())

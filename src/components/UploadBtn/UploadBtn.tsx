@@ -1,4 +1,3 @@
-'use client';
 import * as React from 'react';
 import styled from 'styled-components';
 import { UploadButton } from '@/utils/uploadthing';

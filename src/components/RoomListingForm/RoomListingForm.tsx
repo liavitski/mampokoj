@@ -2,7 +2,9 @@
 
 import * as Form from '@radix-ui/react-form';
 import styled from 'styled-components';
-import { createAd } from '@/server/actions';
+
+import { createAd } from '@/server/actions/createAd';
+
 import Modal from '../Modal';
 import React from 'react';
 import Button from '../Button';

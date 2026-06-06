@@ -43,15 +43,10 @@ export async function addImageToAd({
     throw new Error('Not authorized to add images to this ad');
   }
 
-  const [inserted] = await db
-    .insert(images)
-    .values({
-      adId,
-      userId,
-      url,
-      fileKey
-    })
-    .returning();
-
-  return inserted;
+  await db.insert(images).values({
+    adId,
+    userId,
+    url,
+    fileKey,
+  });
 }

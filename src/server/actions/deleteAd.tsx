@@ -2,16 +2,14 @@
 
 import { db } from '../db';
 import { ads } from '../db/schema';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { requireUserId } from '@/lib/require-user-id';
 
 import { utapi } from '@/app/api/uploadthing/core';
 
 export async function deleteAdById(adId: string) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
+  const sessionUserId = await requireUserId();
 
   if (!sessionUserId) throw new Error('Unauthorized');
 
@@ -29,17 +27,11 @@ export async function deleteAdById(adId: string) {
     columns: { fileKey: true },
   });
 
+  // Call to uploadthing server with data which images to delete
   if (imagesToDelete.length) {
     await utapi.deleteFiles(imagesToDelete.map((i) => i.fileKey));
   }
 
   await db.delete(ads).where(eq(ads.id, adId));
-}
-
-export async function deleteAdAction(adId: string) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
-  await deleteAdById(adId);
-
   revalidatePath(`/dashboard/${sessionUserId}`);
 }

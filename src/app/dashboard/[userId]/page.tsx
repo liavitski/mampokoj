@@ -1,23 +1,22 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { getUserAds } from '@/server/queries/select';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { requireUserId } from '@/lib/require-user-id';
+
+import styled from 'styled-components';
+
 import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
-import styled from 'styled-components';
 import UploadBtn from '@/components/UploadBtn';
 import DeleteAdButton from '@/components/DeleteAdButton';
 import UpdateButton from '@/components/UpdateButton';
-
 
 type UserDashboardPageProps = {
   params: Promise<{ userId: string }>;
 };
 
 async function UserDashboardPage({ params }: UserDashboardPageProps) {
-  const session = await getServerSession(authOptions);
-  const serverUserId = session?.user?.id;
+  const serverUserId = await requireUserId();
   const { userId } = await params;
 
   if (serverUserId !== userId) return <h3>Not allowed.</h3>;
@@ -32,8 +31,6 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
         <RoomListingForm />
       </>
     );
-
-
 
   return (
     <Wrapper>
@@ -50,7 +47,6 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
               <UpdateButton adId={userAd.id} />
 
               <DeleteAdButton adId={userAd.id} />
-
             </AdControlButtonsWrapper>
           </AdCardWrapper>
         );

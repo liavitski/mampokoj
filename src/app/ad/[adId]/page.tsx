@@ -2,12 +2,11 @@ import { getValidatedAd } from '@/server/queries/select';
 import { notFound } from 'next/navigation';
 import AdCard from '@/components/AdCard';
 
-
-export default async function AdPage({
-  params,
-}: {
+type AdPageProps = {
   params: Promise<{ adId: string }>;
-}) {
+};
+
+export default async function AdPage({ params }: AdPageProps) {
   const { adId } = await params;
   const ad = await getValidatedAd(adId);
 

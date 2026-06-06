@@ -1,11 +1,14 @@
 import * as React from 'react';
-import type { AdWithImages } from '@/types/db-types';
-import styled from 'styled-components';
-import { QUERIES, WEIGHTS } from '@/constants';
-import AdPhotosGallery from '../AdPhotosGallery';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { formatCZPhone } from '@/utils/utils';
+
+import type { AdWithImages } from '@/types/db-types';
+
+import { QUERIES, WEIGHTS } from '@/constants';
+import styled from 'styled-components';
+
+import AdPhotosGallery from '../AdPhotosGallery';
 
 type AdCardProps = {
   ad: AdWithImages;

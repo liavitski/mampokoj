@@ -2,17 +2,16 @@
 
 import { db } from '../db';
 import { ads } from '../db/schema';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from 'next/navigation';
+import { requireUserId } from '@/lib/require-user-id';
 
 export async function createAd(formData: FormData) {
-  const session = await getServerSession(authOptions);
-  const sessionUserId = session?.user?.id;
+  const sessionUserId = await requireUserId();
 
   if (!sessionUserId) {
     throw new Error('Unauthorized');
   }
+
   const title = formData.get('title') as string;
   const price = String(formData.get('price'));
   const city = formData.get('city') as string;
@@ -23,7 +22,7 @@ export async function createAd(formData: FormData) {
   const description = formData.get('description') as string;
   const contactPhone = formData.get('contactPhone') as string;
 
-  const [ad] = await db
+  const [adId] = await db
     .insert(ads)
     .values({
       userId: sessionUserId,

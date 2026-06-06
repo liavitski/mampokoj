@@ -5,7 +5,7 @@ import * as Alert from '@radix-ui/react-alert-dialog';
 import { WEIGHTS } from '@/constants';
 import styled, { keyframes } from 'styled-components';
 
-import { deleteAdAction } from '@/server/actions/deleteAd';
+import { deleteAdById } from '@/server/actions/deleteAd';
 
 import Button from '../Button';
 
@@ -41,7 +41,7 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
               <DeleteButtonStyled
                 variant="fill"
                 size="small"
-                onClick={() => deleteAdAction(adId)}
+                onClick={() => deleteAdById(adId)}
               >
                 Yes, delete ad
               </DeleteButtonStyled>
@@ -87,7 +87,7 @@ const Title = styled(Alert.Title)`
 const Description = styled(Alert.Description)`
   font-weight: ${WEIGHTS.normal};
   font-size: 1rem;
-`
+`;
 
 const Content = styled(Alert.Content)`
   position: fixed;

@@ -11,6 +11,7 @@ import VisuallyHidden from '../VisuallyHidden';
 
 function AuthButton() {
   const { data: session, status } = useSession();
+  
   if (status === 'loading') {
     return <Spinner />;
   }

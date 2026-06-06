@@ -8,10 +8,6 @@ export async function requireUserId() {
 
   const userId = session?.user?.id;
 
-  if (!userId) {
-    throw new Error('Unauthorized');
-  }
-
   return userId;
 }
 

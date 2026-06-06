@@ -1,15 +1,28 @@
+'use client';
+
 import * as React from 'react';
 import styled from 'styled-components';
+
 import { UploadButton } from '@/utils/uploadthing';
 import { WEIGHTS } from '@/constants';
+
+import { useRouter } from 'next/navigation';
 
 type UploadBtnProps = {
   adId: string;
 };
 
 function UploadBtn({ adId }: UploadBtnProps) {
+  const router = useRouter();
+
   return (
-    <StyledUploadButton endpoint="imageUploader" input={{ adId }} />
+    <StyledUploadButton
+      endpoint="imageUploader"
+      input={{ adId }}
+      onClientUploadComplete={(res) => {
+        router.refresh();
+      }}
+    />
   );
 }
 

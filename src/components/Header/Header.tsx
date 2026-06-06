@@ -1,25 +1,24 @@
 import * as React from 'react';
 import styled from 'styled-components';
+import { QUERIES, WEIGHTS } from '@/constants';
 
+import { requireUserId } from '@/lib/require-user-id';
+import { Theme } from '@/types/theme';
+
+import Link from 'next/link';
 import Logo from '../Logo';
 import DarkLightToggle from '../DarkLightToggle';
-import { Theme } from '@/types/theme';
-import AuthButton from '../AuthButton';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import Link from 'next/link';
-import { QUERIES, WEIGHTS } from '@/constants';
-import Icon from '../Icon';
 import VisuallyHidden from '../VisuallyHidden';
+import AuthButton from '../AuthButton';
+import Icon from '../Icon';
 
 type HeaderProps = {
   initialTheme: Theme;
 };
 
 async function Header({ initialTheme }: HeaderProps) {
-  const session = await getServerSession(authOptions);
 
-  const userId = session?.user?.id;
+  const userId = await requireUserId();
 
   return (
     <Wrapper>

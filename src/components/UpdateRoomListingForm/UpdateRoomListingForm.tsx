@@ -1,16 +1,25 @@
 'use client';
 
-import React from 'react';
+import * as React from 'react';
 import * as Form from '@radix-ui/react-form';
 import styled from 'styled-components';
 
-import { createAd } from '@/server/actions/createAd';
+import { updateAd } from '@/server/actions/updateAd';
+import { Ad } from '@/types/db-types';
 
 import Modal from '../Modal';
 import Button from '../Button';
 
-function RoomListingForm() {
+type UpdateRoomListingForm = {
+  ad: Ad;
+};
+
+function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
   const [open, setOpen] = React.useState(false);
+
+  const formattedDate = new Date(ad.availableFrom)
+    .toISOString()
+    .slice(0, 16);
 
   return (
     <>
@@ -19,31 +28,37 @@ function RoomListingForm() {
         size="small"
         onClick={() => setOpen(true)}
       >
-        Create ad
+        Update ad
       </ModalButton>
       <Modal open={open} onOpenChange={setOpen}>
-        <Wrapper action={createAd}>
+        <Wrapper action={(formData) => updateAd(ad.id, formData)}>
           <Field name="title">
             <Label>Title</Label>
-            <Input name="title" required />
+            <Input name="title" required defaultValue={ad.title} />
             <Error match="valueMissing">Title is required</Error>
           </Field>
 
           <Field name="price">
             <Label>Price</Label>
-            <Input name="price" type="number" step="0.01" required />
+            <Input
+              name="price"
+              type="number"
+              step="0.01"
+              required
+              defaultValue={ad.price}
+            />
             <Error match="valueMissing">Price is required</Error>
           </Field>
 
           <Field name="city">
             <Label>City</Label>
-            <Input name="city" required />
+            <Input name="city" required defaultValue={ad.city} />
             <Error match="valueMissing">City is required</Error>
           </Field>
 
           <Field name="region">
             <Label>Region</Label>
-            <Input name="region" required />
+            <Input name="region" required defaultValue={ad.region} />
           </Field>
 
           <Field name="availableFrom">
@@ -52,20 +67,29 @@ function RoomListingForm() {
               name="availableFrom"
               type="datetime-local"
               required
+              defaultValue={formattedDate}
             />
           </Field>
 
           <Field name="description">
             <Label>Description</Label>
-            <Textarea name="description" required />
+            <Textarea
+              name="description"
+              required
+              defaultValue={ad.description}
+            />
           </Field>
 
           <Field name="contactPhone">
             <Label>Contact Phone</Label>
-            <Input name="contactPhone" required />
+            <Input
+              name="contactPhone"
+              required
+              defaultValue={ad.contactPhone}
+            />
           </Field>
 
-          <SubmitButton type="submit">Create ad</SubmitButton>
+          <SubmitButton type="submit">Update ad</SubmitButton>
         </Wrapper>
       </Modal>
     </>
@@ -125,4 +149,5 @@ const SubmitButton = styled(Form.Submit)`
 const ModalButton = styled(Button)`
   width: max-content;
 `;
-export default RoomListingForm;
+
+export default UpdateRoomListingForm;

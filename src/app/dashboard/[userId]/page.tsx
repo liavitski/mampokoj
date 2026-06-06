@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { notFound } from 'next/navigation';
 import { getUserAds } from '@/server/queries/select';
 import { requireUserId } from '@/lib/require-user-id';
@@ -9,7 +10,7 @@ import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
 import UploadBtn from '@/components/UploadBtn';
 import DeleteAdButton from '@/components/DeleteAdButton';
-import UpdateButton from '@/components/UpdateButton';
+import UpdateRoomListingForm from '@/components/UpdateRoomListingForm';
 
 type UserDashboardPageProps = {
   params: Promise<{ userId: string }>;
@@ -44,7 +45,7 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
             <AdControlButtonsWrapper>
               <UploadBtn adId={userAd.id} />
 
-              <UpdateButton adId={userAd.id} />
+              <UpdateRoomListingForm ad={userAd}/>
 
               <DeleteAdButton adId={userAd.id} />
             </AdControlButtonsWrapper>

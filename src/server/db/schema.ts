@@ -10,13 +10,13 @@ export const ads = createTable(
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
     userId: d.varchar({ length: 255 }).notNull(),
-    title: d.varchar({ length: 255 }).notNull(),
+    title: d.varchar({ length: 60 }).notNull(),
     price: d.numeric({ precision: 10, scale: 2 }).notNull(),
-    city: d.varchar({ length: 128 }).notNull(),
+    city: d.varchar({ length: 80 }).notNull(),
     region: d.varchar({ length: 128 }).notNull(),
     availableFrom: d.timestamp({ withTimezone: true }).notNull(),
     description: d.text().notNull(),
-    contactPhone: d.varchar({ length: 32 }).notNull(),
+    contactPhone: d.varchar({ length: 16 }).notNull(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())

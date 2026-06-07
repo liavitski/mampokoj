@@ -10,7 +10,6 @@ type ModalProps = {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
-  disableOutsideClose?: boolean;
   children: React.ReactNode;
 };
 
@@ -18,7 +17,6 @@ function Modal({
   open,
   defaultOpen,
   onOpenChange,
-  disableOutsideClose = false,
   children,
 }: ModalProps) {
   return (
@@ -29,14 +27,7 @@ function Modal({
     >
       <Dialog.Portal>
         <Overlay />
-        <Content
-          onPointerDownOutside={(e) =>
-            disableOutsideClose && e.preventDefault()
-          }
-          onInteractOutside={(e) =>
-            disableOutsideClose && e.preventDefault()
-          }
-        >
+        <Content>
           <Close asChild>
             <UnstyledButton>
               <Icon id="x" strokeWidth={1.5} />
@@ -64,6 +55,7 @@ const overlayShow = keyframes`
 const Overlay = styled(Dialog.Overlay)`
   position: fixed;
   inset: 0;
+  /* z-index: 1; */
   background-color: var(--color-overlay-modal);
   animation: ${overlayShow} 150ms cubic-bezier(0.16, 1, 0.3, 1);
 `;
@@ -71,6 +63,8 @@ const Overlay = styled(Dialog.Overlay)`
 const Content = styled(Dialog.Content)`
   position: fixed;
   inset: 0;
+  max-height: 95dvh;
+  width: min(800px, 95vw);
 
   z-index: 1;
   color: var(--color-text);
@@ -93,8 +87,8 @@ const Close = styled(Dialog.Close)`
   border-radius: 8px;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
-  top: 6px;
-  right: 6px;
+  top: 12px;
+  right: 12px;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {

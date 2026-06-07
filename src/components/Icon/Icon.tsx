@@ -1,6 +1,14 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import { Sun, Moon, X, LogIn, LogOut, User } from 'react-feather';
+import {
+  Sun,
+  Moon,
+  X,
+  LogIn,
+  LogOut,
+  User,
+  Calendar,
+} from 'react-feather';
 
 const icons = {
   light: Sun,
@@ -9,6 +17,7 @@ const icons = {
   logIn: LogIn,
   logOut: LogOut,
   user: User,
+  calendar: Calendar,
 };
 
 type IconId = keyof typeof icons;

@@ -6,13 +6,11 @@ import Icon from '../Icon';
 import { WEIGHTS } from '@/constants';
 
 type DatepickerProps = {
-  defaultValue?: Date;
+  defaultValue?: string;
 };
 
 function Datepicker({ defaultValue }: DatepickerProps) {
-  const [value, setValue] = React.useState(
-    defaultValue ? defaultValue.toISOString().slice(0, 10) : ''
-  );
+  const [value, setValue] = React.useState(defaultValue ?? '');
 
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -71,6 +69,8 @@ const PresentationalBit = styled.div`
   border-radius: 16px;
   pointer-events: none;
   z-index: 1;
+  display: flex;
+  justify-content: space-between;
 
   &:focus {
     outline-color: var(--color-focus-ring);
@@ -85,6 +85,11 @@ const IconWrapper = styled.div`
   right: 14px;
   margin: auto;
   pointer-events: none;
+
+  & > div {
+    height: 32px;
+    width: 32px;
+  }
 `;
 
 const Text = styled.span`

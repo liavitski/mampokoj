@@ -87,7 +87,7 @@ function RoomListingForm() {
 
           <Field name="availableFrom">
             <LabelWrapper>
-              <Label>Available From</Label>
+              <Label>Available from</Label>
               <Error match="valueMissing">Date is required</Error>
             </LabelWrapper>
 
@@ -106,17 +106,13 @@ function RoomListingForm() {
             </LabelWrapper>
 
             <Form.Control asChild>
-              <Textarea
-                name="description"
-                required
-                maxLength={500}
-              />
+              <Textarea name="description" required maxLength={500} />
             </Form.Control>
           </Field>
 
           <Field name="contactPhone">
             <LabelWrapper>
-              <Label>Contact Phone</Label>
+              <Label>Contact phone</Label>
               <Error match="valueMissing">Phone is required</Error>
               <Error match="patternMismatch">
                 Phone must be 7–15 digits and may start with +
@@ -143,7 +139,7 @@ function RoomListingForm() {
 
 const Wrapper = styled(Form.Root)`
   width: min(500px, 95vw);
-  max-height: 95dvh;
+  height: fit-content;
 
   margin: auto;
   display: flex;
@@ -218,12 +214,26 @@ const Error = styled(Form.Message)`
 `;
 
 const SubmitButton = styled(Form.Submit)`
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  background: black;
-  color: white;
+  font-size: 1rem;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 2px solid transparent;
   cursor: pointer;
+  font-weight: ${WEIGHTS.normal};
+  width: max-content;
+  margin: auto;
+
+  &:focus {
+    outline-color: var(--color-focus-ring);
+    outline-offset: 4px;
+  }
+
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
 `;
 
 const ModalButton = styled(Button)`

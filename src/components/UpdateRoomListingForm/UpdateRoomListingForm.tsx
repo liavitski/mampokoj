@@ -23,7 +23,7 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
 
   const formattedDate = new Date(ad.availableFrom)
     .toISOString()
-    .slice(0, 16);
+    .slice(0, 10);
 
   return (
     <>
@@ -44,7 +44,12 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
             </LabelWrapper>
 
             <Form.Control asChild>
-              <Input name="title" required maxLength={60} defaultValue={ad.title}/>
+              <Input
+                name="title"
+                required
+                maxLength={60}
+                defaultValue={ad.title}
+              />
             </Form.Control>
           </Field>
 
@@ -75,7 +80,12 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
             </LabelWrapper>
 
             <Form.Control asChild>
-              <Input name="city" required maxLength={80} defaultValue={ad.city}/>
+              <Input
+                name="city"
+                required
+                maxLength={80}
+                defaultValue={ad.city}
+              />
             </Form.Control>
           </Field>
 
@@ -96,12 +106,12 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
 
           <Field name="availableFrom">
             <LabelWrapper>
-              <Label>Available From</Label>
+              <Label>Available from</Label>
               <Error match="valueMissing">Date is required</Error>
             </LabelWrapper>
 
             <Form.Control asChild>
-              <Datepicker defaultValue={ad.availableFrom} />
+              <Datepicker defaultValue={formattedDate} />
             </Form.Control>
           </Field>
 
@@ -126,7 +136,7 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
 
           <Field name="contactPhone">
             <LabelWrapper>
-              <Label>Contact Phone</Label>
+              <Label>Contact phone</Label>
               <Error match="valueMissing">Phone is required</Error>
               <Error match="patternMismatch">
                 Phone must be 7–15 digits and may start with +
@@ -154,7 +164,7 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
 
 const Wrapper = styled(Form.Root)`
   width: min(500px, 95vw);
-  max-height: 95dvh;
+  max-height: fit-content;
 
   margin: auto;
   display: flex;
@@ -229,12 +239,26 @@ const Error = styled(Form.Message)`
 `;
 
 const SubmitButton = styled(Form.Submit)`
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  background: black;
-  color: white;
+  font-size: 1rem;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 2px solid transparent;
   cursor: pointer;
+  font-weight: ${WEIGHTS.normal};
+  width: max-content;
+  margin: auto;
+
+  &:focus {
+    outline-color: var(--color-focus-ring);
+    outline-offset: 4px;
+  }
+
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+
+  &:hover {
+    background-color: var(--color-primary-hover);
+  }
 `;
 
 const ModalButton = styled(Button)`

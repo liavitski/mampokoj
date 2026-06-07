@@ -25,7 +25,6 @@ async function Header({ initialTheme }: HeaderProps) {
       <Logo />
 
       <ButtonsWrapper>
-        <AuthButton />
         {userId && (
           <>
             <LinkWrapper href={`/dashboard/${userId}`}>
@@ -37,6 +36,7 @@ async function Header({ initialTheme }: HeaderProps) {
             </LinkWrapper>
           </>
         )}
+        <AuthButton />
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
     </Wrapper>

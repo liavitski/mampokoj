@@ -5,8 +5,14 @@ import styled from 'styled-components';
 import Icon from '../Icon';
 import { WEIGHTS } from '@/constants';
 
-function Datepicker() {
-  const [value, setValue] = React.useState('');
+type DatepickerProps = {
+  defaultValue?: Date;
+};
+
+function Datepicker({ defaultValue }: DatepickerProps) {
+  const [value, setValue] = React.useState(
+    defaultValue ? defaultValue.toISOString().slice(0, 10) : ''
+  );
 
   const inputRef = React.useRef<HTMLInputElement>(null);
 

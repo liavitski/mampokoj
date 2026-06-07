@@ -10,6 +10,8 @@ import Modal from '../Modal';
 import Button from '../Button';
 import { WEIGHTS } from '@/constants';
 import Datepicker from '../Datepicker';
+import RegionSelect from '../RegionSelect';
+import { CZ_REGIONS } from '@/constants';
 
 function RoomListingForm() {
   const [open, setOpen] = React.useState(false);
@@ -79,7 +81,7 @@ function RoomListingForm() {
             </LabelWrapper>
 
             <Form.Control asChild>
-              <Input name="region" required maxLength={80} />
+              <RegionSelect data={CZ_REGIONS} />
             </Form.Control>
           </Field>
 
@@ -107,7 +109,7 @@ function RoomListingForm() {
               <Textarea
                 name="description"
                 required
-                maxLength={5000}
+                maxLength={500}
               />
             </Form.Control>
           </Field>
@@ -117,7 +119,7 @@ function RoomListingForm() {
               <Label>Contact Phone</Label>
               <Error match="valueMissing">Phone is required</Error>
               <Error match="patternMismatch">
-                Invalid phone format
+                Phone must be 7–15 digits and may start with +
               </Error>
             </LabelWrapper>
 
@@ -127,6 +129,7 @@ function RoomListingForm() {
                 required
                 maxLength={16}
                 pattern="^\+?[0-9]{7,15}$"
+                title="Phone must be 7–15 digits, optional leading + (e.g. +420123456789)"
               />
             </Form.Control>
           </Field>

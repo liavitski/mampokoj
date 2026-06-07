@@ -9,6 +9,10 @@ import { Ad } from '@/types/db-types';
 
 import Modal from '../Modal';
 import Button from '../Button';
+import { WEIGHTS } from '@/constants';
+import Datepicker from '../Datepicker';
+import RegionSelect from '../RegionSelect';
+import { CZ_REGIONS } from '@/constants';
 
 type UpdateRoomListingForm = {
   ad: Ad;
@@ -33,60 +37,112 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
       <Modal open={open} onOpenChange={setOpen}>
         <Wrapper action={(formData) => updateAd(ad.id, formData)}>
           <Field name="title">
-            <Label>Title</Label>
-            <Input name="title" required defaultValue={ad.title} />
-            <Error match="valueMissing">Title is required</Error>
+            <LabelWrapper>
+              <Label>Title</Label>
+              <Error match="valueMissing">Title is required</Error>
+              <Error match="tooLong">Title is too long</Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <Input name="title" required maxLength={60} defaultValue={ad.title}/>
+            </Form.Control>
           </Field>
 
           <Field name="price">
-            <Label>Price</Label>
-            <Input
-              name="price"
-              type="number"
-              step="0.01"
-              required
-              defaultValue={ad.price}
-            />
-            <Error match="valueMissing">Price is required</Error>
+            <LabelWrapper>
+              <Label>Price</Label>
+              <Error match="valueMissing">Price is required</Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <Input
+                name="price"
+                type="number"
+                step="0.01"
+                required
+                min={0}
+                max={99999999.99}
+                defaultValue={ad.price}
+              />
+            </Form.Control>
           </Field>
 
           <Field name="city">
-            <Label>City</Label>
-            <Input name="city" required defaultValue={ad.city} />
-            <Error match="valueMissing">City is required</Error>
+            <LabelWrapper>
+              <Label>City</Label>
+              <Error match="valueMissing">City is required</Error>
+              <Error match="tooLong">City is too long</Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <Input name="city" required maxLength={80} defaultValue={ad.city}/>
+            </Form.Control>
           </Field>
 
           <Field name="region">
-            <Label>Region</Label>
-            <Input name="region" required defaultValue={ad.region} />
+            <LabelWrapper>
+              <Label>Region</Label>
+              <Error match="valueMissing">Region is required</Error>
+              <Error match="tooLong">Region is too long</Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <RegionSelect
+                data={CZ_REGIONS}
+                defaultValue={ad.region}
+              />
+            </Form.Control>
           </Field>
 
           <Field name="availableFrom">
-            <Label>Available From</Label>
-            <Input
-              name="availableFrom"
-              type="datetime-local"
-              required
-              defaultValue={formattedDate}
-            />
+            <LabelWrapper>
+              <Label>Available From</Label>
+              <Error match="valueMissing">Date is required</Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <Datepicker defaultValue={ad.availableFrom} />
+            </Form.Control>
           </Field>
 
           <Field name="description">
-            <Label>Description</Label>
-            <Textarea
-              name="description"
-              required
-              defaultValue={ad.description}
-            />
+            <LabelWrapper>
+              <Label>Description</Label>
+              <Error match="valueMissing">
+                Description is required
+              </Error>
+              <Error match="tooLong">Description is too long</Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <Textarea
+                name="description"
+                required
+                maxLength={500}
+                defaultValue={ad.description}
+              />
+            </Form.Control>
           </Field>
 
           <Field name="contactPhone">
-            <Label>Contact Phone</Label>
-            <Input
-              name="contactPhone"
-              required
-              defaultValue={ad.contactPhone}
-            />
+            <LabelWrapper>
+              <Label>Contact Phone</Label>
+              <Error match="valueMissing">Phone is required</Error>
+              <Error match="patternMismatch">
+                Phone must be 7–15 digits and may start with +
+              </Error>
+            </LabelWrapper>
+
+            <Form.Control asChild>
+              <Input
+                name="contactPhone"
+                required
+                maxLength={16}
+                pattern="^\+?[0-9]{7,15}$"
+                title="Phone must be 7–15 digits, optional leading + (e.g. +420123456789)"
+                defaultValue={ad.contactPhone}
+              />
+            </Form.Control>
           </Field>
 
           <SubmitButton type="submit">Update ad</SubmitButton>
@@ -97,13 +153,16 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
 }
 
 const Wrapper = styled(Form.Root)`
-  max-width: 420px;
+  width: min(500px, 95vw);
+  max-height: 95dvh;
+
+  margin: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
   background-color: var(--color-card-background);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: var(--shadow-card);
   padding: 16px;
 `;
@@ -114,27 +173,59 @@ const Field = styled(Form.Field)`
   gap: 6px;
 `;
 
-const Label = styled(Form.Label)`
-  font-size: 14px;
-  font-weight: 500;
+const LabelWrapper = styled.div`
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: ${WEIGHTS.normal};
 `;
 
+const Label = styled(Form.Label)``;
+
 const Input = styled.input`
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  background-color: var(--color-primary-foreground);
+  border: 1px solid var(--color-border-input);
+  padding: 6px 16px;
+  font-size: 1rem;
+  font-weight: ${WEIGHTS.normal};
+  color: var(--color-text);
+  border-radius: 16px;
+
+  &:focus {
+    outline-color: var(--color-focus-ring);
+    outline-offset: 4px;
+  }
+
+  /* remove number arrows */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  -moz-appearance: textfield;
 `;
 
 const Textarea = styled.textarea`
   padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 1px solid var(--color-border-input);
+  background-color: var(--color-primary-foreground);
+  font-weight: ${WEIGHTS.normal};
+  color: var(--color-text);
+  border-radius: 16px;
   min-height: 100px;
+  resize: none;
+
+  &:focus {
+    outline-color: var(--color-focus-ring);
+    outline-offset: 4px;
+  }
 `;
 
 const Error = styled(Form.Message)`
-  color: red;
-  font-size: 12px;
+  color: var(--color-destructive);
+  font-size: 0.875rem;
 `;
 
 const SubmitButton = styled(Form.Submit)`

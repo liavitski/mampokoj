@@ -41,19 +41,21 @@ export const images = createTable(
   'images',
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
-    userId: d.varchar({ length: 255 }).notNull(),
     adId: d
       .uuid()
       .notNull()
       .references(() => ads.id, { onDelete: 'cascade' }),
     url: d.varchar({ length: 512 }).notNull(),
-    fileKey: d.varchar({ length: 255 }).notNull(),
+    fileKey: d.varchar({ length: 255 }).notNull().unique(),
     createdAt: d
       .timestamp({ withTimezone: true })
       .$defaultFn(() => new Date())
       .notNull(),
   }),
-  (t) => [index('mampokoj_images_ad_idx').on(t.adId)]
+  (t) => [
+    index('mampokoj_images_ad_idx').on(t.adId),
+    index('mampokoj_images_filekey_idx').on(t.fileKey),
+  ]
 );
 
 export const adsRelations = relations(ads, ({ many }) => ({

@@ -8,6 +8,8 @@ import {
   LogOut,
   User,
   Calendar,
+  CheckCircle,
+  AlertOctagon,
 } from 'react-feather';
 
 const icons = {
@@ -18,6 +20,8 @@ const icons = {
   logOut: LogOut,
   user: User,
   calendar: Calendar,
+  checkCircle: CheckCircle,
+  alertOctagon: AlertOctagon,
 };
 
 type IconId = keyof typeof icons;

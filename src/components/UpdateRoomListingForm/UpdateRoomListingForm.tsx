@@ -6,13 +6,14 @@ import styled from 'styled-components';
 
 import { updateAd } from '@/server/actions/updateAd';
 import { Ad } from '@/types/db-types';
+import { WEIGHTS, CZ_REGIONS } from '@/constants';
+import { useToast } from '../ToastProvider';
+import { useRouter } from 'next/navigation';
 
-import Modal from '../Modal';
-import Button from '../Button';
-import { WEIGHTS } from '@/constants';
-import Datepicker from '../Datepicker';
 import RegionSelect from '../RegionSelect';
-import { CZ_REGIONS } from '@/constants';
+import Datepicker from '../Datepicker';
+import Button from '../Button';
+import Modal from '../Modal';
 
 type UpdateRoomListingForm = {
   ad: Ad;
@@ -20,6 +21,27 @@ type UpdateRoomListingForm = {
 
 function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
   const [open, setOpen] = React.useState(false);
+  const router = useRouter();
+  const { showToast } = useToast();
+
+  const [isPending, setIsPending] = React.useState(false);
+
+  async function handleSubmit(formData: FormData) {
+    setIsPending(true);
+
+    const res = await updateAd(ad.id, formData);
+
+    setIsPending(false);
+
+    if (res.success) {
+      showToast('Ad updated successfully', 'success');
+      setOpen(false);
+      router.push(`/dashboard/${res.userId}`);
+      return;
+    }
+
+    showToast(res.error || 'Update failed', 'error');
+  }
 
   const formattedDate = new Date(ad.availableFrom)
     .toISOString()
@@ -35,7 +57,9 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
         Update ad
       </ModalButton>
       <Modal open={open} onOpenChange={setOpen}>
-        <Wrapper action={(formData) => updateAd(ad.id, formData)}>
+        <Wrapper action={handleSubmit}>
+          <input type="hidden" name="adId" value={ad.id} />
+
           <Field name="title">
             <LabelWrapper>
               <Label>Title</Label>
@@ -155,7 +179,9 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
             </Form.Control>
           </Field>
 
-          <SubmitButton type="submit">Update ad</SubmitButton>
+          <SubmitButton type="submit" disabled={isPending}>
+            Update ad
+          </SubmitButton>
         </Wrapper>
       </Modal>
     </>

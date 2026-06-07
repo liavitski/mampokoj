@@ -2,12 +2,11 @@ import { createUploadthing, type FileRouter } from 'uploadthing/next';
 import { UploadThingError } from 'uploadthing/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { addImageToAd } from '@/server/actions/addImageToAdd';
-
+import { addImageToAd } from '@/server/actions/addImageToAd';
 import { UTApi } from 'uploadthing/server';
-export const utapi = new UTApi();
-
 import { z } from 'zod';
+
+export const utapi = new UTApi();
 
 const f = createUploadthing();
 
@@ -38,19 +37,22 @@ export const ourFileRouter = {
       };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      // This code RUNS ON YOUR SERVER after upload
-      const { userId, adId } = metadata;
-      const url = file.ufsUrl;
-      const fileKey = file.key;
+      const { adId } = metadata;
 
-      if (!userId) {
-        throw new Error('Missing user context');
+      const result = await addImageToAd({
+        adId,
+        url: file.ufsUrl,
+        fileKey: file.key,
+        userId: metadata.userId,
+      });
+
+      console.log('DB RESULT:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save image');
       }
 
-      await addImageToAd({ adId, userId, url, fileKey });
-
-      // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
-      return { success: true };
+      return result;
     }),
 } satisfies FileRouter;
 

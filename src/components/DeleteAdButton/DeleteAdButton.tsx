@@ -6,6 +6,8 @@ import { WEIGHTS } from '@/constants';
 import styled, { keyframes } from 'styled-components';
 
 import { deleteAdById } from '@/server/actions/deleteAd';
+import { useRouter } from 'next/navigation';
+import { useToast } from '../ToastProvider';
 
 import Button from '../Button';
 
@@ -14,6 +16,27 @@ type DeleteButtonProps = {
 };
 
 function DeleteAdButton({ adId }: DeleteButtonProps) {
+  const router = useRouter();
+  const { showToast } = useToast();
+
+  const [isPending, setIsPending] = React.useState(false);
+
+  async function handleDelete(adId: string) {
+    setIsPending(true);
+
+    const res = await deleteAdById(adId);
+
+    setIsPending(false);
+
+    if (res.success) {
+      showToast('Ad deleted successfully', 'success');
+      router.push(`/dashboard/${res.userId}`);
+      return;
+    }
+
+    showToast(res.error || 'Delete failed', 'error');
+  }
+
   return (
     <Alert.Root>
       <Alert.Trigger asChild>
@@ -41,7 +64,8 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
               <DeleteButtonStyled
                 variant="fill"
                 size="small"
-                onClick={() => deleteAdById(adId)}
+                onClick={() => handleDelete(adId)}
+                disabled={isPending}
               >
                 Yes, delete ad
               </DeleteButtonStyled>

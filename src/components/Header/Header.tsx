@@ -17,13 +17,14 @@ type HeaderProps = {
 };
 
 async function Header({ initialTheme }: HeaderProps) {
-
   const userId = await requireUserId();
 
   return (
     <Wrapper>
-      <Logo />
-
+      <LogoWrapper>
+        <Logo />
+        <AuthButton />
+      </LogoWrapper>
       <ButtonsWrapper>
         {userId && (
           <>
@@ -36,7 +37,6 @@ async function Header({ initialTheme }: HeaderProps) {
             </LinkWrapper>
           </>
         )}
-        <AuthButton />
         <DarkLightToggle initialTheme={initialTheme} />
       </ButtonsWrapper>
     </Wrapper>
@@ -51,6 +51,12 @@ const Wrapper = styled.header`
   margin-bottom: 1.5rem;
   border-bottom: 4px dotted var(--color-border);
 `;
+
+const LogoWrapper = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: center;
+`
 
 const ButtonsWrapper = styled.div`
   display: flex;

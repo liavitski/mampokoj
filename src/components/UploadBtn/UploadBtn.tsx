@@ -7,6 +7,8 @@ import { UploadButton } from '@/utils/uploadthing';
 import { WEIGHTS } from '@/constants';
 
 import { useRouter } from 'next/navigation';
+import { useToast } from '../ToastProvider';
+import { addImageToAd } from '@/server/actions/addImageToAd';
 
 type UploadBtnProps = {
   adId: string;
@@ -14,12 +16,29 @@ type UploadBtnProps = {
 
 function UploadBtn({ adId }: UploadBtnProps) {
   const router = useRouter();
+  const { showToast } = useToast();
 
   return (
     <StyledUploadButton
       endpoint="imageUploader"
       input={{ adId }}
+      onUploadError={(error) => {
+        showToast(error.message || 'Upload failed', 'error');
+      }}
       onClientUploadComplete={(res) => {
+        const data = res?.[0]?.serverData;
+
+        if (!data) {
+          showToast('No server response', 'error');
+          return;
+        }
+
+        if (data.success) {
+          showToast('Image uploaded successfully!', 'success');
+        } else {
+          showToast(data.error || 'Failed to save image', 'error');
+        }
+
         router.refresh();
       }}
     />

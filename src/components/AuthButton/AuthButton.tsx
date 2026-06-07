@@ -37,17 +37,6 @@ function AuthButton() {
 
   return (
     <>
-      <UserName style={{ userSelect: 'none' }}>{userName}</UserName>
-      <AvatarWrapper>
-        <Image
-          src={userAvatar}
-          alt="user-avatar"
-          width={32}
-          height={32}
-          priority
-        />
-      </AvatarWrapper>
-
       <ButtonWrapper
         variant="fill"
         size="small"
@@ -59,6 +48,17 @@ function AuthButton() {
           <VisuallyHidden>Sign out</VisuallyHidden>
         </IconWrapper>
       </ButtonWrapper>
+      <AvatarWrapper>
+        <Image
+          src={userAvatar}
+          alt="user-avatar"
+          width={32}
+          height={32}
+          priority
+        />
+      </AvatarWrapper>
+      <UserName style={{ userSelect: 'none' }}>{userName}</UserName>
+
     </>
   );
 }

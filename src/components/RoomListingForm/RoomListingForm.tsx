@@ -3,18 +3,40 @@
 import React from 'react';
 import * as Form from '@radix-ui/react-form';
 import styled from 'styled-components';
-
+import { WEIGHTS } from '@/constants';
+import { CZ_REGIONS } from '@/constants';
+import { useRouter } from 'next/navigation';
+import { useToast } from '../ToastProvider';
 import { createAd } from '@/server/actions/createAd';
 
-import Modal from '../Modal';
-import Button from '../Button';
-import { WEIGHTS } from '@/constants';
-import Datepicker from '../Datepicker';
 import RegionSelect from '../RegionSelect';
-import { CZ_REGIONS } from '@/constants';
+import Datepicker from '../Datepicker';
+import Button from '../Button';
+import Modal from '../Modal';
 
 function RoomListingForm() {
   const [open, setOpen] = React.useState(false);
+  const [isPending, setIsPending] = React.useState(false);
+
+  const router = useRouter();
+  const { showToast } = useToast();
+
+  async function handleCreate(formData: FormData) {
+    setIsPending(true);
+
+    const res = await createAd(formData);
+
+    setIsPending(false);
+
+    if (res.success) {
+      showToast('Ad created successfully', 'success');
+      setOpen(false);
+      router.push(`/dashboard/${res.userId}`);
+      return;
+    }
+
+    showToast(res.error || 'Create failed', 'error');
+  }
 
   return (
     <>
@@ -30,7 +52,7 @@ function RoomListingForm() {
         onOpenChange={setOpen}
         disableOutsideClose={true}
       >
-        <Wrapper action={createAd}>
+        <Wrapper action={handleCreate}>
           <Field name="title">
             <LabelWrapper>
               <Label>Title</Label>
@@ -130,7 +152,9 @@ function RoomListingForm() {
             </Form.Control>
           </Field>
 
-          <SubmitButton type="submit">Create ad</SubmitButton>
+          <SubmitButton type="submit" disabled={isPending}>
+            Create ad
+          </SubmitButton>
         </Wrapper>
       </Modal>
     </>

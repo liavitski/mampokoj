@@ -17,6 +17,8 @@ import SessionProvider from '@/components/SessionProvider';
 import { getServerSession } from 'next-auth';
 import { MotionConfig } from 'motion/react';
 
+import ToastProvider from '@/components/ToastProvider';
+
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: '--font-family',
   subsets: ['latin'],
@@ -60,10 +62,12 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
           <StyledComponentsRegistry>
             <MaxWidthWrapper>
               <SessionProvider session={session}>
-                <Header initialTheme={theme} />
-                {children}
-                {modal}
-                <GlobalStyles />
+                <ToastProvider>
+                  <Header initialTheme={theme} />
+                  {children}
+                  {modal}
+                  <GlobalStyles />
+                </ToastProvider>
               </SessionProvider>
             </MaxWidthWrapper>
             <NextSSRPlugin

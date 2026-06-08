@@ -81,7 +81,7 @@ const Content = styled(Dialog.Content)`
   justify-self: center;
 
   @media (${QUERIES.phoneAndSmaller}) {
-    height: 95dvh;
+    /* height: 95dvh; */
     border-radius: 0;
   }
 `;

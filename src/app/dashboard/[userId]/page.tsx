@@ -40,7 +40,7 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
       {userAds.map((userAd) => {
         return (
           <AdCardWrapper key={userAd.id}>
-            <AdCard ad={userAd} />
+            <AdCard ad={userAd}/>
 
             <AdControlButtonsWrapper>
               <UploadBtn adId={userAd.id} />

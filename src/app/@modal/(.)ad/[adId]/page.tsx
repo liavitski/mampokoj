@@ -1,7 +1,9 @@
 import { getValidatedAd } from '@/server/queries/select';
 import { RouteModal } from './modal-wrapper';
+import { notFound } from 'next/navigation';
 
-import AdCard from '@/components/AdCard';
+import AdCardCompact from '@/components/AdCard/AdCardCompact';
+
 
 type ModalProps = {
   params: Promise<{ adId: string }>;
@@ -12,13 +14,13 @@ export default async function Modal({ params }: ModalProps) {
 
   const ad = await getValidatedAd(adId);
 
-  if (!ad) {
-    return;
-  }
+  if (!ad) notFound();
+
+  const { userId, ...adData } = ad;
 
   return (
     <RouteModal>
-      <AdCard ad={ad} />
+      <AdCardCompact ad={adData} />
     </RouteModal>
   );
 }

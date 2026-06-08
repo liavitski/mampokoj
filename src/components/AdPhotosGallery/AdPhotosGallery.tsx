@@ -1,5 +1,10 @@
 'use client';
+
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '../ToastProvider';
+import { deletePhotoByFileKey } from '@/server/actions/deletePhoto';
+
 import styled from 'styled-components';
 import Image from 'next/image';
 import VisuallyHidden from '../VisuallyHidden';
@@ -8,9 +13,6 @@ import Icon from '../Icon';
 import Tooltip from '../Tooltip';
 import AlertDialog from '../AlertDialog';
 import Button from '../Button';
-import { useRouter } from 'next/navigation';
-import { useToast } from '../ToastProvider';
-import { deletePhotoByFileKey } from '@/server/actions/deletePhoto';
 
 type PhotoItem = {
   id: string;
@@ -21,9 +23,13 @@ type PhotoItem = {
 
 type AdPhotosGalleryProps = {
   photos: PhotoItem[];
+  allowDeletePhoto?: boolean;
 };
 
-function AdPhotosGallery({ photos }: AdPhotosGalleryProps) {
+function AdPhotosGallery({
+  photos,
+  allowDeletePhoto = false,
+}: AdPhotosGalleryProps) {
   const [selectedPhotoIndex, setSelectedPhotoIndex] =
     React.useState(0);
   const [open, setOpen] = React.useState(false);
@@ -58,7 +64,12 @@ function AdPhotosGallery({ photos }: AdPhotosGalleryProps) {
     photos?.[selectedPhotoIndex ?? 0]?.url ?? '/globe.svg';
   const imageUrls = photos.map((photo) => photo.url);
 
-  const TooltipTrigger = <Icon id="trash" />;
+  const TooltipTrigger = allowDeletePhoto ? (
+    <div>
+      <Icon id="trash" />
+      <VisuallyHidden>Delete photo</VisuallyHidden>
+    </div>
+  ) : undefined;
 
   return (
     <Wrapper>

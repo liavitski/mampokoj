@@ -1,6 +1,7 @@
 import { getValidatedAd } from '@/server/queries/select';
 import { notFound } from 'next/navigation';
-import AdCard from '@/components/AdCard';
+
+import AdCardCompact from '@/components/AdCard/AdCardCompact';
 
 type AdPageProps = {
   params: Promise<{ adId: string }>;
@@ -11,8 +12,10 @@ export default async function AdPage({ params }: AdPageProps) {
   const ad = await getValidatedAd(adId);
 
   if (!ad) {
-    notFound(); // triggers /404 page or not-found.tsx
+    notFound(); 
   }
 
-  return <AdCard ad={ad} />;
+  const { userId, ...adData } = ad;
+
+  return <AdCardCompact ad={adData} />;
 }

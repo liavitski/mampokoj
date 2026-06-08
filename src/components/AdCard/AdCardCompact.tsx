@@ -1,24 +1,23 @@
 import * as React from 'react';
+
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { formatCZPhone } from '@/utils/utils';
 
-import type { AdWithImages } from '@/types/db-types';
+import type { AdWithoutUserId } from '@/types/db-types';
 
 import { QUERIES, WEIGHTS } from '@/constants';
 import styled from 'styled-components';
-import { requireUserId } from '@/lib/require-user-id';
 
 import AdPhotosGallery from '../AdPhotosGallery';
 
 type AdCardProps = {
-  ad: AdWithImages;
+  ad: AdWithoutUserId;
 };
 
-async function AdCard({ ad }: AdCardProps) {
+async function AdCardCompact({ ad }: AdCardProps) {
   const {
     id,
-    userId,
     title,
     price,
     city,
@@ -32,8 +31,6 @@ async function AdCard({ ad }: AdCardProps) {
   } = ad;
 
   const session = await getServerSession(authOptions);
-  const sessionUserId = await requireUserId();
-  const isAllowedToDeletePhoto = sessionUserId === userId;
 
   const formattedPrice = new Intl.NumberFormat('cs-CZ', {
     style: 'currency',
@@ -45,10 +42,7 @@ async function AdCard({ ad }: AdCardProps) {
 
   return (
     <Wrapper>
-      <AdPhotosGallery
-        photos={images}
-        allowDeletePhoto={isAllowedToDeletePhoto}
-      />
+      <AdPhotosGallery photos={images} />
 
       <InfoWrapper>
         <Title>{title}</Title>
@@ -141,4 +135,4 @@ const Price = styled.p`
   }
 `;
 
-export default AdCard;
+export default AdCardCompact;

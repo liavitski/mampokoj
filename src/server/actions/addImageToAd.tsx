@@ -2,6 +2,7 @@
 
 import { db } from '../db';
 import { images } from '../db/schema';
+import { revalidatePath } from 'next/cache';
 
 export type AddImageToAdProps = {
   adId: string;
@@ -35,6 +36,7 @@ export async function addImageToAd({
       url,
       fileKey,
     });
+    revalidatePath(`/dashboard/${userId}`);
 
     return { success: true };
   } catch (e) {

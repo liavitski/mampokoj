@@ -30,11 +30,12 @@ function AdPhotosGallery({
   photos,
   allowDeletePhoto = false,
 }: AdPhotosGalleryProps) {
+  const router = useRouter();
+
   const [selectedPhotoIndex, setSelectedPhotoIndex] =
     React.useState(0);
   const [open, setOpen] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
-  const router = useRouter();
   const { showToast } = useToast();
 
   async function handleDeletePhoto(fileKey: string) {
@@ -60,8 +61,10 @@ function AdPhotosGallery({
     router.refresh();
   }
 
-  const image =
-    photos?.[selectedPhotoIndex ?? 0]?.url ?? '/globe.svg';
+  const hasPhotos = photos?.length > 0;
+  const currentPhoto = photos?.[selectedPhotoIndex]?.url;
+  const image = currentPhoto ?? '/globe.svg';
+
   const imageUrls = photos.map((photo) => photo.url);
 
   const TooltipTrigger = allowDeletePhoto ? (
@@ -106,12 +109,14 @@ function AdPhotosGallery({
             </DeleteButtonStyled>
           }
           trigger={
-            <DeletePhotoButton>
-              <Tooltip
-                trigger={TooltipTrigger}
-                content="Delete photo"
-              />
-            </DeletePhotoButton>
+            hasPhotos && (
+              <DeletePhotoButton>
+                <Tooltip
+                  trigger={TooltipTrigger}
+                  content="Delete photo"
+                />
+              </DeletePhotoButton>
+            )
           }
         />
       </PrimaryPhotoWrapper>

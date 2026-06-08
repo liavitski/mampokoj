@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { QUERIES, WEIGHTS } from '@/constants';
 import Icon from '../Icon';
 import VisuallyHidden from '../VisuallyHidden';
+import { redirect } from 'next/navigation';
 
 function AuthButton() {
   const { data: session, status } = useSession();
@@ -50,7 +51,7 @@ function AuthButton() {
       <ButtonWrapper
         variant="ghost"
         size="small"
-        onClick={() => signOut()}
+        onClick={() => signOut({ callbackUrl: '/' })}
       >
         <ButtonText>Sign Out</ButtonText>
         <IconWrapper>

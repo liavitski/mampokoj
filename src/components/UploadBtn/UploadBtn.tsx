@@ -8,7 +8,6 @@ import { WEIGHTS } from '@/constants';
 
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
-import { addImageToAd } from '@/server/actions/addImageToAd';
 
 type UploadBtnProps = {
   adId: string;

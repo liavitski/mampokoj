@@ -46,8 +46,6 @@ export const ourFileRouter = {
         userId: metadata.userId,
       });
 
-      console.log('DB RESULT:', result);
-
       if (!result.success) {
         throw new Error(result.error || 'Failed to save image');
       }

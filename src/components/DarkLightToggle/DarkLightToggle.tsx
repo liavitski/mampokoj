@@ -45,7 +45,7 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
   }
 
   const TooltipTrigger = (
-    <Icon id={theme} strokeWidth={1.5} content="Toggle theme" />
+    <Icon id={theme} content="Toggle theme" />
   );
 
   return (

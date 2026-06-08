@@ -21,11 +21,11 @@ async function Header({ initialTheme }: HeaderProps) {
 
   return (
     <Wrapper>
-      <LogoWrapper>
+
         <Logo />
-        <AuthButton />
-      </LogoWrapper>
+
       <ButtonsWrapper>
+        <AuthButton />
         {userId && (
           <>
             <LinkWrapper href={`/dashboard/${userId}`}>
@@ -51,12 +51,6 @@ const Wrapper = styled.header`
   margin-bottom: 1.5rem;
   border-bottom: 4px dotted var(--color-border);
 `;
-
-const LogoWrapper = styled.div`
-  display: flex;
-  gap: 16px;
-  align-items: center;
-`
 
 const ButtonsWrapper = styled.div`
   display: flex;

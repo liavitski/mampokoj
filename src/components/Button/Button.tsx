@@ -96,16 +96,11 @@ const OutlineButton = styled(ButtonBase)`
 `;
 
 const GhostButton = styled(ButtonBase)`
-  color: grey;
+  color: var(--color-text);
   background-color: transparent;
 
-  &:focus {
-    outline-color: grey;
-  }
-
   &:hover {
-    background: grey;
-    color: grey;
+    background-color: var(--color-accent);
   }
 `;
 

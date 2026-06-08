@@ -2,6 +2,7 @@
 import * as React from 'react';
 import * as Alert from '@radix-ui/react-alert-dialog';
 import styled, { keyframes } from 'styled-components';
+import { WEIGHTS } from '@/constants';
 
 type AlertDialogProps = {
   trigger: React.ReactNode;
@@ -30,11 +31,12 @@ function AlertDialog({
       <Alert.Portal>
         <Overlay />
         <Content>
-          <Alert.Title>{title}</Alert.Title>
-
-          <Alert.Description>{description}</Alert.Description>
-          <Alert.Cancel asChild>{cancel}</Alert.Cancel>
-          <Alert.Action asChild>{action}</Alert.Action>
+          <Title>{title}</Title>
+          <Description>{description}</Description>
+          <ActionsWrapper>
+            <Alert.Cancel asChild>{cancel}</Alert.Cancel>
+            <Alert.Action asChild>{action}</Alert.Action>
+          </ActionsWrapper>
         </Content>
       </Alert.Portal>
     </Alert.Root>
@@ -58,17 +60,37 @@ const Overlay = styled(Alert.Overlay)`
 
 const Content = styled(Alert.Content)`
   position: fixed;
-  inset: 0;
-  max-height: 100dvh;
-  min-width: min(600px, 90vw);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  max-width: 500px;
+  max-height: 85vh;
 
-  z-index: 1;
-  color: var(--color-text);
+  background-color: var(--color-card-background);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
-  align-self: center;
-  justify-self: center;
+  gap: 16px;
+`;
+
+const Title = styled(Alert.Title)`
+  font-weight: ${WEIGHTS.normal};
+  font-size: 1.5rem;
+  margin-top: -8px;
+`;
+
+const Description = styled(Alert.Description)`
+  font-weight: ${WEIGHTS.normal};
+  font-size: 1rem;
+`;
+
+const ActionsWrapper = styled.div`
+  display: flex;
 `;
 
 export default AlertDialog;

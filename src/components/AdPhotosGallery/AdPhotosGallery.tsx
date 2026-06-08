@@ -4,11 +4,19 @@ import styled from 'styled-components';
 import Image from 'next/image';
 import VisuallyHidden from '../VisuallyHidden';
 import UnstyledButton from '../UnstyledButton';
+import Icon from '../Icon';
+import Tooltip from '../Tooltip';
+import AlertDialog from '../AlertDialog';
+import Button from '../Button';
+import { useRouter } from 'next/navigation';
+import { useToast } from '../ToastProvider';
+import { deletePhotoByFileKey } from '@/server/actions/deletePhoto';
 
 type PhotoItem = {
   id: string;
   url: string;
   createdAt: Date;
+  fileKey: string;
 };
 
 type AdPhotosGalleryProps = {
@@ -18,10 +26,39 @@ type AdPhotosGalleryProps = {
 function AdPhotosGallery({ photos }: AdPhotosGalleryProps) {
   const [selectedPhotoIndex, setSelectedPhotoIndex] =
     React.useState(0);
+  const [open, setOpen] = React.useState(false);
+  const [isPending, setIsPending] = React.useState(false);
+  const router = useRouter();
+  const { showToast } = useToast();
+
+  async function handleDeletePhoto(fileKey: string) {
+    setIsPending(true);
+
+    const res = await deletePhotoByFileKey(fileKey);
+
+    setIsPending(false);
+
+    if (!res.success) {
+      showToast(res.error || 'Delete failed', 'error');
+      return;
+    }
+
+    const deletedIndex = selectedPhotoIndex;
+    const nextPhotos = photos.filter((p) => p.fileKey !== fileKey);
+
+    const newIndex = deletedIndex > 0 ? deletedIndex - 1 : 0;
+
+    setSelectedPhotoIndex(Math.min(newIndex, nextPhotos.length - 1));
+
+    showToast('Photo deleted successfully', 'success');
+    router.refresh();
+  }
 
   const image =
     photos?.[selectedPhotoIndex ?? 0]?.url ?? '/globe.svg';
   const imageUrls = photos.map((photo) => photo.url);
+
+  const TooltipTrigger = <Icon id="trash" />;
 
   return (
     <Wrapper>
@@ -31,6 +68,40 @@ function AdPhotosGallery({ photos }: AdPhotosGalleryProps) {
           alt="Ad photo - primary"
           fill
           sizes="(max-width: 500px) 100vw, 500px"
+        />
+
+        <AlertDialog
+          open={open}
+          onOpenChange={() => setOpen(!open)}
+          description={
+            'This action cannot be undone. This will permanently delete your photo and remove it from our servers.'
+          }
+          title={'Are you absolutely sure?'}
+          cancel={
+            <Button variant="outline" size="small">
+              Cancel
+            </Button>
+          }
+          action={
+            <DeleteButtonStyled
+              variant="fill"
+              size="small"
+              onClick={() =>
+                handleDeletePhoto(photos[selectedPhotoIndex].fileKey)
+              }
+              disabled={isPending}
+            >
+              Yes, delete ad
+            </DeleteButtonStyled>
+          }
+          trigger={
+            <DeletePhotoButton>
+              <Tooltip
+                trigger={TooltipTrigger}
+                content="Delete photo"
+              />
+            </DeletePhotoButton>
+          }
         />
       </PrimaryPhotoWrapper>
 
@@ -72,6 +143,34 @@ const PrimaryPhotoWrapper = styled.div`
   flex: 1 0 auto;
   margin-bottom: 12px;
   min-height: 400px;
+`;
+
+const DeletePhotoButton = styled(UnstyledButton)`
+  position: absolute;
+  z-index: 1;
+  background-color: var(--color-destructive);
+  border-radius: 8px;
+  /* border: 1px solid var(--color-border); */
+  box-shadow: var(--shadow-card);
+  bottom: 0px;
+  right: 0px;
+  color: var(--color-destructive-foreground);
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: var(--color-destructive-hover);
+    }
+  }
+`;
+
+const DeleteButtonStyled = styled(Button)`
+  margin-left: auto;
+  background-color: var(--color-destructive);
+  color: var(--color-destructive-foreground);
+
+  &:hover {
+    background-color: var(--color-destructive-hover);
+  }
 `;
 
 const PrimaryPhoto = styled(Image)`

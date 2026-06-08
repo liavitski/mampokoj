@@ -10,6 +10,7 @@ import {
   Calendar,
   CheckCircle,
   AlertOctagon,
+  Trash,
 } from 'react-feather';
 
 const icons = {
@@ -22,6 +23,7 @@ const icons = {
   calendar: Calendar,
   checkCircle: CheckCircle,
   alertOctagon: AlertOctagon,
+  trash: Trash,
 };
 
 type IconId = keyof typeof icons;

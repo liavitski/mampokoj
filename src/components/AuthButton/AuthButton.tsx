@@ -11,7 +11,7 @@ import VisuallyHidden from '../VisuallyHidden';
 
 function AuthButton() {
   const { data: session, status } = useSession();
-  
+
   if (status === 'loading') {
     return <Spinner />;
   }
@@ -19,7 +19,7 @@ function AuthButton() {
   if (!session) {
     return (
       <ButtonWrapper
-        variant="fill"
+        variant="ghost"
         size="small"
         onClick={() => signIn()}
       >
@@ -37,17 +37,7 @@ function AuthButton() {
 
   return (
     <>
-      <ButtonWrapper
-        variant="fill"
-        size="small"
-        onClick={() => signOut()}
-      >
-        <ButtonText>Sign Out</ButtonText>
-        <IconWrapper>
-          <Icon id="logOut" strokeWidth={1.5} />
-          <VisuallyHidden>Sign out</VisuallyHidden>
-        </IconWrapper>
-      </ButtonWrapper>
+      <UserName style={{ userSelect: 'none' }}>{userName}</UserName>
       <AvatarWrapper>
         <Image
           src={userAvatar}
@@ -57,8 +47,17 @@ function AuthButton() {
           priority
         />
       </AvatarWrapper>
-      <UserName style={{ userSelect: 'none' }}>{userName}</UserName>
-
+      <ButtonWrapper
+        variant="ghost"
+        size="small"
+        onClick={() => signOut()}
+      >
+        <ButtonText>Sign Out</ButtonText>
+        <IconWrapper>
+          <Icon id="logOut" strokeWidth={1.5} />
+          <VisuallyHidden>Sign out</VisuallyHidden>
+        </IconWrapper>
+      </ButtonWrapper>
     </>
   );
 }
@@ -81,8 +80,8 @@ const UserName = styled.span`
 `;
 
 const ButtonWrapper = styled(Button)`
-   border: none;
-   
+  border: none;
+
   @media (${QUERIES.phoneAndSmaller}) {
     padding: 0;
     border-radius: 50%;

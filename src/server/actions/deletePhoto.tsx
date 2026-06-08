@@ -5,6 +5,7 @@ import { images } from '@/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireUserId } from '@/lib/require-user-id';
 import { utapi } from '@/app/api/uploadthing/core';
+import { redirect } from 'next/navigation';
 
 export async function deletePhotoByFileKey(fileKey: string) {
   try {

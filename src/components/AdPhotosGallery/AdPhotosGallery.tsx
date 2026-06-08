@@ -62,10 +62,13 @@ function AdPhotosGallery({
   }
 
   const hasPhotos = photos?.length > 0;
-  const currentPhoto = photos?.[selectedPhotoIndex]?.url;
-  const image = currentPhoto ?? '/globe.svg';
 
-  const imageUrls = photos.map((photo) => photo.url);
+  const imageUrls = photos?.map((photo) => photo.url) ?? [];
+
+  const image =
+    imageUrls.length > 0
+      ? imageUrls[selectedPhotoIndex] ?? imageUrls[0]
+      : '/globe.svg';
 
   const TooltipTrigger = allowDeletePhoto ? (
     <div>

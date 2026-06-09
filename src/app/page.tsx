@@ -20,6 +20,8 @@ type HomeProps = {
 
 export default async function Home({ searchParams }: HomeProps) {
   const { region, cursorCreatedAt, cursorId } = await searchParams;
+  // key that changes per region (or include nextCursor id)
+  const gridKey = `${region ?? 'all'}:${cursorId ?? 'start'}`;
 
   if (region && !isRegionCode(region)) {
     return (
@@ -53,6 +55,7 @@ export default async function Home({ searchParams }: HomeProps) {
     <Wrapper>
       <MainColumn>
         <AdGrid
+          key={gridKey}
           adsData={{
             items,
             hasMore,

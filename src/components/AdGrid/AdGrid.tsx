@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import AdSummaryCard from '../AdSummaryCard';
 import styled from 'styled-components';
 import type { AdsApiResponse, AdWithImages } from '@/types/db-types';
-import LoadMoreButton from '../LoadMoreButton';
 import { useSearchParams } from 'next/navigation';
+
+import LoadMoreButton from '../LoadMoreButton';
+import AdSummaryCard from '../AdSummaryCard';
 
 type AdGridProps = {
   adsData: AdsApiResponse;
@@ -13,25 +14,26 @@ type AdGridProps = {
 
 function AdGrid({ adsData }: AdGridProps) {
   const [adsList, setAdsList] = React.useState<AdWithImages[]>(
-    () => adsData.items
+    adsData.items
   );
-  const [cursor, setCursor] = React.useState(
-    () => adsData.nextCursor
-  );
+  const [cursor, setCursor] = React.useState(adsData.nextCursor);
   const [hasMoreState, setHasMoreState] = React.useState(
-    () => adsData.hasMore
+    adsData.hasMore
   );
 
   const [loading, setLoading] = React.useState(false);
   const searchParams = useSearchParams();
   const region = searchParams.get('region');
 
+  // Soved this by passing unique key from parent. Key will trigger re-reder
+  // so not needed effect.
+
   // sync state when server-provided props change (e.g. after router.refresh())
-  React.useEffect(() => {
-    setAdsList(adsData.items);
-    setCursor(adsData.nextCursor);
-    setHasMoreState(adsData.hasMore);
-  }, [adsData.items, adsData.nextCursor, adsData.hasMore]);
+  // React.useEffect(() => {
+  //   setAdsList(adsData.items);
+  //   setCursor(adsData.nextCursor);
+  //   setHasMoreState(adsData.hasMore);
+  // }, [adsData.items, adsData.nextCursor, adsData.hasMore]);
 
   async function loadMore() {
     if (!cursor || loading) return;

@@ -108,7 +108,7 @@ function AdPhotosGallery({
               }
               disabled={isPending}
             >
-              Yes, delete ad
+              Yes, delete photo
             </DeleteButtonStyled>
           }
           trigger={

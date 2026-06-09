@@ -77,7 +77,7 @@ const Wrapper = styled.article`
   height: max-content;
 
   @media (${QUERIES.tabletAndSmaller}) {
-    min-width: min(600px, 95vw);
+    width: min(600px, 95vw);
     flex-direction: column;
   }
 `;

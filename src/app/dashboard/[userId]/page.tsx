@@ -28,7 +28,9 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
   if (userAds.length === 0)
     return (
       <>
-        <h3>You dont have any ads.</h3>
+        <h3 style={{ marginBottom: '8px' }}>
+          You dont have any ads.
+        </h3>
         <RoomListingForm />
       </>
     );
@@ -40,12 +42,12 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
       {userAds.map((userAd) => {
         return (
           <AdCardWrapper key={userAd.id}>
-            <AdCard ad={userAd}/>
+            <AdCard ad={userAd} />
 
             <AdControlButtonsWrapper>
               <UploadBtn adId={userAd.id} />
 
-              <UpdateRoomListingForm ad={userAd}/>
+              <UpdateRoomListingForm ad={userAd} />
 
               <DeleteAdButton adId={userAd.id} />
             </AdControlButtonsWrapper>

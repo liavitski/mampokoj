@@ -37,16 +37,18 @@ function RoomListingForm() {
 
     showToast(res.error || 'Create failed', 'error');
   }
-
   return (
     <>
-      <ModalButton
-        variant="fill"
-        size="small"
-        onClick={() => setOpen(true)}
-      >
-        Create ad
-      </ModalButton>
+      <ModalButtonWrapper>
+        <ModalButton
+          variant="fill"
+          size="small"
+          onClick={() => setOpen(true)}
+        >
+          Create ad
+        </ModalButton>
+        <Text>Maximum 2 ads per user</Text>
+      </ModalButtonWrapper>
       <Modal
         open={open}
         onOpenChange={setOpen}
@@ -160,6 +162,17 @@ function RoomListingForm() {
     </>
   );
 }
+
+const ModalButtonWrapper = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+`;
+
+const Text = styled.span`
+  font-size: 0.875rem;
+  font-weight: ${WEIGHTS.normal};
+`;
 
 const Wrapper = styled(Form.Root)`
   width: min(500px, 95vw);

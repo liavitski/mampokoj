@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Loader } from 'react-feather';
-import styled, { keyframes } from 'styled-components';
+import styles from './Spinner.module.css';
 
 type SpinnerProps = {
   color?: string;
@@ -9,31 +9,10 @@ type SpinnerProps = {
 
 function Spinner({ color, size }: SpinnerProps) {
   return (
-    <Wrapper>
+    <div className={styles.wrapper}>
       <Loader color={color} size={size} />
-    </Wrapper>
+    </div>
   );
 }
-
-const spin = keyframes`
-  from {
-    transform: rotate(-360deg);
-  }
-`;
-
-const Wrapper = styled.div`
-  display: block;
-  width: min-content;
-  height: min-content;
-  /* @ts-ignore */
-  animation: ${spin} 1000ms linear infinite;
-  color: inherit;
-  opacity: 0.6;
-
-  svg {
-    display: block;
-    max-width: revert;
-  }
-`;
 
 export default Spinner;

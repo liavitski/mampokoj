@@ -48,6 +48,13 @@ function RegionNavigation({ currentRegion }: RegionNavigationProps) {
                 $active={currentRegion === region.code}
                 $pending={isPending}
                 onMouseEnter={() => setHoveredNavItem(region.code)}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  if (isPending) return;
+                  e.preventDefault();
+                  startTransition(() => {
+                    router.push(href);
+                  });
+                }}
               >
                 {region.name_en}
               </RegionLink>
@@ -98,7 +105,7 @@ const RegionLink = styled(Link)<{
     $active ? 'var(--color-secondary)' : 'transparent'};
 
   cursor: ${({ $pending }) => ($pending ? 'wait' : 'pointer')};
-  opacity: ${({ $pending }) => ($pending ? 0.6 : 1)};
+  /* opacity: ${({ $pending }) => ($pending ? 0.6 : 1)}; */
 
   &:hover {
     color: var(--color-link-hover);

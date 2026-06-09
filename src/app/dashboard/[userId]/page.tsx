@@ -11,6 +11,7 @@ import AdCard from '@/components/AdCard';
 import UploadBtn from '@/components/UploadBtn';
 import DeleteAdButton from '@/components/DeleteAdButton';
 import UpdateRoomListingForm from '@/components/UpdateRoomListingForm';
+import Spinner from '@/components/Spinner';
 
 type UserDashboardPageProps = {
   params: Promise<{ userId: string }>;
@@ -37,8 +38,7 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
 
   return (
     <Wrapper>
-      <RoomListingForm />
-
+      {userAds.length < 2 && <RoomListingForm />}
       {userAds.map((userAd) => {
         return (
           <AdCardWrapper key={userAd.id}>

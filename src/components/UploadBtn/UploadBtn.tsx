@@ -34,11 +34,10 @@ function UploadBtn({ adId }: UploadBtnProps) {
 
         if (data.success) {
           showToast('Image uploaded successfully!', 'success');
+          router.refresh();
         } else {
           showToast(data.error || 'Failed to save image', 'error');
         }
-
-        router.refresh();
       }}
     />
   );

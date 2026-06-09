@@ -41,7 +41,7 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
     <Alert.Root>
       <Alert.Trigger asChild>
         <DeleteButtonStyled variant="fill" size="small">
-          Delete
+          Delete ad
         </DeleteButtonStyled>
       </Alert.Trigger>
 

@@ -1,12 +1,11 @@
 import styled from 'styled-components';
-import RegionNavigation from '@/components/RegionNavigation';
-import AdGrid from '@/components/AdGrid';
-import { QUERIES } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
 import { isRegionCode } from '@/utils/utils';
 import { PAGE_SIZE } from '@/constants';
 import { getAds } from '@/server/queries/select';
 
-export const dynamic = 'force-dynamic';
+import RegionNavigation from '@/components/RegionNavigation';
+import AdGrid from '@/components/AdGrid';
 
 type SearchParams = {
   region?: string;
@@ -20,14 +19,14 @@ type HomeProps = {
 
 export default async function Home({ searchParams }: HomeProps) {
   const { region, cursorCreatedAt, cursorId } = await searchParams;
-  // key that changes per region (or include nextCursor id)
+  // key that changes per region
   const gridKey = `${region ?? 'all'}:${cursorId ?? 'start'}`;
 
   if (region && !isRegionCode(region)) {
     return (
       <Wrapper>
         <MainColumn>
-          <h3>No ads found for this region</h3>
+          <Text>No ads found for this region</Text>
         </MainColumn>
 
         <LeftColumn>
@@ -91,4 +90,10 @@ const LeftColumn = styled.aside`
   @media ${QUERIES.tabletAndSmaller} {
     display: none;
   }
+`;
+
+const Text = styled.p`
+  font-weight: ${WEIGHTS.medium};
+  font-size: 1rem;
+  text-align: center;
 `;

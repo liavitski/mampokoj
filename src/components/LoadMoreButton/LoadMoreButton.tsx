@@ -17,6 +17,7 @@ function LoadMoreButton({
 }: LoadMoreButtonProps) {
   return (
     <Button
+      style={{ alignSelf: 'center' }}
       variant="fill"
       size="small"
       disabled={!nextCursor || loading}

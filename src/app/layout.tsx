@@ -1,30 +1,24 @@
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { plusJakartaSans } from '@/utils/fonts';
 import { cookies } from 'next/headers';
 import type { Theme } from '@/types/theme';
 
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin';
 import { extractRouterConfig } from 'uploadthing/server';
 import { ourFileRouter } from '@/app/api/uploadthing/core';
+import { MotionConfig } from 'motion/react';
+import { getServerSession } from 'next-auth';
 
 import '@uploadthing/react/styles.css';
 import GlobalStyles from '@/components/GlobalStyles';
 import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
-
 import StyledComponentsRegistry from '@/lib/registry';
+
 import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
 import SessionProvider from '@/components/SessionProvider';
-import { getServerSession } from 'next-auth';
-import { MotionConfig } from 'motion/react';
+import Footer from '@/components/Footer';
 
 import ToastProvider from '@/components/ToastProvider';
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: '--font-family',
-  subsets: ['latin'],
-  display: 'fallback',
-  weight: 'variable',
-});
 
 export const metadata = {
   title: {
@@ -66,6 +60,7 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
                   <Header initialTheme={theme} />
                   {children}
                   {modal}
+                  <Footer />
                   <GlobalStyles />
                 </ToastProvider>
               </SessionProvider>

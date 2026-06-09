@@ -63,12 +63,13 @@ function AdGrid({ adsData }: AdGridProps) {
   }
 
   return (
-    <>
-      <Wrapper>
+    <Wrapper>
+      <CardsWrapper>
         {adsList.map((ad) => (
           <AdSummaryCard key={ad.id} ad={ad} />
         ))}
-      </Wrapper>
+      </CardsWrapper>
+
 
       {hasMoreState && (
         <LoadMoreButton
@@ -77,11 +78,17 @@ function AdGrid({ adsData }: AdGridProps) {
           onLoadMore={loadMore}
         />
       )}
-    </>
+    </Wrapper>
   );
 }
 
 const Wrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const CardsWrapper = styled.div`
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

@@ -4,7 +4,7 @@ import * as React from 'react';
 import styled from 'styled-components';
 
 import { UploadButton } from '@/utils/uploadthing';
-import { WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
 
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
@@ -61,6 +61,7 @@ const StyledUploadButton = styled(UploadButton)`
     &:hover {
       background-color: var(--color-primary-hover) !important;
     }
+
   }
 `;
 

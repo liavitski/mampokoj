@@ -1,7 +1,7 @@
 import * as React from 'react';
 import styled from 'styled-components';
 import UnstyledButton from '../UnstyledButton';
-import { WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
 
 type SizeConfig = {
   '--borderRadius': string;
@@ -73,6 +73,10 @@ const ButtonBase = styled(UnstyledButton)`
   &:focus {
     outline-color: var(--color-focus-ring);
     outline-offset: 4px;
+  }
+
+  @media ${QUERIES.phoneAndSmaller} {
+    font-size: 0.875rem;
   }
 `;
 

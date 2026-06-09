@@ -166,7 +166,6 @@ const PrimaryPhotoWrapper = styled.div`
 
 const DeletePhotoButton = styled(UnstyledButton)`
   position: absolute;
-  z-index: 1;
   background-color: var(--color-destructive);
   border-radius: 8px;
   /* border: 1px solid var(--color-border); */

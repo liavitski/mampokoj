@@ -79,12 +79,16 @@ const Wrapper = styled.article`
   display: flex;
   gap: 16px;
   max-width: 1000px;
-  min-width: min(800px, 95vw);
+  width: min(800px, 95vw);
   height: max-content;
-
+  
   @media (${QUERIES.tabletAndSmaller}) {
-    min-width: min(600px, 95vw);
+    width: 100%;
     flex-direction: column;
+  }
+  
+  @media ${QUERIES.phoneAndSmaller} {
+    width: 100%;
   }
 `;
 

@@ -3,7 +3,7 @@
 import React from 'react';
 import * as Form from '@radix-ui/react-form';
 import styled from 'styled-components';
-import { WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS } from '@/constants';
 import { CZ_REGIONS } from '@/constants';
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
@@ -167,6 +167,10 @@ const ModalButtonWrapper = styled.div`
   display: flex;
   gap: 16px;
   align-items: baseline;
+
+  @media ${QUERIES.phoneAndSmaller} {
+    justify-content: space-between;
+  }
 `;
 
 const Text = styled.span`

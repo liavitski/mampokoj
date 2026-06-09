@@ -1,6 +1,7 @@
 export const APP_TITLE = 'Mam Pokoj';
 export const COLOR_THEME_COOKIE_NAME = 'color-theme';
 export const MAX_TOASTS = 5;
+export const PAGE_SIZE = 10;
 
 export const LIGHT_COLORS = {
   '--color-text': 'hsl(217deg 32.5% 17.4%)',

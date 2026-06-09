@@ -1,27 +1,36 @@
 'use client';
+
 import * as React from 'react';
 import { motion } from 'motion/react';
 import styled from 'styled-components';
 import { CZ_REGIONS, WEIGHTS } from '@/constants';
 import Link from 'next/link';
-
-type RegionCode = (typeof CZ_REGIONS)[number]['code'];
+import type { RegionCode } from '@/types/db-types';
+import {
+  usePathname,
+  useSearchParams,
+  useRouter,
+} from 'next/navigation';
+import { useTransition } from 'react';
 
 type RegionNavigationProps = {
-  currentRegion?: RegionCode;
+  currentRegion?: string;
 };
 
-function RegionNavigation({
-  currentRegion = 'PR',
-}: RegionNavigationProps) {
+function RegionNavigation({ currentRegion }: RegionNavigationProps) {
+  const router = useRouter();
+  const id = React.useId();
+
+  const [isPending, startTransition] = useTransition();
   const [hoveredNavItem, setHoveredNavItem] =
     React.useState<RegionCode | null>(null);
-  const id = React.useId();
 
   return (
     <nav onMouseLeave={() => setHoveredNavItem(null)}>
       <RegionListWrapper>
         {CZ_REGIONS.map((region) => {
+          const href = `/?region=${region.code}`;
+
           return (
             <LinkWrapper key={region.code}>
               {hoveredNavItem === region.code && (
@@ -35,8 +44,9 @@ function RegionNavigation({
                 />
               )}
               <RegionLink
-                href={'/'}
+                href={href}
                 $active={currentRegion === region.code}
+                $pending={isPending}
                 onMouseEnter={() => setHoveredNavItem(region.code)}
               >
                 {region.name_en}
@@ -70,7 +80,10 @@ const LinkBackground = styled(motion.div)`
   height: 100%;
 `;
 
-const RegionLink = styled(Link)<{ $active?: boolean }>`
+const RegionLink = styled(Link)<{
+  $active?: boolean;
+  $pending?: boolean;
+}>`
   font-size: 1rem;
   font-weight: ${WEIGHTS.normal};
   width: fit-content;
@@ -83,6 +96,9 @@ const RegionLink = styled(Link)<{ $active?: boolean }>`
       : 'var(--color-link)'};
   background-color: ${({ $active }) =>
     $active ? 'var(--color-secondary)' : 'transparent'};
+
+  cursor: ${({ $pending }) => ($pending ? 'wait' : 'pointer')};
+  opacity: ${({ $pending }) => ($pending ? 0.6 : 1)};
 
   &:hover {
     color: var(--color-link-hover);

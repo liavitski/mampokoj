@@ -11,7 +11,6 @@ import AdCard from '@/components/AdCard';
 import UploadBtn from '@/components/UploadBtn';
 import DeleteAdButton from '@/components/DeleteAdButton';
 import UpdateRoomListingForm from '@/components/UpdateRoomListingForm';
-import Spinner from '@/components/Spinner';
 
 type UserDashboardPageProps = {
   params: Promise<{ userId: string }>;
@@ -76,7 +75,7 @@ const AdControlButtonsWrapper = styled.div`
   display: flex;
   gap: 16px;
   align-items: flex-start;
-  max-width: 1000px;
+  max-width: 800px;
 `;
 
 export default UserDashboardPage;

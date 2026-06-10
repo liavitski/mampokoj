@@ -3,7 +3,6 @@ import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import { ads } from '../db/schema';
 import { z } from 'zod';
-import { cache } from 'react';
 import { PAGE_SIZE } from '@/constants';
 import type { AdsCursor } from '@/types/db-types';
 
@@ -102,17 +101,6 @@ export async function getValidatedAd(adId: string) {
 
   return await getAdWithImagesById(parsed.data);
 }
-
-// Ad Page
-
-// export async function getUserAdsByUserId(userId: string) {
-//   const userAds = await db
-//     .select()
-//     .from(ads)
-//     .where(eq(ads.userId, userId)); // selecting all user ads by user id
-
-//   const adIds = userAds.map((a) => a.id); // getting
-// }
 
 // Dashboard page
 

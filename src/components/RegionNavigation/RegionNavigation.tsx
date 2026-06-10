@@ -7,8 +7,6 @@ import { CZ_REGIONS, WEIGHTS } from '@/constants';
 import Link from 'next/link';
 import type { RegionCode } from '@/types/db-types';
 import {
-  usePathname,
-  useSearchParams,
   useRouter,
 } from 'next/navigation';
 import { useTransition } from 'react';

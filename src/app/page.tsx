@@ -22,6 +22,8 @@ export default async function Home({ searchParams }: HomeProps) {
   // key that changes per region
   const gridKey = `${region ?? 'all'}:${cursorId ?? 'start'}`;
 
+  // await new Promise((resolve) => setTimeout(resolve, 3000));
+
   if (region && !isRegionCode(region)) {
     return (
       <Wrapper>

@@ -21,8 +21,7 @@ async function Header({ initialTheme }: HeaderProps) {
 
   return (
     <Wrapper>
-
-        <Logo />
+      <Logo />
 
       <ButtonsWrapper>
         {userId && (

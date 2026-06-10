@@ -11,6 +11,8 @@ import {
   CheckCircle,
   AlertOctagon,
   Trash,
+  ChevronUp,
+  ChevronDown,
 } from 'react-feather';
 
 const icons = {
@@ -24,6 +26,8 @@ const icons = {
   checkCircle: CheckCircle,
   alertOctagon: AlertOctagon,
   trash: Trash,
+  chevronUp: ChevronUp,
+  chevronDown: ChevronDown,
 };
 
 type IconId = keyof typeof icons;

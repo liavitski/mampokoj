@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as Select from '@radix-ui/react-select';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
+import Icon from '../Icon';
 
 type Region = {
   name_en: string;
@@ -24,6 +25,9 @@ function RegionSelect({ data, ...rootProps }: RegionSelectProps) {
       </Trigger>
 
       <Content>
+        <ScrollUpButton>
+          <Icon id="chevronUp" />
+        </ScrollUpButton>
         <Viewport>
           {data.map((r) => (
             <Item key={r.code} value={r.code}>
@@ -31,6 +35,9 @@ function RegionSelect({ data, ...rootProps }: RegionSelectProps) {
             </Item>
           ))}
         </Viewport>
+        <ScrollDownButton>
+          <Icon id="chevronDown" />
+        </ScrollDownButton>
       </Content>
     </Select.Root>
   );
@@ -67,6 +74,26 @@ const Content = styled(Select.Content)`
   width: max-content;
   z-index: 2;
   box-shadow: var(--shadow-card);
+`;
+
+const ScrollUpButton = styled(Select.ScrollUpButton)`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  background-color: var(--color-primary-foreground);
+  color: var(--color-text);
+  cursor: default;
+`;
+
+const ScrollDownButton = styled(Select.ScrollDownButton)`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 25px;
+  background-color: var(--color-primary-foreground);
+  color: var(--color-text);
+  cursor: default;
 `;
 
 const Viewport = styled(Select.Viewport)`

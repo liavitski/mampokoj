@@ -6,6 +6,7 @@ import { getAds } from '@/server/queries/select';
 
 import RegionNavigation from '@/components/RegionNavigation';
 import AdGrid from '@/components/AdGrid';
+import RegionSelectBlock from '@/components/RegionSelectBlock';
 
 type SearchParams = {
   region?: string;
@@ -28,7 +29,7 @@ export default async function Home({ searchParams }: HomeProps) {
     return (
       <Wrapper>
         <MainColumn>
-          <Text>No ads found for this region</Text>
+          <NoAdsText>No ads found for this region</NoAdsText>
         </MainColumn>
 
         <LeftColumn>
@@ -54,6 +55,8 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <Wrapper>
+      <RegionSelectBlock currentRegion={region} />
+
       <MainColumn>
         <AdGrid
           key={gridKey}
@@ -80,6 +83,11 @@ export default async function Home({ searchParams }: HomeProps) {
 const Wrapper = styled.main`
   display: flex;
   flex-direction: row-reverse;
+  gap: 16px;
+
+  @media ${QUERIES.tabletAndSmaller} {
+    flex-direction: column;
+  }
 `;
 
 const MainColumn = styled.div`
@@ -94,7 +102,15 @@ const LeftColumn = styled.aside`
   }
 `;
 
-const Text = styled.p`
+const RegionSelector = styled.div`
+  display: none;
+
+  @media ${QUERIES.tabletAndSmaller} {
+    display: block;
+  }
+`;
+
+const NoAdsText = styled.p`
   font-weight: ${WEIGHTS.medium};
   font-size: 1rem;
   text-align: center;

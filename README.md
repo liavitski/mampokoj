@@ -9,8 +9,8 @@
 - [x] Add Authentication (NextAuth)
 - [x] Add image upload
 - [x] "taint" (server-only)
-- [ ] Routing/image page (parallel routes)
-- [ ] Delete button with Server Actions
+- [x] Routing/image page (parallel routes)
+- [x] Delete button with Server Actions
 - [ ] Error management (Sentry)
 - [ ] Analytics (Posthog)
-- [ ] Rate limiting (Upstash)
+- [x] Rate limiting (Upstash)

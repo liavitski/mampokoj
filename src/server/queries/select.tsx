@@ -1,7 +1,8 @@
 import 'server-only';
+
 import { db } from '../db';
-import { eq } from 'drizzle-orm';
-import { ads } from '../db/schema';
+import { eq, count } from 'drizzle-orm';
+import { ads, images } from '../db/schema';
 import { z } from 'zod';
 import { PAGE_SIZE } from '@/constants';
 import type { AdsCursor } from '@/types/db-types';
@@ -65,17 +66,17 @@ export const getAds = async (
   };
 };
 
-export async function getAdsWithImages() {
-  const adsWithImages = await db.query.ads.findMany({
-    with: {
-      images: true,
-    },
-    orderBy: (model, { desc }) => desc(model.createdAt),
-    limit: 10,
-  });
+// export async function getAdsWithImages() {
+//   const adsWithImages = await db.query.ads.findMany({
+//     with: {
+//       images: true,
+//     },
+//     orderBy: (model, { desc }) => desc(model.createdAt),
+//     limit: 10,
+//   });
 
-  return adsWithImages;
-}
+//   return adsWithImages;
+// }
 
 async function getAdWithImagesById(id: string) {
   const adWithImages = await db.query.ads.findFirst({
@@ -103,7 +104,6 @@ export async function getValidatedAd(adId: string) {
 }
 
 // Dashboard page
-
 export async function getUserAds(userId: string) {
   const userAds = await db.query.ads.findMany({
     where: eq(ads.userId, userId),
@@ -114,4 +114,20 @@ export async function getUserAds(userId: string) {
   });
 
   return userAds;
+}
+
+// Uploadthing core
+export async function imageLimit(adId: string, limit = 3) {
+  const result = await db
+    .select({ value: count(images.id) })
+    .from(images)
+    .where(eq(images.adId, adId));
+
+  const imageCount = result[0]?.value ?? 0;
+
+  return {
+    success: imageCount < limit,
+    count: imageCount,
+    limit,
+  };
 }

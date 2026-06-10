@@ -1,10 +1,11 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next';
 import { UploadThingError } from 'uploadthing/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { addImageToAd } from '@/server/actions/addImageToAd';
 import { UTApi } from 'uploadthing/server';
+import { requireUserId } from '@/lib/require-user-id';
 import { z } from 'zod';
+import { ratelimit } from '@/server/ratelimit';
+import { imageLimit } from '@/server/queries/select';
 
 export const utapi = new UTApi();
 
@@ -25,14 +26,20 @@ export const ourFileRouter = {
       })
     )
     .middleware(async ({ input }) => {
-      const session = await getServerSession(authOptions);
-
-      if (!session?.user?.id) {
+      const sessionUserId = await requireUserId();
+      if (!sessionUserId) {
         throw new UploadThingError('Unauthorized');
+      }
+      const { success } = await ratelimit.limit(sessionUserId);
+      if (!success) throw new UploadThingError('Ratelimited');
+
+      const imageCheck = await imageLimit(input.adId, 3);
+      if (!imageCheck.success) {
+        throw new UploadThingError('Max. 3 images allowed per ad');
       }
 
       return {
-        userId: session.user.id,
+        userId: sessionUserId,
         adId: input.adId,
       };
     })

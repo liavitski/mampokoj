@@ -21,6 +21,8 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@types/js-cookie": "^3.0.6",
     "@uploadthing/react": "^7.3.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "drizzle-orm": "^0.45.2",
     "js-cookie": "^3.0.7",
     "motion": "^12.40.0",

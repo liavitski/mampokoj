@@ -57,6 +57,10 @@ export default async function Home({ searchParams }: HomeProps) {
     <Wrapper>
       <RegionSelectBlock currentRegion={region} />
 
+      <LeftColumn>
+        <RegionNavigation currentRegion={region} />
+      </LeftColumn>
+      
       <MainColumn>
         <AdGrid
           key={gridKey}
@@ -72,17 +76,13 @@ export default async function Home({ searchParams }: HomeProps) {
           }}
         />
       </MainColumn>
-
-      <LeftColumn>
-        <RegionNavigation currentRegion={region} />
-      </LeftColumn>
     </Wrapper>
   );
 }
 
 const Wrapper = styled.main`
   display: flex;
-  flex-direction: row-reverse;
+  /* flex-direction: row-reverse; */
   gap: 16px;
 
   @media ${QUERIES.tabletAndSmaller} {

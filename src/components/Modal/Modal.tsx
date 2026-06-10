@@ -1,10 +1,12 @@
 'use client';
+
 import * as Dialog from '@radix-ui/react-dialog';
 import styled, { keyframes } from 'styled-components';
+import { QUERIES } from '@/constants';
+
 import Icon from '@/components/Icon';
 import UnstyledButton from '@/components/UnstyledButton';
 import VisuallyHidden from '@/components/VisuallyHidden';
-import { QUERIES } from '@/constants';
 
 type ModalProps = {
   open?: boolean;

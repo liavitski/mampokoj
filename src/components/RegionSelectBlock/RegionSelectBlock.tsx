@@ -6,7 +6,6 @@ import { QUERIES } from '@/constants';
 import RegionSelect from '../RegionSelect/RegionSelect';
 import { CZ_REGIONS } from '@/constants';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
 
 type RegionSelectBlockProps = {
   currentRegion?: string;
@@ -16,15 +15,9 @@ function RegionSelectBlock({
   currentRegion,
 }: RegionSelectBlockProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [region, setRegion] = React.useState(currentRegion);
 
   function handleRegionChange(value: string) {
-    if (isPending) return;
-
     const href = `/?region=${value}`;
-    setRegion(value);
-
     router.push(href);
   }
 
@@ -32,7 +25,7 @@ function RegionSelectBlock({
     <Wrapper>
       <RegionSelect
         data={CZ_REGIONS}
-        value={region}
+        value={currentRegion ?? ''}
         onValueChange={handleRegionChange}
       />
     </Wrapper>

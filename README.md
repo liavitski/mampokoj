@@ -13,25 +13,31 @@ MamPokoj is a web platform for discovering and managing rental rooms. It allows 
 ## Screenshots
 
 ### Main Page
+
 ![Main Page](https://github.com/liavitski/mampokoj/blob/main/public/docs/main_page.jpg)
 
 ### Main Page Flow
+
 ![Main Page basic flow](https://github.com/liavitski/mampokoj/blob/main/public/docs/main_basic_flow.jpg)
 
 ### User Dashboard
+
 ![User dashboard](https://github.com/liavitski/mampokoj/blob/main/public/docs/dashboard_user.jpg)
 
 ### Delete Image Flow (Dashboard)
+
 ![Delete Image flow](https://github.com/liavitski/mampokoj/blob/main/public/docs/dashboard_delete_photo.jpg)
 
-### Mobile View 
+### Mobile View
+
 ![Mobile View main page](https://github.com/liavitski/mampokoj/blob/main/public/docs/main_page_mobile.jpg)
 
 ## Tech Stack
 
-- Frontend: (e.g. React / Next.js / TypeScript)
+- Frontend: Next.js / TypeScript
 - Backend: Next.js
 - Styling: Styled-components
+- Hosting: Vercel
 
 ## Purpose
 

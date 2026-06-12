@@ -35,7 +35,7 @@ export const ourFileRouter = {
 
       const imageCheck = await imageLimit(input.adId, 3);
       if (!imageCheck.success) {
-        throw new UploadThingError('Max. 3 images allowed per ad');
+        throw new UploadThingError('Max. 3 images per ad');
       }
 
       return {
@@ -45,6 +45,7 @@ export const ourFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       const { adId } = metadata;
+
 
       const result = await addImageToAd({
         adId,

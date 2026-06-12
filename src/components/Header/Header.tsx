@@ -49,6 +49,10 @@ const Wrapper = styled.header`
   align-items: center;
   margin-bottom: 1.5rem;
   border-bottom: 4px dotted var(--color-border);
+
+  transition-property: border-color;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.1, 0.9, 0, 1);
 `;
 
 const ButtonsWrapper = styled.div`

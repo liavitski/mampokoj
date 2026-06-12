@@ -74,6 +74,10 @@ html {
   font-family: var(--font-family), sans-serif;
   letter-spacing: -0, 025em;
   background-color: var(--color-background);
+
+  transition-property: background-color, color;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.1, 0.9, 0, 1);
 }
 
 body {

@@ -39,4 +39,4 @@ The project demonstrates a clean and user-friendly interface for rental room bro
 
 ## License
 
-(Your license here)
+This project is proprietary. See the [LICENSE](LICENSE) file for details.

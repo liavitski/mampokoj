@@ -1,6 +1,5 @@
 import * as React from 'react';
 import styled from 'styled-components';
-import UnstyledButton from '../UnstyledButton';
 import { QUERIES, WEIGHTS } from '@/constants';
 
 type SizeConfig = {
@@ -30,39 +29,43 @@ const SIZES = {
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant: 'fill' | 'outline' | 'ghost';
   size: keyof typeof SIZES;
+  destructive?: boolean;
   children: React.ReactNode;
 };
 
 const Button = ({
   variant,
   size,
+  destructive = false,
   children,
+  style,
   ...delegated
 }: ButtonProps) => {
-  const styles = SIZES[size];
+  const sizeStyles = SIZES[size];
 
-  let Component;
-  if (variant === 'fill') {
-    Component = FillButton;
-  } else if (variant === 'outline') {
-    Component = OutlineButton;
-  } else if (variant === 'ghost') {
-    Component = GhostButton;
-  } else {
-    throw new Error(`Unrecognized Button variant: ${variant}`);
-  }
+  const variantMap = {
+    fill: FillButton,
+    outline: OutlineButton,
+    ghost: GhostButton,
+  } as const;
+
+  const Component = variantMap[variant];
 
   return (
     <Component
+      $destructive={destructive}
+      style={{
+        ...sizeStyles,
+        ...style,
+      }}
       {...delegated}
-      style={{ ...styles, ...delegated.style }}
     >
       {children}
     </Component>
   );
 };
 
-const ButtonBase = styled(UnstyledButton)`
+const ButtonBase = styled.button`
   font-size: var(--font-size);
   padding: var(--padding);
   border-radius: var(--borderRadius);
@@ -80,16 +83,26 @@ const ButtonBase = styled(UnstyledButton)`
   }
 `;
 
-const FillButton = styled(ButtonBase)`
-  background-color: var(--color-primary);
-  color: var(--color-primary-foreground);
+const FillButton = styled(ButtonBase)<{ $destructive?: boolean }>`
+  background-color: ${({ $destructive }) =>
+    $destructive
+      ? 'var(--color-destructive)'
+      : 'var(--color-primary)'};
+
+  color: ${({ $destructive }) =>
+    $destructive
+      ? 'var(--color-destructive-foreground)'
+      : 'var(--color-primary-foreground)'};
 
   &:hover {
-    background-color: var(--color-primary-hover);
+    background-color: ${({ $destructive }) =>
+      $destructive
+        ? 'var(--color-destructive-hover)'
+        : 'var(--color-primary-hover)'};
   }
 `;
 
-const OutlineButton = styled(ButtonBase)`
+const OutlineButton = styled(ButtonBase)<{ $destructive?: boolean }>`
   background-color: var(--color-card-background);
   color: var(--color-text);
   border: 1px solid var(--color-border);
@@ -99,7 +112,7 @@ const OutlineButton = styled(ButtonBase)`
   }
 `;
 
-const GhostButton = styled(ButtonBase)`
+const GhostButton = styled(ButtonBase)<{ $destructive?: boolean }>`
   color: var(--color-text);
   background-color: transparent;
 

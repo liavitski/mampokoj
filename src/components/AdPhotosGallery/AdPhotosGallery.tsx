@@ -67,7 +67,7 @@ function AdPhotosGallery({
 
   const image =
     imageUrls.length > 0
-      ? imageUrls[selectedPhotoIndex] ?? imageUrls[0]
+      ? (imageUrls[selectedPhotoIndex] ?? imageUrls[0])
       : '/globe.svg';
 
   const TooltipTrigger = allowDeletePhoto ? (
@@ -100,16 +100,18 @@ function AdPhotosGallery({
             </Button>
           }
           action={
-            <DeleteButtonStyled
+            <Button
               variant="fill"
               size="small"
+              destructive={true}
+              style={{ marginLeft: 'auto' }}
               onClick={() =>
                 handleDeletePhoto(photos[selectedPhotoIndex].fileKey)
               }
               disabled={isPending}
             >
               Yes, delete photo
-            </DeleteButtonStyled>
+            </Button>
           }
           trigger={
             hasPhotos && (
@@ -178,16 +180,6 @@ const DeletePhotoButton = styled(UnstyledButton)`
     &:hover {
       background-color: var(--color-destructive-hover);
     }
-  }
-`;
-
-const DeleteButtonStyled = styled(Button)`
-  margin-left: auto;
-  background-color: var(--color-destructive);
-  color: var(--color-destructive-foreground);
-
-  &:hover {
-    background-color: var(--color-destructive-hover);
   }
 `;
 

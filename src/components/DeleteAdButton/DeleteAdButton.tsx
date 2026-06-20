@@ -40,9 +40,14 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
   return (
     <Alert.Root>
       <Alert.Trigger asChild>
-        <DeleteButtonStyled variant="fill" size="small">
+        <Button
+          variant="fill"
+          size="small"
+          destructive
+          style={{ marginLeft: 'auto' }}
+        >
           Delete ad
-        </DeleteButtonStyled>
+        </Button>
       </Alert.Trigger>
 
       <Alert.Portal>
@@ -61,14 +66,16 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
               </Button>
             </Alert.Cancel>
             <Alert.Action asChild>
-              <DeleteButtonStyled
+              <Button
                 variant="fill"
                 size="small"
+                destructive
+                style={{ marginLeft: 'auto' }}
                 onClick={() => handleDelete(adId)}
                 disabled={isPending}
               >
                 Yes, delete ad
-              </DeleteButtonStyled>
+              </Button>
             </Alert.Action>
           </ActionsWrapper>
         </Content>
@@ -76,16 +83,6 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
     </Alert.Root>
   );
 }
-
-const DeleteButtonStyled = styled(Button)`
-  margin-left: auto;
-  background-color: var(--color-destructive);
-  color: var(--color-destructive-foreground);
-
-  &:hover {
-    background-color: var(--color-destructive-hover);
-  }
-`;
 
 const overlayShow = keyframes`
     from {

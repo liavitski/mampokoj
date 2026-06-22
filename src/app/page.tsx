@@ -102,14 +102,6 @@ const LeftColumn = styled.aside`
   }
 `;
 
-const RegionSelector = styled.div`
-  display: none;
-
-  @media ${QUERIES.tabletAndSmaller} {
-    display: block;
-  }
-`;
-
 const NoAdsText = styled.p`
   font-weight: ${WEIGHTS.medium};
   font-size: 1rem;

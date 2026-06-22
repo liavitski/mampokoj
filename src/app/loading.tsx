@@ -9,7 +9,7 @@ function Loading() {
   return (
     <Wrapper>
       <MainColumn>
-        <Spinner />
+        <Spinner size={32}/>
       </MainColumn>
 
       <LeftColumn>

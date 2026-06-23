@@ -12,7 +12,7 @@ export default async function AdPage({ params }: AdPageProps) {
   const ad = await getValidatedAd(adId);
 
   if (!ad) {
-    notFound(); 
+    notFound();
   }
 
   const { userId, ...adData } = ad;

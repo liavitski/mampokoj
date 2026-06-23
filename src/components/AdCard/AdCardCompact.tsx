@@ -82,7 +82,7 @@ const Wrapper = styled.article`
   }
 
   @media ${QUERIES.phoneAndSmaller} {
-    width: min(100%, 95vw);
+    width: 100%;
   }
 `;
 

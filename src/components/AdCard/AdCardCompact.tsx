@@ -70,10 +70,10 @@ const Wrapper = styled.article`
   box-shadow: var(--shadow-card);
   padding: 16px;
   border-radius: 16px;
-  display: flex;
   gap: 16px;
   max-width: 1000px;
   width: min(800px, 95vw);
+  display: flex;
   height: max-content;
 
   @media (${QUERIES.tabletAndSmaller}) {
@@ -82,7 +82,7 @@ const Wrapper = styled.article`
   }
 
   @media ${QUERIES.phoneAndSmaller} {
-     width: min(600px, 95vw);
+    width: min(100%, 95vw);
   }
 `;
 
@@ -111,6 +111,7 @@ const Description = styled.p`
   grid-area: description;
   font-size: 1rem;
   margin-bottom: 8px;
+  font-weight: ${WEIGHTS.normal};
 `;
 
 const City = styled.p`

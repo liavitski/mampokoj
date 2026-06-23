@@ -1,4 +1,5 @@
 import { createGlobalStyle } from 'styled-components';
+import { WEIGHTS } from '@/constants';
 
 const GlobalStyles = createGlobalStyle`
 /*
@@ -91,6 +92,7 @@ em {
 
 p {
   font-size: 1.25rem;
+  font-weight: ${WEIGHTS.normal};
 }
 
 button {

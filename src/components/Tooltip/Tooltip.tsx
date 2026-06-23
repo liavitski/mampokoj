@@ -15,7 +15,7 @@ function Tooltip({ trigger, content }: TooltipProps) {
       <RadixTooltip.Root>
         <RadixTooltip.Trigger asChild>{trigger}</RadixTooltip.Trigger>
         <RadixTooltip.Portal>
-          <Content>
+          <Content sideOffset={4}>
             {content}
             <Arrow />
           </Content>

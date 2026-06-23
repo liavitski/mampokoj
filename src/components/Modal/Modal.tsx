@@ -74,12 +74,16 @@ const Content = styled(Dialog.Content)`
   position: fixed;
   inset: 0;
   z-index: 1;
-  color: var(--color-text);
-  border-radius: 16px;
+
   display: flex;
   flex-direction: column;
   align-self: center;
   justify-self: center;
+
+  color: var(--color-text);
+  border-radius: 16px;
+
+  max-height: 95dvh;
 
   @media (${QUERIES.phoneAndSmaller}) {
     height: 95dvh;

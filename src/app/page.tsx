@@ -28,13 +28,14 @@ export default async function Home({ searchParams }: HomeProps) {
   if (region && !isRegionCode(region)) {
     return (
       <Wrapper>
+        <LeftColumn>
+          <RegionNavigation />
+        </LeftColumn>
+        
         <MainColumn>
           <NoAdsText>No ads found for this region</NoAdsText>
         </MainColumn>
 
-        <LeftColumn>
-          <RegionNavigation />
-        </LeftColumn>
       </Wrapper>
     );
   }
@@ -82,7 +83,6 @@ export default async function Home({ searchParams }: HomeProps) {
 
 const Wrapper = styled.main`
   display: flex;
-  /* flex-direction: row-reverse; */
   gap: 16px;
 
   @media ${QUERIES.tabletAndSmaller} {

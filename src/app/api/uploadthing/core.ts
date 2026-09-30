@@ -32,15 +32,17 @@ export const ourFileRouter = {
         throw new UploadThingError(admission.reason);
       }
 
-      return { adId: input.adId };
+      // `userId` travels with the upload because `onUploadComplete` cannot
+      // resolve it: UploadThing calls that hook server-to-server, so there is no
+      // session cookie on the request. See upload-guard.ts.
+      return { adId: input.adId, userId: admission.userId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      const { adId } = metadata;
+      const { adId, userId } = metadata;
 
-      // Re-checks ownership from the session. The adId in metadata originated
-      // from the client's upload input, so it is only a lookup key here.
       const result = await addImageToAd({
         adId,
+        userId,
         url: file.ufsUrl,
         fileKey: file.key,
       });

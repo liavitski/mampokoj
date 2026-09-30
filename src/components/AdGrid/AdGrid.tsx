@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import styled from 'styled-components';
-import type { AdsApiResponse, AdWithImages } from '@/types/db-types';
+import type { AdsApiResponse, PublicAd } from '@/types/db-types';
 import { useSearchParams } from 'next/navigation';
 
 import LoadMoreButton from '../LoadMoreButton';
@@ -13,7 +13,7 @@ type AdGridProps = {
 };
 
 function AdGrid({ adsData }: AdGridProps) {
-  const [adsList, setAdsList] = React.useState<AdWithImages[]>(
+  const [adsList, setAdsList] = React.useState<PublicAd[]>(
     adsData.items
   );
   const [cursor, setCursor] = React.useState(adsData.nextCursor);

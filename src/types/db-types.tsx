@@ -18,6 +18,15 @@ export type AdWithoutUserIdAndPhone = Omit<
 
 export type AdWithoutUserId = Omit<AdWithImages, 'userId'>;
 
+/**
+ * An ad as it may be sent to any client.
+ *
+ * `userId` is the poster's OAuth account id and `contactPhone` is personal
+ * contact data, so neither travels in a list of ads. A single ad's contact
+ * details are fetched separately and gated on the session.
+ */
+export type PublicAd = Omit<AdWithImages, 'userId' | 'contactPhone'>;
+
 export type RegionCode = (typeof CZ_REGIONS)[number]['code'];
 
 /**
@@ -32,7 +41,7 @@ export type AdsApiCursor = {
  * API response (frontend contract — SOURCE OF TRUTH)
  */
 export type AdsApiResponse = {
-  items: AdWithImages[];
+  items: PublicAd[];
   hasMore: boolean;
   nextCursor: AdsApiCursor | null;
 };

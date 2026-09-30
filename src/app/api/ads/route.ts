@@ -1,78 +1,76 @@
-import { db } from '@/server/db';
-import { PAGE_SIZE } from '@/constants';
 import { NextResponse } from 'next/server';
-import { AdsApiResponse, AdsCursor } from '@/types/db-types';
+import { z } from 'zod';
+
+import { getAds } from '@/server/queries/select';
+import { toPublicAd } from '@/lib/ad-dto';
+import { PAGE_SIZE } from '@/constants';
+import { isRegionCode } from '@/utils/utils';
+import type { AdsApiResponse } from '@/types/db-types';
+
+/**
+ * Upper bound on a single page. Without it `?limit=1000000` asks the database
+ * for a million rows. Oversized values are clamped rather than rejected so a
+ * curious client gets a page instead of a 400.
+ */
+const MAX_LIMIT = 50;
+
+const querySchema = z
+  .object({
+    region: z.string().refine(isRegionCode, 'Unknown region code').optional(),
+
+    limit: z.coerce
+      .number()
+      .int('Limit must be a whole number')
+      .min(1, 'Limit must be at least 1')
+      .transform((limit) => Math.min(limit, MAX_LIMIT))
+      .default(PAGE_SIZE),
+
+    cursorCreatedAt: z.iso.datetime('Invalid cursor timestamp').optional(),
+    cursorId: z.uuid('Invalid cursor id').optional(),
+  })
+  .refine(
+    ({ cursorCreatedAt, cursorId }) =>
+      (cursorCreatedAt === undefined) === (cursorId === undefined),
+    { message: 'cursorCreatedAt and cursorId must be sent together' }
+  );
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
 
-    const region = url.searchParams.get('region') ?? undefined;
+    const parsed = querySchema.safeParse(
+      Object.fromEntries(url.searchParams)
+    );
 
-    const limitParam = url.searchParams.get('limit');
-    const limit = limitParam ? parseInt(limitParam, 10) : PAGE_SIZE;
-
-    const cursorCreatedAt = url.searchParams.get('cursorCreatedAt');
-    const cursorId = url.searchParams.get('cursorId');
-
-    const cursor: AdsCursor | undefined =
-      cursorCreatedAt && cursorId
-        ? {
-            createdAt: new Date(cursorCreatedAt),
-            id: cursorId,
-          }
-        : undefined;
-
-    const adsPage = await db.query.ads.findMany({
-      where: (ads, { and, eq, lt, or }) => {
-        const base = region ? eq(ads.region, region) : undefined;
-
-        const pagination = cursor
-          ? or(
-              lt(ads.createdAt, cursor.createdAt),
-              and(
-                eq(ads.createdAt, cursor.createdAt),
-                lt(ads.id, cursor.id)
-              )
-            )
-          : undefined;
-
-        return and(base, pagination);
-      },
-
-      limit: limit + 1,
-      orderBy: (adsTable, { desc }) => [
-        desc(adsTable.createdAt),
-        desc(adsTable.id),
-      ],
-
-      with: {
-        images: {
-          limit: 1,
-          orderBy: (img, { desc }) => [desc(img.createdAt)],
-        },
-      },
-    });
-
-    const hasMore = adsPage.length > limit;
-    const items = hasMore ? adsPage.slice(0, limit) : adsPage;
-
-    let nextCursor: AdsApiResponse['nextCursor'] = null;
-
-    if (hasMore && items.length > 0) {
-      const last = items[items.length - 1];
-
-      nextCursor = {
-        cursorCreatedAt: last.createdAt.toISOString(),
-        cursorId: last.id,
-      };
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid query parameters' },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({
-      items,
+    const { region, limit, cursorCreatedAt, cursorId } = parsed.data;
+
+    const { items, hasMore, nextCursor } = await getAds(
+      limit,
+      region,
+      cursorCreatedAt && cursorId
+        ? { createdAt: new Date(cursorCreatedAt), id: cursorId }
+        : undefined
+    );
+
+    const response: AdsApiResponse = {
+      items: items.map(toPublicAd),
       hasMore,
-      nextCursor,
-    });
+      nextCursor: nextCursor
+        ? {
+            cursorCreatedAt: nextCursor.createdAt.toISOString(),
+            cursorId: nextCursor.id,
+          }
+        : null,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Failed to fetch ads:', error);
 

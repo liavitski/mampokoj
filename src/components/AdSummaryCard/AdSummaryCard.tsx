@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import type { AdWithoutUserIdAndPhone } from '@/types/db-types';
+import type { PublicAd } from '@/types/db-types';
 import styled from 'styled-components';
 import { WEIGHTS } from '@/constants';
 import Link from 'next/link';
@@ -9,7 +9,7 @@ import Image from 'next/image';
 import { motion } from 'motion/react';
 
 type AdCardProps = {
-  ad: AdWithoutUserIdAndPhone;
+  ad: PublicAd;
 };
 
 const imageVariants = {

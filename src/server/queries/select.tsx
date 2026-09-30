@@ -7,6 +7,26 @@ import { z } from 'zod';
 import { PAGE_SIZE } from '@/constants';
 import type { AdsCursor } from '@/types/db-types';
 
+/**
+ * Columns safe to send to any client.
+ *
+ * `userId` is the poster's OAuth account id and `contactPhone` is personal
+ * contact data. Neither belongs in a list of ads, so they are excluded at the
+ * query rather than stripped on the way out -- the columns are never loaded.
+ * `getValidatedAd` is the separate, deliberate path for a single ad's details.
+ */
+const publicAdColumns = {
+  id: true,
+  title: true,
+  price: true,
+  city: true,
+  region: true,
+  availableFrom: true,
+  description: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 export const getAds = async (
   limit = PAGE_SIZE,
   region?: string,
@@ -28,6 +48,8 @@ export const getAds = async (
 
       return and(base, pagination);
     },
+
+    columns: publicAdColumns,
 
     limit: limit + 1,
 

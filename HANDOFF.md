@@ -298,31 +298,32 @@ caught:
 nothing about what failed. Diagnosing a failed production migration means
 running the SQL by hand. `db:baseline`'s own errors do explain themselves.
 
-### 3.9 One database was serving both dev and production
+### 3.9 One database, shared by dev and production — deliberate (`0ecc8d6`)
 
-The app was created with a single Neon database, and Vercel's `DATABASE_URL`
-points at it — so **production was serving the 100 seeded fake ads**, and every
-local `pnpm db:seed` wrote to production. There is one `DATABASE_URL` variable
-and the code cannot tell environments apart, which is correct; the *values* were
-never separated.
+This was found rather than designed: the app was created with a single Neon
+database, Vercel's `DATABASE_URL` points at it, and `.env` is copied to the
+Vercel host. So development and production are the same database, containing
+100 seeded fake ads and no real users.
 
-Fixed on the code side, and both dashboard steps are still outstanding:
+**Decided to keep it that way.** For a portfolio project with no real users the
+upside is real — production keeps showing the seeded listings, so the site
+demonstrates itself instead of looking broken. **Do not "fix" this by creating a
+second database** unless real users appear; that is the trigger to revisit it.
 
-- `pnpm db:seed` now refuses unless `SEED_ALLOW` names the target database
-  exactly (`src/utils/seed-guard.ts`). Pinned to a name, not a boolean, so a
-  truthy flag in production would not satisfy it.
-- The README documents the two-database arrangement.
+What this means in practice:
 
-**Two dashboard actions remain, and neither can be done from the repo:**
+- `pnpm db:seed` writes to production. Safe only because the rows are generated.
+- `pnpm db:migrate` migrates production.
+- A `SEED_ALLOW` guard exists (`src/utils/seed-guard.ts`) and refuses when the
+  variable is absent, which covers CI and a fresh clone. It does **not** cover
+  production: `.env` travels to the Vercel host, so the variable is set there
+  too. This limit is now written in `.env`, the guard's header and the README
+  rather than implied — the earlier version of all three claimed a guarantee
+  that a single database makes impossible.
 
-1. Create a production database on Neon. `DATABASE_URL=<prod> pnpm db:migrate`
-   creates the schema from scratch — verified, no `db:baseline` needed.
-2. Point Vercel's `DATABASE_URL` at it and redeploy.
-
-**Decided: seed production once, deliberately.** An empty marketplace reads as
-broken to a portfolio reviewer, and there are no real users to lose. Do that as
-a one-off *after* the guard exists, by setting `SEED_ALLOW` to the production
-database name for that single run.
+If real users ever appear: create a second database, `DATABASE_URL=<prod>
+pnpm db:migrate` to build the schema (verified, no `db:baseline` needed), point
+Vercel at it, and remove `SEED_ALLOW` from the Vercel environment.
 
 ### 3.5 Decide on end-to-end tests (blocked on a decision, unchanged)
 

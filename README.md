@@ -76,11 +76,14 @@ afterwards. Prefer `db:migrate`.
 
 `.env.local` (git-ignored; `.env` is also ignored — never commit either).
 
-**Two databases.** Development and production are separate databases, and the
-code cannot tell them apart — it reads `DATABASE_URL` and nothing else. Local
-work uses your development database; Vercel supplies production's value through
-its own environment variables. Set them in different places, not in one file
-that gets copied around.
+**One database, shared by development and production.** The code reads
+`DATABASE_URL` and cannot tell environments apart, which is the right shape —
+the environments differ only by the value. This is a deliberate choice for a
+project with no real users: production keeps showing the seeded listings, so the
+site demonstrates itself. The trade-off is that `pnpm db:seed` writes to
+production too, and `pnpm db:migrate` migrates production. Both are safe only
+while that database holds nothing but generated data. If real users appear, add
+a second database rather than relying on that.
 
 Read directly in `src/`:
 
@@ -105,10 +108,9 @@ Read only by `pnpm db:seed`:
 | --- | --- | --- |
 | `SEED_ALLOW` | for `db:seed` | The **database name** that may be filled with fake data, e.g. `SEED_ALLOW=neondb`. |
 
-`pnpm db:seed` refuses to run without it. It is pinned to a database name rather
-than a boolean on purpose: a truthy flag would sail through in production,
-whereas a production database's name will not match a development one. See
-`src/utils/seed-guard.ts`.
+`pnpm db:seed` refuses to run without it, so CI and a fresh clone cannot seed by
+accident. It does **not** stop a seed against production: `.env` is copied to
+the Vercel host, so the variable is set there. See `src/utils/seed-guard.ts`.
 
 OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 
@@ -204,18 +206,16 @@ is then rejected.
 
 ## Deployment
 
-Deployed on Vercel. Two things to know:
+Deployed on Vercel. Three things to know:
 
 - `sharp` is deliberately **not** built (`pnpm-workspace.yaml`), since Vercel
   provides it for `next/image` optimization. Self-hosting would need it.
 - `pnpm-workspace.yaml` also sets `allowBuilds`, which controls which
   dependencies may run install scripts. It is not a workspace definition —
   this is a single-package repo.
-- **Schema is not applied on deploy.** Run `pnpm db:migrate` against the
-  production database as a release step. Until that happens, production schema
-  is whatever was last pushed there by hand.
-- If the production database predates the migration history, run
-  `pnpm db:baseline` against it once before the first `db:migrate`.
+- **Schema is not applied on deploy.** Run `pnpm db:migrate` as a release step.
+  Since development and production share a database, that migrates production.
+  It has been baselined already, so there is no `db:baseline` step to do.
 
 ## Screenshots
 

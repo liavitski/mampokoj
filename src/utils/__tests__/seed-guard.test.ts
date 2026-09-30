@@ -3,11 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { assessSeedTarget, describeSeedTarget, parseSeedTarget } from '../seed-guard';
 
 /**
- * A development database, and the same host with a different database on it.
- *
- * The second one is the case that matters: it is what a production connection
- * string looks like to this script, and it is why `SEED_ALLOW` is pinned to a
- * database name rather than being a boolean.
+ * Two databases on different hosts. This project uses only one in practice, but
+ * the guard must still handle "some other database", and a name-based check is
+ * what makes that a refusal rather than a silent seed.
  */
 const DEV_URL =
   'postgresql://user:pass@dev-host.neon.tech/neondb?sslmode=require';
@@ -68,8 +66,8 @@ describe('assessSeedTarget', () => {
   });
 
   it('refuses a truthy SEED_ALLOW that is not the database name', () => {
-    // This is the case a bare flag would wave through. `1`, `true` and `yes`
-    // all read as "enabled" to a naive check, and would seed production.
+    // This is the case a bare flag would wave through: `1`, `true` and `yes`
+    // all read as "enabled" to a naive check.
     for (const value of ['1', 'true', 'yes', 'TRUE']) {
       expect(assessSeedTarget(PROD_URL, value).ok, value).toBe(false);
     }
@@ -82,11 +80,12 @@ describe('assessSeedTarget', () => {
     expect(assessSeedTarget(sameHostOtherDb, 'neondb').ok).toBe(false);
   });
 
-  it('refuses a production database even when its own name is allowed', () => {
-    // Deliberately *not* host-based: the rule is "did you name this database",
-    // not "does the host look like development". A host check would need
-    // updating every time Neon renames a branch, and would be wrong for a
-    // production database that happens to sit on a dev-looking host.
+  it('allows a database whose own name is in SEED_ALLOW', () => {
+    // The rule is "did you name this database", not "does the host look like
+    // development". A host check would need updating whenever Neon renames a
+    // branch, and would refuse a database that is legitimately disposable. This
+    // project shares one database across environments, so a host check would
+    // refuse the only database there is.
     const verdict = assessSeedTarget(PROD_URL, 'mampokoj_prod');
 
     expect(verdict.ok).toBe(true);

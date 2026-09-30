@@ -1,16 +1,16 @@
 /**
  * Decides whether a database may be seeded with fake data.
  *
- * `pnpm db:seed` inserts a hundred generated listings. That is fine against a
- * throwaway development database and unacceptable against production, and the
- * script cannot tell them apart on its own -- it only sees `DATABASE_URL`,
- * which points wherever it happens to point.
+ * `pnpm db:seed` inserts a hundred generated listings, and this project
+ * deliberately runs development and production against the same database. So
+ * seeding *is* writing to production, which is only acceptable because that
+ * database holds nothing but generated data. If real users ever appear, give
+ * production its own database rather than relying on this check.
  *
- * So the target has to be named explicitly, in `SEED_ALLOW`. Pinning it to a
- * database *name* rather than a truthy flag is the point: copying `.env` to a
- * production host does not satisfy the check, because production's database has
- * a different name. A bare `SEED_ALLOW=1` would sail through on a deploy and
- * write a hundred fake listings to production.
+ * `SEED_ALLOW` names the database that may be seeded. Pinning it to a name
+ * rather than a truthy flag means an environment with no `SEED_ALLOW` refuses,
+ * which is what CI and a fresh clone look like. It does not protect production:
+ * `.env` is copied to the Vercel host, so `SEED_ALLOW` is set there too.
  *
  * Kept free of `server-only` and of any database import so the rule can be
  * tested without a connection.

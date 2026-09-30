@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import styled from 'styled-components';
 import Link from 'next/link';
@@ -9,7 +11,7 @@ function Logo() {
 
 const LinkWrapper = styled(Link)`
   display: block;
-  color: var(--text-color);
+  color: var(--color-text);
   text-decoration: none;
   font-size: 1.25rem;
   font-weight: ${WEIGHTS.normal};

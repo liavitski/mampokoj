@@ -1,29 +1,28 @@
+'use client';
+
 import * as React from 'react';
 import styled from 'styled-components';
 import { QUERIES, WEIGHTS } from '@/constants';
 
+/**
+ * Custom properties a size sets on the element, and which `ButtonBase` reads
+ * back with `var()`. They are spelled in kebab-case to match the `var()` calls
+ * below, because React writes custom properties from a `style` object verbatim
+ * and nothing in the type system connects the two: `--fontSize` set here and
+ * `var(--font-size)` read there is a declaration that silently does nothing.
+ */
 type SizeConfig = {
-  '--borderRadius': string;
-  '--fontSize': string;
+  '--border-radius': string;
+  '--font-size': string;
   '--padding': string;
 };
 
 const SIZES = {
   small: {
-    '--borderRadius': 16 + 'px',
-    '--fontSize': 16 / 16 + 'rem',
+    '--border-radius': 16 + 'px',
+    '--font-size': 16 / 16 + 'rem',
     '--padding': '4px 12px',
   },
-  // medium: {
-  //   "--borderRadius": 2 + "px",
-  //   "--fontSize": 18 / 16 + "rem",
-  //   "--padding": "14px 20px",
-  // },
-  // large: {
-  //   "--borderRadius": 4 + "px",
-  //   "--fontSize": 21 / 16 + "rem",
-  //   "--padding": "18px 32px",
-  // },
 } satisfies Record<string, SizeConfig>;
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -68,7 +67,7 @@ const Button = ({
 const ButtonBase = styled.button`
   font-size: var(--font-size);
   padding: var(--padding);
-  border-radius: var(--borderRadius);
+  border-radius: var(--border-radius);
   border: 2px solid transparent;
   cursor: pointer;
   font-weight: ${WEIGHTS.normal};

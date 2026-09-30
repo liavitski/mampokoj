@@ -1,9 +1,13 @@
+# Dependency install scripts that are allowed to run.
+#
+# pnpm writes "set this to true or false" placeholders here when it cannot
+# prompt (CI, non-interactive shells). Those placeholders are invalid values and
+# make every install fail, so each one is resolved below.
+#
+# Not listed => the package's install script is skipped.
+#   sharp           - only needed for next/image optimization; Vercel provides it.
+#   unrs-resolver  - ships a JS fallback, so skipping the native build is fine.
 allowBuilds:
-  bufferutil: set this to true or false
-  esbuild: set this to true or false
-  msgpackr-extract: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+  bufferutil: true
+  esbuild: true
+  msgpackr-extract: true

@@ -22,7 +22,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    // `src/utils/seed.tsx` talks to a real database; never collect it.
+    // `src/utils/seed.tsx` talks to a real database; never collect it. Its
+    // data builders are pure and covered by `__tests__/seed-data.test.ts`.
     coverage: {
       include: ['src/**/*.{ts,tsx}'],
       exclude: [

@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "db:push": "drizzle-kit push --config=drizzle.config.tsx",
+    "db:seed": "tsx src/utils/seed.tsx",
     "db:studio": "drizzle-kit studio --config=drizzle.config.tsx"
   },
   "dependencies": {

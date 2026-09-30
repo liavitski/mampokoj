@@ -1,11 +1,9 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next';
-import { UploadThingError } from 'uploadthing/server';
-import { addImageToAd } from '@/server/actions/addImageToAd';
-import { UTApi } from 'uploadthing/server';
-import { requireUserId } from '@/lib/require-user-id';
+import { UploadThingError, UTApi } from 'uploadthing/server';
 import { z } from 'zod';
-import { ratelimit } from '@/server/ratelimit';
-import { imageLimit } from '@/server/queries/select';
+
+import { addImageToAd } from '@/server/actions/addImageToAd';
+import { checkUploadAdmission } from '@/server/upload-guard';
 
 export const utapi = new UTApi();
 
@@ -26,28 +24,21 @@ export const ourFileRouter = {
       })
     )
     .middleware(async ({ input }) => {
-      const sessionUserId = await requireUserId();
-      if (!sessionUserId) {
-        throw new UploadThingError('Unauthorized');
-      }
-      const { success } = await ratelimit.limit(sessionUserId);
-      if (!success) throw new UploadThingError('Ratelimited');
+      // Ownership, rate limit and photo count are all settled here, before
+      // UploadThing stores and bills for the file.
+      const admission = await checkUploadAdmission(input.adId);
 
-      const imageCheck = await imageLimit(input.adId, 3);
-      if (!imageCheck.success) {
-        throw new UploadThingError('Max. 3 images per ad');
+      if (!admission.ok) {
+        throw new UploadThingError(admission.reason);
       }
 
-      return {
-        userId: sessionUserId,
-        adId: input.adId,
-      };
+      return { adId: input.adId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
       const { adId } = metadata;
 
-      // addImageToAd re-checks ownership from the session; the userId in
-      // metadata is not trusted for that decision.
+      // Re-checks ownership from the session. The adId in metadata originated
+      // from the client's upload input, so it is only a lookup key here.
       const result = await addImageToAd({
         adId,
         url: file.ufsUrl,

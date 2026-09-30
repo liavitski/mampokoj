@@ -3,6 +3,15 @@ export const COLOR_THEME_COOKIE_NAME = 'color-theme';
 export const MAX_TOASTS = 5;
 export const PAGE_SIZE = 10;
 
+/**
+ * How many ads one account may have. Enforced by createAd; the dashboard only
+ * hides the create form once the limit is reached.
+ */
+export const MAX_ADS_PER_USER = 2;
+
+/** Upper bound on how many photos a single ad may have. */
+export const MAX_IMAGES_PER_AD = 3;
+
 export const LIGHT_COLORS = {
   '--color-text': 'hsl(217deg 32.5% 17.4%)',
   '--color-text-foreground': '#1e293b',

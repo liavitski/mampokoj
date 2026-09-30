@@ -36,10 +36,11 @@ export async function addImageToAd({
     });
 
     return { success: true };
-  } catch (e) {
-    return {
-      success: false,
-      error: e instanceof Error ? e.message : 'Unknown error',
-    };
+  } catch {
+    // Unexpected database failures are logged rather than returned: the raw
+    // message can name tables, columns and constraints.
+    console.error('Failed to attach image to ad', adId);
+
+    return { success: false, error: 'Could not save the image' };
   }
 }

@@ -3,7 +3,7 @@
 import React from 'react';
 import * as Form from '@radix-ui/react-form';
 import styled from 'styled-components';
-import { QUERIES, WEIGHTS } from '@/constants';
+import { QUERIES, WEIGHTS, MAX_ADS_PER_USER } from '@/constants';
 import { CZ_REGIONS } from '@/constants';
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
@@ -47,7 +47,7 @@ function RoomListingForm() {
         >
           Create ad
         </ModalButton>
-        <Text>Maximum 2 ads per user</Text>
+        <Text>Maximum {MAX_ADS_PER_USER} ads per user</Text>
       </ModalButtonWrapper>
       <Modal
         open={open}

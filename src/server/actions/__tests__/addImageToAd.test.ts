@@ -59,18 +59,20 @@ describe('addImageToAd', () => {
     expect(mocks.findAdOwnedByCurrentUser).toHaveBeenCalledWith(AD_ID);
   });
 
-  it('reports a database failure instead of throwing', async () => {
+  it('reports a database failure without leaking schema details', async () => {
     mocks.findAdOwnedByCurrentUser.mockResolvedValue({
       ad: { id: AD_ID },
       userId: 'user-a',
     });
     mocks.insert.mockImplementationOnce(() => {
-      throw new Error('duplicate key value violates unique constraint');
+      throw new Error(
+        'duplicate key value violates unique constraint "mampokoj_images_filekey_key"'
+      );
     });
 
     const result = await addImageToAd({ adId: AD_ID, ...IMAGE });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('duplicate key');
+    expect(result.error).not.toContain('mampokoj_images_filekey_key');
   });
 });

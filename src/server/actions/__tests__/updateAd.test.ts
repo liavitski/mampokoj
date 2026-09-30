@@ -70,15 +70,36 @@ describe('updateAd', () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
-  it('reports a database failure instead of throwing', async () => {
+  it('reports a database failure without leaking schema details', async () => {
     mocks.findAdOwnedByCurrentUser.mockResolvedValue(OWNED);
     mocks.update.mockImplementationOnce(() => {
-      throw new Error('value too long for type character varying(60)');
+      throw new Error(
+        'value too long for type character varying(60), "mampokoj_ads"'
+      );
     });
 
     const result = await updateAd(AD_ID, adFormData());
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('character varying');
+    expect(result.error).not.toContain('mampokoj_ads');
+    expect(result.error).not.toContain('character varying');
+  });
+
+  it('rejects an invalid field without writing', async () => {
+    mocks.findAdOwnedByCurrentUser.mockResolvedValue(OWNED);
+
+    const result = await updateAd(AD_ID, adFormData({ title: '' }));
+
+    expect(result.success).toBe(false);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a title longer than the column allows', async () => {
+    mocks.findAdOwnedByCurrentUser.mockResolvedValue(OWNED);
+
+    const result = await updateAd(AD_ID, adFormData({ title: 'x'.repeat(61) }));
+
+    expect(result.success).toBe(false);
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 });

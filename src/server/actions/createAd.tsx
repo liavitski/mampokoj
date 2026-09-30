@@ -1,50 +1,56 @@
 'use server';
 
+import { count, eq } from 'drizzle-orm';
+
 import { db } from '../db';
 import { ads } from '../db/schema';
 import { requireUserId } from '@/lib/require-user-id';
+import { parseAdFormData } from '@/lib/validation/ad-schema';
+import { MAX_ADS_PER_USER } from '@/constants';
+
+async function countUserAds(userId: string) {
+  const [row] = await db
+    .select({ value: count(ads.id) })
+    .from(ads)
+    .where(eq(ads.userId, userId));
+
+  return row?.value ?? 0;
+}
 
 export async function createAd(formData: FormData) {
-  try {
-    const sessionUserId = await requireUserId();
+  const userId = await requireUserId();
 
-    if (!sessionUserId) {
-      return { success: false, error: 'Unauthorized' };
-    }
+  if (!userId) {
+    return { success: false, error: 'Unauthorized' };
+  }
 
-    const title = formData.get('title') as string;
-    const price = String(formData.get('price'));
-    const city = formData.get('city') as string;
-    const region = formData.get('region') as string;
-    const availableFrom = new Date(
-      formData.get('availableFrom') as string
-    );
-    const description = formData.get('description') as string;
-    const contactPhone = formData.get('contactPhone') as string;
+  const parsed = parseAdFormData(formData);
 
-    const [ad] = await db
-      .insert(ads)
-      .values({
-        userId: sessionUserId,
-        title,
-        price,
-        city,
-        region,
-        availableFrom,
-        description,
-        contactPhone,
-      })
-      .returning({ id: ads.id });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error };
+  }
 
-    return {
-      success: true,
-      adId: ad.id,
-      userId: sessionUserId,
-    };
-  } catch (e: unknown) {
+  const existing = await countUserAds(userId);
+
+  if (existing >= MAX_ADS_PER_USER) {
     return {
       success: false,
-      error: e instanceof Error ? e.message : 'Unknown error',
+      error: `Maximum ${MAX_ADS_PER_USER} ads per user`,
     };
+  }
+
+  try {
+    const [ad] = await db
+      .insert(ads)
+      .values({ userId, ...parsed.data })
+      .returning({ id: ads.id });
+
+    return { success: true, adId: ad.id, userId };
+  } catch {
+    // Unexpected database failures are logged rather than returned: the raw
+    // message can name tables, columns and constraints.
+    console.error('Failed to create ad');
+
+    return { success: false, error: 'Could not create the ad' };
   }
 }

@@ -3,8 +3,8 @@
 State of the repository and what to do next. Written to be read cold, with no
 memory of the work that produced it.
 
-- **Branch:** `security/harden-server-actions` (13 commits ahead of `main`, unpushed)
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 185 tests
+- **Branch:** `security/harden-server-actions` (14 commits ahead of `main`, unpushed)
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 189 tests
   across 19 files, `next build` succeeds
 - **Stack:** Next.js 16.3.6, React 19.3, pnpm 11.1.3, TypeScript 5, Drizzle +
   Neon Postgres, NextAuth v4, UploadThing, Upstash, styled-components v6, Vitest
@@ -33,8 +33,8 @@ Three environment facts that will otherwise waste your time:
 
 ## 2. What was just done
 
-Thirteen commits. The first eleven were a review-and-harden pass over a
-codebase with zero tests and zero CI; the most recent two are in §2.1 and §2.2.
+Fourteen commits. The first eleven were a review-and-harden pass over a
+codebase with zero tests and zero CI; the most recent three are in §2.1–§2.5.
 
 | Commit | What |
 | --- | --- |
@@ -51,6 +51,7 @@ codebase with zero tests and zero CI; the most recent two are in §2.1 and §2.2
 | `97c1cac` | `fileKey` leak found in review; `addImageToAd` de-published as an RPC; weak tests tightened |
 | `ff3d0e1` | Seed script made runnable and covered |
 | `8942bbb` | Ad creation serialized behind a per-user Redis lock |
+| `b891481` | Acquire loop bounded by wall-clock; a second model found the first attempt at it did not hold |
 
 ### 2.1 Seed script (`ff3d0e1`)
 
@@ -127,6 +128,51 @@ these were genuine and are fixed:
 not fail if `nx` were removed. It can — verified by mutation, four tests fail.
 The claim was not re-checked against the code before being asserted.
 
+### 2.5 A second model's review, and the defect mine missed (`b891481`)
+
+The lock was reviewed twice: once by a fresh-context reviewer of the same model
+family, then by `opencode/nemotron-3-ultra-free` with the same adversarial
+prompt. The second review found something the first did not, and it was real.
+
+**The defect.** The acquire-budget test asserted
+`ACQUIRE_ATTEMPTS * ACQUIRE_BACKOFF_CAP < LOCK_TTL` — roughly 2000 < 10000, and
+it passed. But that counts only *sleep* time, and per-call latency is most of
+the budget: each `redis.set` can occupy
+`REDIS_REQUEST_TIMEOUT_MS * (retries + 1)`, because `signal` is a factory
+evaluated per HTTP request rather than per command. Ten slow attempts ran for
+well over a minute against a 10s TTL.
+
+**The consequence** was exactly what the code's comment claimed could not
+happen: a waiter could outlive the lock it was waiting for, watch that lock
+expire and be taken by somebody else, then acquire "successfully" and enter the
+critical section alongside the current holder, believing it was exclusive.
+
+**The fix.** Bound wall-clock instead of a sum of sleeps, and derive the
+deadline from the client's own settings, so retuning the timeout moves the
+deadline with it. The winning attempt may still begin just before the deadline,
+so the invariant is *deadline + one full call < TTL*, with margin for clock
+skew.
+
+Verified by mutation: removing the wall-clock break fails the slow-Redis test
+(it runs 4.6s, which is the old behaviour), and dropping the safety margin
+fails two invariant tests.
+
+**Wrong, and rejected on inspection:**
+
+- Claimed `Redis.fromEnv()` warns only at request time. It warns at
+  construction — `nodejs.mjs:274-278`.
+- Claimed `expectHeld` does not distinguish "lost the lock" from "never held
+  it". It does: `false` on the degraded path, `true` only in the `finally`
+  after a confirmed `'OK'`.
+- Claimed "Please try again in a moment" is misleading. It is exactly right for
+  the dominant case, which is the user's own double-submit.
+
+**The lesson worth more than the fix:** the flawed test asserted a formula
+about the *wrong quantity*. It could not fail, because no value of
+`ACQUIRE_ATTEMPTS` or the backoff constants would have made it notice latency.
+A reviewer looking at the code rather than trusting the suite found it. Read
+§4's testing conventions on this before writing the next guard.
+
 ---
 
 ## 3. Next steps, in recommended order
@@ -148,16 +194,36 @@ dependency is `^1.39.0`, so a minor bump can change either without a failing
 test. Getting a working `UPSTASH_REDIS_REST_URL`, or standing up a local Redis
 reachable over HTTP, would close this.
 
-### 3.2 `upload-guard.ts` has no error handling around Redis
+### 3.2 `upload-guard.ts` has no error handling around Redis — needs a decision
 
 `checkUploadAdmission` awaits `ratelimit.limit()` with no `try/catch`
 (`src/server/upload-guard.ts:30`). If Redis is unreachable this throws out of
-the UploadThing middleware, so uploads break entirely. That is arguably
-correct for an upload guard — do not store files you cannot rate-limit — but it
-is inconsistent with the deliberate fail-open choice in the ad lock, and it is
-now a second hard Redis dependency. Worth deciding explicitly.
+the UploadThing middleware, so uploads break entirely.
 
-### 3.3 Add tracked migrations (agreed, not started)
+This is **not obviously a bug.** Failing closed on uploads may be the right
+call — you don't want to store files you couldn't rate-limit — and the ad lock
+fails open because a quota is not a security boundary, which is a different
+kind of thing. The problem is only that the two paths differ *accidentally*.
+
+Both models that reviewed this raised it independently, which is a signal it is
+worth a deliberate answer rather than a default. Pick one:
+
+- **Fail closed (leave as is).** Say so in a comment, so the next reader does
+  not read it as an oversight and "fix" it toward consistency with the ad lock.
+- **Fail open.** Catch the error, log it, and let the upload through. Consistent
+  with §4's rule, but weakens the upload rate limit during an outage.
+
+### 3.3 Open questions, unanswered
+
+Three, all needing a decision from the user rather than more code:
+
+1. **`upload-guard` should fail open or closed** — §3.2.
+2. **Migrations: generate the baseline from a scratch database?** — §3.4.
+3. **Migrations: do dev and prod schemas currently match?** Production has
+   presumably been receiving `db:push` by hand, and generating anything that
+   assumes parity needs this answered first.
+
+### 3.4 Add tracked migrations (agreed, not started)
 
 There is no `drizzle/` directory and no migration files in git — `git ls-files`
 shows only `drizzle.config.tsx`. Schema reaches the database through
@@ -175,7 +241,7 @@ Two open questions, both for the user:
 - **Production has presumably been receiving `db:push`.** Confirm dev and prod
   currently match before generating anything that assumes they do.
 
-### 3.4 Decide on end-to-end tests (blocked on a decision)
+### 3.5 Decide on end-to-end tests (blocked on a decision)
 
 The plan called for Vitest **+ Playwright**. Only Vitest was set up, because
 every route here is dynamic and reads Postgres — an E2E run needs a database
@@ -195,7 +261,7 @@ To unblock, pick one:
 Then cover, in priority order: browse → region filter → load more → ad detail
 → intercepting modal → 404 for a deleted ad. Anonymous flows only.
 
-### 3.5 `contactPhone` visibility — known product decision, not a bug
+### 3.6 `contactPhone` visibility — known product decision, not a bug
 
 `contactPhone` is visible on the ad detail page to **any signed-in user**, not
 just the owner. This predates the review work and looks intentional. If the
@@ -203,13 +269,13 @@ threat model is "contact data must not leak", that is the remaining path —
 gate it on `currentUser?.userId === ad.userId` in
 `src/components/AdCard/AdCardCompact.tsx`.
 
-### 3.6 `next-auth` v5
+### 3.7 `next-auth` v5
 
 Still on v4. Auth.js v5 is `5.0.0-beta.32` — beta after three years. Not
 worth it now; the ownership model no longer depends on which version is in use.
 Revisit only if v5 goes stable.
 
-### 3.7 Deferred upgrades (explicitly out of scope, agreed)
+### 3.8 Deferred upgrades (explicitly out of scope, agreed)
 
 `motion` 12→13, `eslint` 9→10, `@types/node` 20→26, `typescript` 5→7 (the Go
 rewrite). One dependency per change, each with a green suite before and after.
@@ -253,10 +319,14 @@ say so — silently losing the guarantee is the part that is not acceptable.
 - `withUserLock(userId, fn, operation?)` — `operation` is part of the Redis key,
   so two kinds of locked work for one user neither contend nor inherit the
   guarantee. Assert the default in tests; a wrong default silently disables it.
-- The acquire budget must stay **below** `LOCK_TTL_MS`. A waiter that outlives
-  the lock it waits for can acquire one that expired and was re-taken, believing
-  it is exclusive. There is a test for this invariant; do not just tune the
-  numbers.
+- The acquire budget must stay **below** `LOCK_TTL_MS`, and it is bounded by
+  wall-clock rather than by a count of sleeps — see §2.5 for why that
+  distinction is the whole ballgame. `ACQUIRE_DEADLINE_MS` is *derived* from
+  `LOCK_TTL_MS`, `MAX_SET_CALL_MS` and a safety margin, so the invariant cannot
+  be broken by editing one number.
+- `operation` is a **required** parameter of `withUserLock`. It is part of the
+  Redis key: two spellings of the same operation would stop serializing
+  anything, silently. Keep it that way.
 - Release is a Lua script, never `DEL`. The token comparison is what stops a
   stale holder deleting the current one's key. Check the script's return value:
   `0` means the lock was lost and two critical sections may have overlapped.
@@ -271,6 +341,18 @@ say so — silently losing the guarantee is the part that is not acceptable.
   when the check is removed — that mistake was made and caught once already.
 - Before believing a test proves something, revert the fix and confirm it
   fails. The `expect(mocks.x).toHaveBeenCalled()` shape proves nothing.
+- **Check that a test can fail at all.** A test that asserts a formula about the
+  wrong quantity passes no matter what. `attempts * backoff < TTL` (§2.5) held
+  for the whole life of the lock while the property it named was routinely
+  violated, because latency was in none of the terms. If a constant cannot
+  influence the assertion, the assertion is decorative.
+- **Say what a test catches, not what you hope it catches.** The test that the
+  acquire deadline is *derived* passes just as well against a hardcoded literal
+  holding today's value. Its comment says "drift, not hardcoding", because that
+  is the truth and the stronger claim would mislead the next reader.
+- **A reviewer's finding is data, not a verdict.** Two of the three rejected
+  findings above were confidently asserted and wrong. Re-read the artifact
+  before acting; a fresh reviewer has the same capacity to be wrong as you do.
 - **A hand-written fake must not encode the property under test.** An early
   version of the Redis fake rejected a held key whether or not `nx` was set, so
   deleting `nx` still passed. Model the real primitive: without `NX`, `SET`
@@ -293,8 +375,13 @@ say so — silently losing the guarantee is the part that is not acceptable.
 - `tsx` compiles to CJS here (`package.json` has no `"type": "module"`), so
   **top-level `await` fails** in a scratch script. Wrap in an async function.
 - `Redis.fromEnv()` does **not** throw when the variables are missing; it warns
-  and returns a client that fails on every call. Importing the module proves
-  nothing about configuration.
+  at construction (`nodejs.mjs:274-278`) and returns a client that fails on
+  every call. Importing the module proves nothing about configuration.
+- The Redis client's `signal` option is a **factory evaluated per HTTP
+  request**, not per command. So `retries: N` multiplies the effective
+  per-command timeout — which is why `MAX_SET_CALL_MS` in `user-lock.ts` is
+  `timeout * (retries + 1)`, and why bounding the lock loop by *sleep* count
+  rather than wall-clock was wrong (§2.5).
 
 ---
 
@@ -302,7 +389,7 @@ say so — silently losing the guarantee is the part that is not acceptable.
 
 ```bash
 pnpm verify          # lint + typecheck + test + build — the pre-push gate
-pnpm test            # 185 tests
+pnpm test            # 189 tests
 pnpm test src/server # one directory
 pnpm db:studio       # inspect the database
 pnpm db:seed         # 100 fake ads + ~200 images
@@ -318,7 +405,7 @@ this workflow is the **only** automated gate in the repo.
 
 - **No `CONSTRAINTS.md`.** Worth adding via the `constraint-driven-development`
   skill if the quality bar should be written down rather than implied by CI.
-- **No E2E** (see §3.4).
+- **No E2E** (see §3.5).
 - **No React Compiler.** Stable in Next 16 but not enabled in `next.config.ts`.
 - **Loading states not revisited.** Three `loading.tsx` files exist and all
   render a bare `Spinner`. `AdCardSkeleton` was deleted as dead code, so grid
@@ -327,7 +414,7 @@ this workflow is the **only** automated gate in the repo.
   application code and degrades to unenforced if Redis is down. A hard guarantee
   would need a schema change — a `slot smallint` with `UNIQUE(userId, slot)` and
   retry-on-conflict, which the database can enforce without transactions. Not
-  chosen because it needs the migration system that does not exist yet (§3.3).
+  chosen because it needs the migration system that does not exist yet (§3.4).
 - **One account, two providers, two limits.** The lock and the count both key on
   the OAuth provider account id, so a person signing in with both GitHub and
   Google has two ids and can hold 4 ads. Pre-existing, now encoded in the lock

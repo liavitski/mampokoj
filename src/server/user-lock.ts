@@ -2,7 +2,12 @@ import 'server-only';
 
 import { randomUUID } from 'node:crypto';
 
-import { redis } from './redis';
+import {
+  redis,
+  REDIS_REQUEST_TIMEOUT_MS,
+  REDIS_RETRIES,
+  REDIS_RETRY_BACKOFF_MS,
+} from './redis';
 
 /**
  * How long a held lock survives without an explicit release.
@@ -11,22 +16,58 @@ import { redis } from './redis';
  * path -- `withUserLock` always releases. It has to comfortably exceed the time
  * a count and an insert take, because a lock that expires while its holder is
  * still running is exactly the race this exists to remove.
- *
- * It also has to exceed the whole acquire budget below, so that a caller can
- * never outlive the lock it is waiting for and then acquire one that has since
- * expired and been taken by somebody else.
  */
 const LOCK_TTL_MS = 10_000;
+
+/**
+ * The longest a single `redis.set` call can take.
+ *
+ * The client aborts each HTTP request after `REDIS_REQUEST_TIMEOUT_MS` and
+ * retries `REDIS_RETRIES` times, so the signal is per request and one command
+ * can occupy this long. Deriving it from the client's own settings is the
+ * point: raising the timeout raises this too, rather than silently leaving the
+ * acquire loop able to overshoot the TTL.
+ */
+const MAX_SET_CALL_MS =
+  REDIS_REQUEST_TIMEOUT_MS * (REDIS_RETRIES + 1) +
+  REDIS_RETRIES * REDIS_RETRY_BACKOFF_MS;
+
+/**
+ * Spare time between the last possible acquisition and the TTL expiring.
+ *
+ * Without it the two numbers could meet exactly, and a clock skew between this
+ * process and Redis would be enough to let the TTL win.
+ */
+const TTL_SAFETY_MARGIN_MS = 1_000;
+
+/**
+ * The wall-clock limit on *starting* further attempts, not the sum of the
+ * backoff sleeps.
+ *
+ * Those are different quantities and conflating them is a bug: an earlier
+ * version of this file bounded the loop by `attempts * backoff`, roughly 1.8s,
+ * and asserted that against the TTL. That ignored per-call latency entirely. Ten
+ * attempts against a slow or stalling Redis ran for well over a minute, so a
+ * waiter could outlive the lock it was waiting for, watch it expire and be
+ * taken by somebody else, then acquire "successfully" and run concurrently.
+ *
+ * Bounding wall-clock instead means a request that is merely slow stops trying
+ * early, which is the safe direction: the caller is told to retry rather than
+ * being admitted alongside a holder it believes it excludes.
+ *
+ * Derived from the TTL so the invariant cannot be broken by editing one number.
+ */
+const ACQUIRE_DEADLINE_MS =
+  LOCK_TTL_MS - MAX_SET_CALL_MS - TTL_SAFETY_MARGIN_MS;
 
 /**
  * A second caller waits rather than failing outright: the common case is one
  * user double-submitting the create form, and two round trips to Neon on a
  * cold branch regularly take longer than the first attempt's patience.
  *
- * Ten attempts with exponential backoff capped at 200ms is roughly 1.5s of
- * waiting in total, which covers a slow-but-normal first request without
- * turning a genuine double-click into an error. The jitter keeps a burst of
- * submissions from retrying in lockstep.
+ * Ten attempts covers contention when Redis is responsive, which is the case
+ * that matters. When it is not, the wall-clock deadline above is what stops the
+ * loop, not this count.
  */
 const ACQUIRE_ATTEMPTS = 10;
 const ACQUIRE_BACKOFF_BASE_MS = 40;
@@ -130,17 +171,28 @@ async function releaseQuietly(
 export async function withUserLock<T>(
   userId: string,
   fn: () => Promise<T>,
-  operation = 'create-ad'
+  /**
+   * Required rather than defaulted. Two operations sharing one lock would
+   * serialize unrelated work; two spellings of the same operation would stop
+   * serializing anything at all, silently. Making the caller name it puts that
+   * choice where it is visible.
+   */
+  operation: string
 ): Promise<T> {
   // Operation-scoped so two different locks for one user do not contend.
   const key = `mampokoj:lock:${operation}:${userId}`;
   const token = randomUUID();
+  const deadline = Date.now() + ACQUIRE_DEADLINE_MS;
 
   let acquired = false;
   let redisFailed = false;
   let lastError: unknown;
 
   for (let attempt = 0; attempt < ACQUIRE_ATTEMPTS; attempt += 1) {
+    // Checked before starting an attempt, not after finishing one, so a slow
+    // Redis cannot push the loop past the TTL.
+    if (Date.now() >= deadline) break;
+
     try {
       // SET key token NX PX ttl -- "only if absent", so exactly one caller
       // wins. A lost race returns null rather than throwing.
@@ -164,7 +216,13 @@ export async function withUserLock<T>(
       lastError = error;
     }
 
-    if (attempt < ACQUIRE_ATTEMPTS - 1) await sleep(backoffFor(attempt));
+    const remaining = deadline - Date.now();
+
+    // Sleeping past the deadline would only delay the same decision by one
+    // backoff, so give up as soon as there is no longer time to be useful.
+    if (attempt === ACQUIRE_ATTEMPTS - 1 || remaining <= 0) break;
+
+    await sleep(Math.min(backoffFor(attempt), remaining));
   }
 
   if (!acquired) {
@@ -194,4 +252,7 @@ export const __testing = {
   ACQUIRE_ATTEMPTS,
   ACQUIRE_BACKOFF_BASE_MS,
   ACQUIRE_BACKOFF_CAP_MS,
+  ACQUIRE_DEADLINE_MS,
+  MAX_SET_CALL_MS,
+  TTL_SAFETY_MARGIN_MS,
 };

@@ -8,9 +8,21 @@ const { mocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('@/server/redis', () => ({ redis: mocks }));
+// The mock replaces only the client. The timing constants have to come from the
+// real module, because the invariant below is about how long a `redis.set` can
+// occupy the lock loop -- and a copy of those numbers here would drift away from
+// the configuration that actually produces them.
+vi.mock('@/server/redis', async () => {
+  const actual = await vi.importActual<typeof import('@/server/redis')>(
+    '@/server/redis'
+  );
+
+  return { ...actual, redis: mocks };
+});
 
 const { withUserLock, LockBusyError, __testing } = await import('../user-lock');
+const { REDIS_REQUEST_TIMEOUT_MS, REDIS_RETRIES, REDIS_RETRY_BACKOFF_MS } =
+  await import('@/server/redis');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -24,13 +36,13 @@ describe('withUserLock acquisition', () => {
   it('runs the critical section when the lock is taken', async () => {
     const fn = vi.fn(async () => 'done');
 
-    await expect(withUserLock('user-a', fn)).resolves.toBe('done');
+    await expect(withUserLock('user-a', fn, 'create-ad')).resolves.toBe('done');
 
     expect(fn).toHaveBeenCalledOnce();
   });
 
   it('scopes the lock to the operation and the user', async () => {
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     expect(mocks.set.mock.calls[0]![0]).toBe(
       'mampokoj:lock:create-ad:user-a'
@@ -38,8 +50,8 @@ describe('withUserLock acquisition', () => {
   });
 
   it('does not share a lock between two users', async () => {
-    await withUserLock('user-a', async () => {});
-    await withUserLock('user-b', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
+    await withUserLock('user-b', async () => {}, 'create-ad');
 
     const keys = mocks.set.mock.calls.map((call) => call[0]);
     expect(keys).toEqual([
@@ -52,7 +64,7 @@ describe('withUserLock acquisition', () => {
     // The operation is part of the key, so a second kind of locked work for
     // the same user neither contends with nor inherits this caller's guarantee.
     await withUserLock('user-a', async () => {}, 'delete-ad');
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     const keys = mocks.set.mock.calls.map((call) => call[0]);
     expect(keys).toEqual([
@@ -62,7 +74,7 @@ describe('withUserLock acquisition', () => {
   });
 
   it('sets the key only if absent, with a TTL', async () => {
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     // NX is what makes it a mutex; without it every caller would believe it
     // had the lock.
@@ -75,7 +87,7 @@ describe('withUserLock acquisition', () => {
   it('stops retrying as soon as it wins the lock', async () => {
     mocks.set.mockResolvedValueOnce(null).mockResolvedValue('OK');
 
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     expect(mocks.set).toHaveBeenCalledTimes(2);
   });
@@ -86,7 +98,7 @@ describe('withUserLock contention', () => {
     mocks.set.mockResolvedValue(null);
     const fn = vi.fn(async () => 'done');
 
-    await expect(withUserLock('user-a', fn)).rejects.toThrow(LockBusyError);
+    await expect(withUserLock('user-a', fn, 'create-ad')).rejects.toThrow(LockBusyError);
 
     // Running anyway would be the exact race the lock exists to close.
     expect(fn).not.toHaveBeenCalled();
@@ -95,7 +107,7 @@ describe('withUserLock contention', () => {
   it('gives up after a bounded number of attempts', async () => {
     mocks.set.mockResolvedValue(null);
 
-    await expect(withUserLock('user-a', async () => {})).rejects.toThrow(
+    await expect(withUserLock('user-a', async () => {}, 'create-ad')).rejects.toThrow(
       LockBusyError
     );
 
@@ -106,14 +118,14 @@ describe('withUserLock contention', () => {
     mocks.set.mockResolvedValue(null);
 
     await expect(
-      withUserLock('user-a', async () => {})
+      withUserLock('user-a', async () => {}, 'create-ad')
     ).rejects.toBeInstanceOf(LockBusyError);
   });
 });
 
 describe('withUserLock release', () => {
   it('releases with a script that only deletes the caller own lock', async () => {
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     const [script, keys, args] = mocks.eval.mock.calls[0] as [
       string,
@@ -131,7 +143,7 @@ describe('withUserLock release', () => {
   });
 
   it('releases with the same token it set', async () => {
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     const setToken = mocks.set.mock.calls[0]![1] as string;
     const releaseArgs = mocks.eval.mock.calls[0]![2] as string[];
@@ -140,7 +152,7 @@ describe('withUserLock release', () => {
   });
 
   it('passes the key as the script numkeys entry, not as an argument', async () => {
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     const [, keys, args] = mocks.eval.mock.calls[0] as [
       string,
@@ -169,7 +181,7 @@ describe('withUserLock release', () => {
     await expect(
       withUserLock('user-a', async () => {
         throw new Error('boom');
-      })
+      }, 'create-ad')
     ).rejects.toThrow('boom');
 
     // A lock left behind would block this user for the whole TTL.
@@ -179,7 +191,9 @@ describe('withUserLock release', () => {
   it('returns the result even when the release fails', async () => {
     mocks.eval.mockRejectedValue(new Error('redis down'));
 
-    await expect(withUserLock('user-a', async () => 'done')).resolves.toBe(
+    await expect(
+      withUserLock('user-a', async () => 'done', 'create-ad')
+    ).resolves.toBe(
       'done'
     );
 
@@ -194,7 +208,7 @@ describe('withUserLock when Redis is unreachable', () => {
     mocks.set.mockRejectedValue(new Error('fetch failed'));
     const fn = vi.fn(async () => 'done');
 
-    await expect(withUserLock('user-a', fn)).resolves.toBe('done');
+    await expect(withUserLock('user-a', fn, 'create-ad')).resolves.toBe('done');
 
     expect(fn).toHaveBeenCalledOnce();
   });
@@ -202,7 +216,7 @@ describe('withUserLock when Redis is unreachable', () => {
   it('logs the degradation instead of losing it silently', async () => {
     mocks.set.mockRejectedValue(new Error('fetch failed'));
 
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     // Fail-open is a deliberate trade-off, so it has to be observable.
     expect(console.error).toHaveBeenCalledWith(
@@ -220,7 +234,7 @@ describe('withUserLock when Redis is unreachable', () => {
 
     const fn = vi.fn(async () => 'done');
 
-    await expect(withUserLock('user-a', fn)).resolves.toBe('done');
+    await expect(withUserLock('user-a', fn, 'create-ad')).resolves.toBe('done');
 
     expect(mocks.set).toHaveBeenCalledTimes(2);
     expect(fn).toHaveBeenCalledOnce();
@@ -229,7 +243,7 @@ describe('withUserLock when Redis is unreachable', () => {
   it('releases speculatively, in case the SET landed before it failed', async () => {
     mocks.set.mockRejectedValue(new Error('truncated response'));
 
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     // If the write reached Redis but the response was lost, skipping the
     // release leaves this user's next create blocked for the whole TTL. The
@@ -242,7 +256,7 @@ describe('withUserLock when Redis is unreachable', () => {
     mocks.eval.mockResolvedValue(0);
 
     // Never held, so a 0 here is expected rather than a lost lock.
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     expect(console.error).not.toHaveBeenCalledWith(
       expect.stringContaining('overlapped')
@@ -251,22 +265,83 @@ describe('withUserLock when Redis is unreachable', () => {
 });
 
 describe('withUserLock lock accounting', () => {
-  it('keeps the acquire budget below the lock TTL', () => {
-    // A waiter that outlives the lock it is waiting for could acquire one that
-    // has expired and been taken by somebody else, believing it is exclusive.
-    const worstCaseWait =
-      __testing.ACQUIRE_ATTEMPTS * __testing.ACQUIRE_BACKOFF_CAP_MS;
+  /**
+   * Recomputed from the client's own settings rather than read from
+   * `__testing`, so this cannot agree with the implementation by construction.
+   * A single `redis.set` occupies one HTTP attempt per retry plus its timeout,
+   * and the abort signal is per request, not per command.
+   */
+  const worstSetCallMs =
+    REDIS_REQUEST_TIMEOUT_MS * (REDIS_RETRIES + 1) +
+    REDIS_RETRIES * REDIS_RETRY_BACKOFF_MS;
 
-    expect(worstCaseWait).toBeLessThan(__testing.LOCK_TTL_MS);
+  it('bounds the whole acquire loop by wall-clock, not just by sleeps', () => {
+    // A caller that outlives the lock it is waiting for can acquire one that
+    // has since expired and been taken by somebody else, believing it is
+    // exclusive. The attempt that succeeds may begin just before the deadline,
+    // so the deadline plus one full call has to stay inside the TTL.
+    expect(__testing.ACQUIRE_DEADLINE_MS).toBeGreaterThan(0);
+    expect(__testing.ACQUIRE_DEADLINE_MS + worstSetCallMs).toBeLessThan(
+      __testing.LOCK_TTL_MS
+    );
+  });
+
+  it('leaves margin rather than meeting the TTL exactly', () => {
+    // Clock skew between this process and Redis should not be able to decide
+    // whether the guarantee holds.
+    const slack = __testing.LOCK_TTL_MS - (__testing.ACQUIRE_DEADLINE_MS + worstSetCallMs);
+
+    expect(slack).toBeGreaterThan(0);
+  });
+
+  it('keeps the deadline tied to the client timeout', () => {
+    // What this catches is *drift*, not hardcoding: writing the deadline as a
+    // literal equal to today's derived value still passes, because it is the
+    // same number. It fails once the timeout is retuned and the deadline is
+    // left behind, which is the case that would quietly reintroduce the
+    // overshoot.
+    expect(__testing.MAX_SET_CALL_MS).toBe(worstSetCallMs);
+    expect(__testing.ACQUIRE_DEADLINE_MS).toBe(
+      __testing.LOCK_TTL_MS - worstSetCallMs - __testing.TTL_SAFETY_MARGIN_MS
+    );
   });
 
   it('waits long enough for a slow first request to finish', () => {
     // Two round trips to Neon on a cold branch. Below this, a double-submit
     // gets an error instead of the ad it asked for.
-    const worstCaseWait =
-      __testing.ACQUIRE_ATTEMPTS * __testing.ACQUIRE_BACKOFF_CAP_MS;
+    const backoffTotal = Array.from(
+      { length: __testing.ACQUIRE_ATTEMPTS - 1 },
+      (_, i) => Math.min(__testing.ACQUIRE_BACKOFF_BASE_MS * 2 ** i, __testing.ACQUIRE_BACKOFF_CAP_MS)
+    ).reduce((a, b) => a + b, 0);
 
-    expect(worstCaseWait).toBeGreaterThan(1_000);
+    expect(backoffTotal).toBeGreaterThan(1_000);
+    // And it still fits inside the wall-clock budget, so a responsive Redis
+    // gets all ten attempts.
+    expect(backoffTotal).toBeLessThan(__testing.ACQUIRE_DEADLINE_MS);
+  });
+
+  it('stops trying when Redis is slow, instead of running past the TTL', async () => {
+    // The defect this guards: bounding the loop by the sum of backoff sleeps
+    // ignored per-call latency, so ten slow attempts ran for minutes. A waiter
+    // could then acquire a lock that had expired and been re-taken.
+    mocks.set.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(null), 300);
+        })
+    );
+
+    const startedAt = Date.now();
+
+    await expect(
+      withUserLock('user-a', async () => 'done', 'create-ad')
+    ).rejects.toThrow(LockBusyError);
+
+    const elapsed = Date.now() - startedAt;
+
+    // Cut off by the deadline, not by exhausting the attempt count.
+    expect(mocks.set.mock.calls.length).toBeLessThan(__testing.ACQUIRE_ATTEMPTS);
+    expect(elapsed).toBeLessThan(__testing.ACQUIRE_DEADLINE_MS + 300);
   });
 
   it('reports a lost lock rather than dropping the overlap silently', async () => {
@@ -274,7 +349,7 @@ describe('withUserLock lock accounting', () => {
     // somebody else may have entered it.
     mocks.eval.mockResolvedValue(0);
 
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('overlapped')
@@ -283,12 +358,12 @@ describe('withUserLock lock accounting', () => {
 
   it('accepts the documented SET NX results without complaint', async () => {
     mocks.set.mockResolvedValue(null);
-    await expect(withUserLock('user-a', async () => {})).rejects.toThrow(
+    await expect(withUserLock('user-a', async () => {}, 'create-ad')).rejects.toThrow(
       LockBusyError
     );
 
     mocks.set.mockResolvedValue('OK');
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     // A value the client does not recognise would otherwise make every create
     // fail as "busy" with no trace.
@@ -302,7 +377,7 @@ describe('withUserLock lock accounting', () => {
     mocks.set.mockResolvedValue('WAT');
 
     // Unrecognised means "cannot prove the lock is free", so it refuses.
-    await expect(withUserLock('user-a', async () => {})).rejects.toThrow(
+    await expect(withUserLock('user-a', async () => {}, 'create-ad')).rejects.toThrow(
       LockBusyError
     );
 
@@ -389,7 +464,7 @@ describe('withUserLock mutual exclusion', () => {
           setTimeout(resolve, 5);
         });
         concurrent -= 1;
-      });
+      }, 'create-ad');
 
     const results = await Promise.allSettled(
       Array.from({ length: 5 }, () => run())
@@ -414,7 +489,7 @@ describe('withUserLock mutual exclusion', () => {
         await new Promise((resolve) => {
           setTimeout(resolve, 5);
         });
-      });
+      }, 'create-ad');
 
     await Promise.all(Array.from({ length: 5 }, () => run()));
 
@@ -431,7 +506,7 @@ describe('withUserLock mutual exclusion', () => {
     mocks.set.mockImplementation(fake.set);
     mocks.eval.mockImplementation(fake.eval);
 
-    await withUserLock('user-a', async () => {});
+    await withUserLock('user-a', async () => {}, 'create-ad');
 
     expect(fake.size()).toBe(0);
   });
@@ -450,8 +525,8 @@ describe('withUserLock mutual exclusion', () => {
 
     // The first section is held open until the second has given up, which is
     // past its retry budget -- the case where waiting stops being reasonable.
-    const first = withUserLock('user-a', () => gate);
-    const second = await withUserLock('user-a', secondSection).then(
+    const first = withUserLock('user-a', () => gate, 'create-ad');
+    const second = await withUserLock('user-a', secondSection, 'create-ad').then(
       () => null,
       (error: unknown) => error
     );

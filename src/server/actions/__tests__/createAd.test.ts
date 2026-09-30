@@ -216,6 +216,15 @@ describe('createAd concurrency', () => {
     expect(mocks.withUserLock.mock.calls[0]![0]).toBe('user-a');
   });
 
+  it('names the lock it takes', async () => {
+    // The operation is part of the Redis key, so a second create path using a
+    // different name would neither contend with this one nor inherit its
+    // guarantee. Naming it at the call site makes that a visible edit.
+    await createAd(adFormData());
+
+    expect(mocks.withUserLock.mock.calls[0]![2]).toBe('create-ad');
+  });
+
   it('does not take the lock when the submission is invalid', async () => {
     await createAd(adFormData({ title: '' }));
 

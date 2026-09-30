@@ -18,8 +18,10 @@ import { Redis } from '@upstash/redis';
  * gives every request its own deadline.
  */
 export const REDIS_REQUEST_TIMEOUT_MS = 2_000;
+export const REDIS_RETRIES = 2;
+export const REDIS_RETRY_BACKOFF_MS = 100;
 
 export const redis = Redis.fromEnv({
-  retry: { retries: 2, backoff: () => 100 },
+  retry: { retries: REDIS_RETRIES, backoff: () => REDIS_RETRY_BACKOFF_MS },
   signal: () => AbortSignal.timeout(REDIS_REQUEST_TIMEOUT_MS),
 });

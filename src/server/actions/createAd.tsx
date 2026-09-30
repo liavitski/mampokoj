@@ -58,10 +58,12 @@ async function insertIfUnderLimit(
       .returning({ id: ads.id });
 
     return { success: true, adId: created.id, userId };
-  } catch {
+  } catch (error) {
     // Unexpected database failures are logged rather than returned: the raw
-    // message can name tables, columns and constraints.
-    console.error('Failed to create ad');
+    // message can name tables, columns and constraints. Logged with the cause,
+    // and under its own message, so it is distinguishable from a failure that
+    // happened before the insert was even attempted.
+    console.error('Failed to insert ad', error);
 
     return {
       success: false,
@@ -86,7 +88,13 @@ export async function createAd(
   }
 
   try {
-    return await withUserLock(userId, () => insertIfUnderLimit(userId, parsed.data));
+    return await withUserLock(
+      userId,
+      () => insertIfUnderLimit(userId, parsed.data),
+      // Named rather than defaulted, so that this and any future create path
+      // either share one lock deliberately or are seen to differ.
+      'create-ad'
+    );
   } catch (error) {
     // Validation failures may explain themselves; this one is a retry, and it
     // deliberately does not say "someone else is creating an ad right now".
@@ -94,9 +102,10 @@ export async function createAd(
       return { success: false, error: 'Please try again in a moment' };
     }
 
-    // Logged with the cause: a constraint violation, a serialization failure
-    // and pool exhaustion are indistinguishable without it.
-    console.error('Failed to create ad', error);
+    // A failure outside the insert: the count, or the lock itself. Logged with
+    // the cause, since a constraint violation, a serialization failure and pool
+    // exhaustion are indistinguishable without it.
+    console.error('createAd failed before the insert', error);
 
     return { success: false, error: 'Could not create the ad' };
   }

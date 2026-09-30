@@ -4,12 +4,15 @@ import { getUserAds } from '@/server/queries/select';
 import { requireUserId } from '@/lib/session';
 import { canViewDashboard } from '@/lib/dashboard-access';
 
-import styled from 'styled-components';
-
 import RoomListingForm from '@/components/RoomListingForm';
 import AdCard from '@/components/AdCard';
 import UploadBtn from '@/components/UploadBtn';
 import DeleteAdButton from '@/components/DeleteAdButton';
+import {
+  Wrapper,
+  AdCardWrapper,
+  AdControlButtonsWrapper,
+} from './page.styles';
 import UpdateRoomListingForm from '@/components/UpdateRoomListingForm';
 
 type UserDashboardPageProps = {
@@ -60,25 +63,5 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
   );
 }
 
-const Wrapper = styled.div`
-  display: flex;
-  gap: 16px;
-  flex-direction: column;
-`;
-
-const AdCardWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border-bottom: 1px dotted var(--color-border);
-  padding-bottom: 16px;
-`;
-
-const AdControlButtonsWrapper = styled.div`
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  max-width: 800px;
-`;
 
 export default UserDashboardPage;

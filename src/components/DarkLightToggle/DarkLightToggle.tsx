@@ -2,13 +2,15 @@
 import * as React from 'react';
 import type { Theme } from '@/types/theme';
 import Cookie from 'js-cookie';
-import styled from 'styled-components';
 import { LIGHT_TOKENS, DARK_TOKENS, COLOR_THEME_COOKIE_NAME } from '@/constants';
 
-import VisuallyHidden from '../VisuallyHidden';
 import Icon from '../Icon';
-import UnstyledButton from '../UnstyledButton';
 import Tooltip from '../Tooltip';
+import {
+  ControlButton,
+  ControlIconAlways,
+  ControlNameOnly,
+} from '../HeaderControl';
 
 type DarkLightToggleProps = {
   initialTheme: Theme;
@@ -42,29 +44,30 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
     Object.entries(colors).forEach(([key, value]) => {
       root.style.setProperty(key, value);
     });
+
+    // 3.3 — Do the same for `color-scheme`, which is written as an inline
+    //       style by `layout.tsx` and is not one of the tokens above. Without
+    //       it the user agent keeps painting scrollbars, the native date
+    //       picker and `::selection` with the light palette.
+    root.style.setProperty('color-scheme', nextTheme);
   }
 
   const TooltipTrigger = <Icon id={theme} />;
 
   return (
-    <IconWrapper onClick={handleClick}>
-      <Tooltip trigger={TooltipTrigger} content="Toggle theme" />
-      <VisuallyHidden>Toggle dark / light mode</VisuallyHidden>
-    </IconWrapper>
+    <ControlButton
+      type="button"
+      onClick={handleClick}
+      aria-pressed={theme === 'dark'}
+    >
+      {/* Icon-only at every width: the name is never visible, and the tooltip is
+          the explanation. */}
+      <ControlNameOnly>Toggle dark / light mode</ControlNameOnly>
+      <ControlIconAlways>
+        <Tooltip trigger={TooltipTrigger} content="Toggle theme" />
+      </ControlIconAlways>
+    </ControlButton>
   );
 }
-
-const IconWrapper = styled(UnstyledButton)`
-  border-radius: 50%;
-
-  &:hover {
-    background-color: var(--color-accent);
-  }
-
-  &:focus {
-    outline-color: var(--color-focus-ring);
-    outline-offset: 4px;
-  }
-`;
 
 export default DarkLightToggle;

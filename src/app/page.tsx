@@ -1,5 +1,3 @@
-import styled from 'styled-components';
-import { QUERIES, WEIGHTS } from '@/constants';
 import { isRegionCode } from '@/utils/utils';
 import { PAGE_SIZE } from '@/constants';
 import { getAds } from '@/server/queries/select';
@@ -7,6 +5,12 @@ import { getAds } from '@/server/queries/select';
 import RegionNavigation from '@/components/RegionNavigation';
 import AdGrid from '@/components/AdGrid';
 import RegionSelectBlock from '@/components/RegionSelectBlock';
+import {
+  Wrapper,
+  MainColumn,
+  LeftColumn,
+  NoAdsText,
+} from './page.styles';
 
 type SearchParams = {
   region?: string;
@@ -81,29 +85,3 @@ export default async function Home({ searchParams }: HomeProps) {
   );
 }
 
-const Wrapper = styled.main`
-  display: flex;
-  gap: 16px;
-
-  @media ${QUERIES.tabletAndSmaller} {
-    flex-direction: column;
-  }
-`;
-
-const MainColumn = styled.div`
-  flex: 1;
-`;
-
-const LeftColumn = styled.aside`
-  flex-basis: 248px;
-
-  @media ${QUERIES.tabletAndSmaller} {
-    display: none;
-  }
-`;
-
-const NoAdsText = styled.p`
-  font-weight: ${WEIGHTS.medium};
-  font-size: 1rem;
-  text-align: center;
-`;

@@ -1,110 +1,97 @@
 'use client';
+
 import * as React from 'react';
-import { signIn, signOut, useSession } from 'next-auth/react';
-import Spinner from '../Spinner';
-import Button from '../Button';
+import { signIn, signOut } from 'next-auth/react';
+import type { Session } from 'next-auth';
 import styled from 'styled-components';
 import Image from 'next/image';
-import { QUERIES, WEIGHTS } from '@/constants';
+
 import Icon from '../Icon';
-import VisuallyHidden from '../VisuallyHidden';
+import { QUERIES, WEIGHTS } from '@/constants';
+import {
+  ControlButton,
+  ControlIcon,
+  ControlLabel,
+} from '../HeaderControl';
 
-function AuthButton() {
-  const { data: session, status } = useSession();
+type AuthButtonProps = {
+  /**
+   * The session, from the server.
+   *
+   * This used to be `useSession()`, which resolves after hydration. The header
+   * is a server component and already knew who was signed in, so the button
+   * rendered a spinner and then swapped itself for a name, an avatar and a
+   * "Sign out" button on every page load — a layout jump in the one place on
+   * the page where nothing is supposed to move.
+   *
+   * `signIn` and `signOut` both navigate when they finish, so the server is
+   * re-rendered and this prop changes on its own; nothing has to watch for it.
+   */
+  session: Session | null;
+};
 
-  if (status === 'loading') {
-    return <Spinner />;
-  }
+function AuthButton({ session }: AuthButtonProps) {
+  const userName = session?.user?.name;
+  const userAvatar = session?.user?.image || '/globe.svg';
 
   if (!session) {
     return (
-      <ButtonWrapper
-        variant="ghost"
-        size="small"
-        onClick={() => signIn()}
-      >
-        <ButtonText>Sign in</ButtonText>
-        <IconWrapper>
+      <ControlButton type="button" onClick={() => signIn()}>
+        <ControlLabel>Sign in</ControlLabel>
+        <ControlIcon>
           <Icon id="logIn" strokeWidth={1.5} />
-          <VisuallyHidden>Sign in</VisuallyHidden>
-        </IconWrapper>
-      </ButtonWrapper>
+        </ControlIcon>
+      </ControlButton>
     );
   }
 
-  const userAvatar = session.user?.image || '/globe.svg';
-  const userName = session.user?.name;
-
   return (
     <>
-      <UserName style={{ userSelect: 'none' }}>{userName}</UserName>
-      <AvatarWrapper>
-        <Image
-          src={userAvatar}
-          alt="user-avatar"
-          width={32}
-          height={32}
-          priority
-        />
-      </AvatarWrapper>
-      <ButtonWrapper
-        variant="ghost"
-        size="small"
-        onClick={() => signOut({ callbackUrl: '/' })}
-      >
-        <ButtonText>Sign Out</ButtonText>
-        <IconWrapper>
+      {/* Name and avatar are one control, not two: they are two views of the
+          same fact, and on a phone the label has already become the accessible
+          name, so showing the name again as text would duplicate it. */}
+      <Identity title={userName ?? 'Signed in'}>
+        {userName && <UserName>{userName}</UserName>}
+        <Avatar src={userAvatar} alt="" width={28} height={28} priority />
+      </Identity>
+
+      <ControlButton type="button" onClick={() => signOut({ callbackUrl: '/' })}>
+        <ControlLabel>Sign out</ControlLabel>
+        <ControlIcon>
           <Icon id="logOut" strokeWidth={1.5} />
-          <VisuallyHidden>Sign out</VisuallyHidden>
-        </IconWrapper>
-      </ButtonWrapper>
+        </ControlIcon>
+      </ControlButton>
     </>
   );
 }
 
-const AvatarWrapper = styled.div`
-  border-radius: 50%;
+const Identity = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+`;
+
+const UserName = styled.span`
+  font-weight: ${WEIGHTS.normal};
+  font-size: 1rem;
+  line-height: 1.2;
+
+  /* Truncate rather than wrap: a two-line name would double the height of the
+     header bar on a narrow screen. */
+  max-width: 12ch;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   @media ${QUERIES.phoneAndSmaller} {
     display: none;
   }
 `;
 
-const UserName = styled.span`
-  font-weight: ${WEIGHTS.normal};
-
-  @media (${QUERIES.phoneAndSmaller}) {
-    display: none;
-  }
-`;
-
-const ButtonWrapper = styled(Button)`
-  border: none;
-
-  @media (${QUERIES.phoneAndSmaller}) {
-    padding: 0;
-    border-radius: 50%;
-  }
-`;
-
-const IconWrapper = styled.div`
-  display: none;
-
-  @media (${QUERIES.phoneAndSmaller}) {
-    display: block;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-`;
-
-const ButtonText = styled.span`
-  display: inline;
-
-  @media (${QUERIES.phoneAndSmaller}) {
-    display: none;
-  }
+const Avatar = styled(Image)`
+  border-radius: 50%;
+  flex-shrink: 0;
 `;
 
 export default AuthButton;

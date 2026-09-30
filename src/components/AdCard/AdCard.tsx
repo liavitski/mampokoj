@@ -3,11 +3,18 @@ import { formatCZPhone } from '@/utils/utils';
 
 import type { AdWithImages } from '@/types/db-types';
 
-import { QUERIES, WEIGHTS } from '@/constants';
-import styled from 'styled-components';
 import { getSessionUser } from '@/lib/session';
 
 import AdPhotosGallery from '../AdPhotosGallery';
+import {
+  Wrapper,
+  InfoWrapper,
+  Title,
+  Description,
+  City,
+  ContactPhone,
+  Price,
+} from './AdCard.styles';
 
 type AdCardProps = {
   ad: AdWithImages;
@@ -50,9 +57,7 @@ async function AdCard({ ad }: AdCardProps) {
         </City>
         <ContactPhone>
           <span>Contact:</span>
-          {currentUser
-            ? formattedPhone
-            : 'Log in to see the contact'}
+          {currentUser ? formattedPhone : 'Log in to see the contact'}
         </ContactPhone>
 
         <Price>
@@ -63,80 +68,5 @@ async function AdCard({ ad }: AdCardProps) {
     </Wrapper>
   );
 }
-
-const Wrapper = styled.article`
-  background-color: var(--color-card-background);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-card);
-  padding: 16px;
-  border-radius: 16px;
-  display: flex;
-  gap: 16px;
-  max-width: 1000px;
-  width: min(800px, 95vw);
-  height: max-content;
-  
-  @media (${QUERIES.tabletAndSmaller}) {
-    width: 100%;
-    flex-direction: column;
-  }
-  
-  @media ${QUERIES.phoneAndSmaller} {
-    width: 100%;
-  }
-`;
-
-const InfoWrapper = styled.div`
-  flex: 1;
-  height: 100%;
-  display: grid;
-  grid-template-areas:
-    'title title'
-    'description description'
-    'city city'
-    'contact contact'
-    'price price';
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto auto auto;
-`;
-
-const Title = styled.h2`
-  grid-area: title;
-  font-size: 1.25rem;
-  font-weight: ${WEIGHTS.medium};
-  margin-bottom: 8px;
-`;
-
-const Description = styled.p`
-  grid-area: description;
-  font-size: 1rem;
-  margin-bottom: 8px;
-`;
-
-const City = styled.p`
-  grid-area: city;
-  font-size: 1rem;
-
-  span {
-    font-weight: ${WEIGHTS.medium};
-  }
-`;
-
-const ContactPhone = styled.p`
-  grid-area: contact;
-  font-size: 1rem;
-
-  span {
-    font-weight: ${WEIGHTS.medium};
-  }
-`;
-const Price = styled.p`
-  grid-area: price;
-  font-size: 1rem;
-
-  span {
-    font-weight: ${WEIGHTS.medium};
-  }
-`;
 
 export default AdCard;

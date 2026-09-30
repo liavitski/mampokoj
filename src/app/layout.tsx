@@ -9,13 +9,12 @@ import { MotionConfig } from 'motion/react';
 import { getCachedSession } from '@/lib/session';
 
 import '@uploadthing/react/styles.css';
-import GlobalStyles from '@/components/GlobalStyles';
+import './globals.css';
 import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS, COLOR_THEME_COOKIE_NAME } from '@/constants';
 import StyledComponentsRegistry from '@/lib/registry';
 
 import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
-import SessionProvider from '@/components/SessionProvider';
 import Footer from '@/components/Footer';
 
 import ToastProvider from '@/components/ToastProvider';
@@ -41,6 +40,14 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
       : 'light';
 
   const themeColors = theme === 'light' ? LIGHT_TOKENS : DARK_TOKENS;
+
+  // Read once here and handed to the header, which is the only consumer that
+  // needs it on the client. There is deliberately no `SessionProvider` around
+  // the tree: nothing calls `useSession()` any more, since the header was the
+  // last thing that did, and with it there is no client-side session copy to
+  // serialise into the payload and no refetch on window focus. Re-add the
+  // provider only together with a caller that needs it -- `signIn`/`signOut`
+  // in AuthButton work without it.
   const session = await getCachedSession();
 
   return (
@@ -48,22 +55,29 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
       lang="en"
       translate="no"
       data-color-theme={theme}
-      style={themeColors as React.CSSProperties}
+      style={
+        {
+          ...themeColors,
+          // Tells the user agent which built-in widget palette to paint with,
+          // so scrollbars, the native date picker, focus rings and ::selection
+          // follow the theme instead of staying light. Inline, so it is correct
+          // on the first paint rather than after hydration. `DarkLightToggle`
+          // keeps it in sync with the token swap below it.
+          colorScheme: theme,
+        } as React.CSSProperties
+      }
       className={`${plusJakartaSans.variable} notranslate`}
     >
       <body>
         <MotionConfig reducedMotion="user">
           <StyledComponentsRegistry>
             <MaxWidthWrapper>
-              <SessionProvider session={session}>
-                <ToastProvider>
-                  <Header initialTheme={theme} />
-                  {children}
-                  {modal}
-                  <Footer />
-                  <GlobalStyles />
-                </ToastProvider>
-              </SessionProvider>
+              <ToastProvider>
+                <Header initialTheme={theme} session={session} />
+                {children}
+                {modal}
+                <Footer />
+              </ToastProvider>
             </MaxWidthWrapper>
             <NextSSRPlugin
               routerConfig={extractRouterConfig(ourFileRouter)}

@@ -1,0 +1,184 @@
+/*
+  Global styles.
+
+  These live in a plain stylesheet rather than a styled-components
+  `createGlobalStyle` on purpose. `createGlobalStyle` is a React component, so
+  it can only render inside the client boundary that `StyledComponentsRegistry`
+  provides -- and in this app `layout.tsx` renders it from a Server Component.
+  It therefore emitted no <style> element in the SSR response at all: the reset,
+  the font stack and the page colours only appeared once styled-components took
+  over after hydration, which meant the first paint was Times New Roman on a
+  white background in both themes.
+
+  A stylesheet linked from <head> is present before any script runs, so this
+  file cannot regress that way. Theme tokens are not defined here -- they arrive
+  as an inline style on <html>, written from the `color-theme` cookie by
+  `layout.tsx`, and kept in sync by `DarkLightToggle`.
+*/
+
+/*
+  CSS RESET
+  https://www.joshwcomeau.com/css/custom-css-reset/
+*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+* {
+  margin: 0;
+}
+html {
+  /* scrollbar-gutter: stable; */ /* Dont using it because of Radix UI */
+  /*
+    Create a stacking context, without a z-index.
+    This ensures that all portal content (modals and tooltips) will
+    float above the app.
+  */
+  isolation: isolate;
+}
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+}
+
+/* THEME VARIABLES */
+html {
+  /*
+    Was 90rem. Nothing on any page is 1440px wide, so the header rule and the
+    footer stretched across 1440px while the content inside sat at whatever
+    width its own component happened to impose -- 800px on the dashboard, where
+    the cards were left-aligned in the middle of an empty box. This is sized to
+    the widest real content instead: the 248px region nav, a 16px gap, and a
+    grid of two cards at `minmax(300px, 1fr)`. Everything inside the wrapper
+    fills the width it is given, so this is the one number that decides how wide
+    the page is.
+  */
+  --content-width: 68rem;
+
+  /* Symmetric, and no longer asymmetric between top and bottom. The header and
+     footer supply their own vertical space. */
+  --viewport-padding: 0 16px;
+  --header-height: 5rem;
+
+  /* Read by HeaderControl's pill, so a header control and a footer control are
+     the same size rather than two numbers that happen to agree today. */
+  --min-tap-target-height: 40px;
+}
+
+@media (pointer: coarse) {
+  html {
+    --min-tap-target-height: 48px;
+  }
+}
+
+/* GLOBAL STYLES */
+
+html {
+  color: var(--color-text);
+  /*
+    No trailing fallback: next/font already emits
+    `Plus Jakarta Sans, Plus Jakarta Sans Fallback`, where the fallback is
+    metric-adjusted to match, so a third entry here would only ever be reached
+    when both of those have failed to load.
+  */
+  font-family: var(--font-sans);
+  letter-spacing: -0.025em;
+  background-color: var(--color-background);
+
+  transition-property: background-color, color;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.1, 0.9, 0, 1);
+}
+
+/*
+  The transition above only animates <html> itself. An inherited `color` change
+  does not transition on descendants -- it snaps -- and every card, dialog and
+  field sets its own `background-color`, so on a theme switch only the page
+  behind the content faded while the content on top of it jumped. These are the
+  surfaces that actually change, so they are the ones that should animate.
+  Specificity does not matter here: nothing below sets `transition-*`.
+*/
+article,
+input,
+textarea,
+[role='dialog'] {
+  transition-property: background-color, color, border-color;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.1, 0.9, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  article,
+  input,
+  textarea,
+  [role='dialog'] {
+    transition-duration: 0s;
+  }
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+em {
+  font-style: italic;
+}
+
+p {
+  font-size: 1.25rem;
+  font-weight: 500; /* WEIGHTS.normal */
+}
+
+button {
+  padding: 0;
+}
+
+/* Input - removing carets */
+/* Chrome, Safari, Edge */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}

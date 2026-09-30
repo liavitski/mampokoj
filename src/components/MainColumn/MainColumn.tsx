@@ -1,9 +1,10 @@
 import * as React from 'react';
 
-import styled from 'styled-components';
 import { PAGE_SIZE } from '@/constants';
-import AdGrid from '../AdGrid';
 import { getAds } from '@/server/queries/select';
+
+import AdGrid from '../AdGrid';
+import { Wrapper } from './MainColumn.styles';
 
 type MainColumnProps = {
   region?: string;
@@ -51,9 +52,5 @@ async function MainColumn({
     </Wrapper>
   );
 }
-
-const Wrapper = styled.div`
-  flex: 1;
-`;
 
 export default MainColumn;

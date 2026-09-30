@@ -102,4 +102,18 @@ describe('checkUploadAdmission', () => {
     // must not drift apart.
     expect(mocks.imageLimit).toHaveBeenCalledWith(AD_ID, MAX_IMAGES_PER_AD);
   });
+
+  it('fails closed when the rate limiter is unreachable', async () => {
+    // Not an oversight: the comment in upload-guard.ts explains why this path
+    // deliberately does *not* degrade the way the ad lock does. This test is
+    // what stops someone adding a try/catch and silently opening an abuse
+    // window during a Redis outage.
+    mocks.ratelimitLimit.mockRejectedValue(new Error('fetch failed'));
+
+    await expect(checkUploadAdmission(AD_ID)).rejects.toThrow('fetch failed');
+
+    // Refusing before this point matters too: the file is already stored and
+    // billed for by the time admission is denied.
+    expect(mocks.imageLimit).not.toHaveBeenCalled();
+  });
 });

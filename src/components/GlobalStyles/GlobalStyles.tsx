@@ -73,7 +73,7 @@ html {
 html {
   color: var(--color-text);
   font-family: var(--font-family), sans-serif;
-  letter-spacing: -0, 025em;
+  letter-spacing: -0.025em;
   background-color: var(--color-background);
 
   transition-property: background-color, color;

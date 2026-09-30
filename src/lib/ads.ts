@@ -1,13 +1,11 @@
 import 'server-only';
 
 import { and, eq } from 'drizzle-orm';
-import { z } from 'zod';
 
 import { db } from '@/server/db';
 import { ads } from '@/server/db/schema';
 import { requireUserId } from '@/lib/require-user-id';
-
-const adIdSchema = z.uuid();
+import { adIdSchema } from '@/lib/validation/ad-schema';
 
 /**
  * Resolves an ad, but only when the signed-in user owns it.

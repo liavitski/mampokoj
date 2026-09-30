@@ -25,7 +25,9 @@ function RegionSelectBlock({
     <Wrapper>
       <RegionSelect
         data={CZ_REGIONS}
-        value={currentRegion ?? ''}
+        // `undefined` rather than '' -- Radix reserves the empty string and
+        // treats a controlled empty value as no selection at all.
+        value={currentRegion}
         onValueChange={handleRegionChange}
       />
     </Wrapper>

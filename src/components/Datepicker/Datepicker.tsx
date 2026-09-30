@@ -4,6 +4,7 @@ import * as React from 'react';
 import styled from 'styled-components';
 import Icon from '../Icon';
 import { WEIGHTS } from '@/constants';
+import { toDateInputValue } from '@/utils/date';
 
 type DatepickerProps = {
   defaultValue?: string;
@@ -21,13 +22,13 @@ function Datepicker({ defaultValue }: DatepickerProps) {
         name="availableFrom"
         type="date"
         required
+        min={toDateInputValue(new Date())}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         tabIndex={-1}
       />
       <PresentationalBit
         tabIndex={0}
-        onClick={() => inputRef.current?.showPicker()}
         onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -35,7 +36,16 @@ function Datepicker({ defaultValue }: DatepickerProps) {
           }
         }}
       >
-        {value || <Text>Select date</Text>}
+        {value ? (
+          <Text>
+            {new Intl.DateTimeFormat('en-GB', {
+              dateStyle: 'medium',
+              timeZone: 'UTC',
+            }).format(new Date(`${value}T00:00:00.000Z`))}
+          </Text>
+        ) : (
+          <Text>Select date</Text>
+        )}
         <IconWrapper>
           <Icon id="calendar" strokeWidth={1.5} />
         </IconWrapper>

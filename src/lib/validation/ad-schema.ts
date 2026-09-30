@@ -84,6 +84,9 @@ export const adInputSchema = z.object({
 
 export type AdInput = z.infer<typeof adInputSchema>;
 
+/** Ad ids arrive from route params and form input, so they are never trusted. */
+export const adIdSchema = z.uuid();
+
 export type ParseAdResult =
   | { success: true; data: AdInput }
   | { success: false; error: string };

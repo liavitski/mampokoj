@@ -5,6 +5,8 @@ import styled from 'styled-components';
 import type { AdsApiResponse, PublicAd } from '@/types/db-types';
 import { useSearchParams } from 'next/navigation';
 
+import { isAdsApiResponse } from '@/lib/ad-dto';
+import { useToast } from '../ToastProvider';
 import LoadMoreButton from '../LoadMoreButton';
 import AdSummaryCard from '../AdSummaryCard';
 
@@ -13,6 +15,7 @@ type AdGridProps = {
 };
 
 function AdGrid({ adsData }: AdGridProps) {
+  const { showToast } = useToast();
   const [adsList, setAdsList] = React.useState<PublicAd[]>(
     adsData.items
   );
@@ -50,13 +53,23 @@ function AdGrid({ adsData }: AdGridProps) {
 
       const res = await fetch(`/api/ads?${params.toString()}`);
 
-      const data = (await res.json()) as AdsApiResponse;
+      if (!res.ok) {
+        showToast('Could not load more ads', 'error');
+        return;
+      }
+
+      const data: unknown = await res.json();
+
+      if (!isAdsApiResponse(data)) {
+        showToast('Could not load more ads', 'error');
+        return;
+      }
 
       setAdsList((prev) => [...prev, ...data.items]);
       setCursor(data.nextCursor);
       setHasMoreState(data.hasMore);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      showToast('Could not load more ads', 'error');
     } finally {
       setLoading(false);
     }

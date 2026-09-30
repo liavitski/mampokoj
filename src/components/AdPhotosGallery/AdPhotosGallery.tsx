@@ -53,9 +53,14 @@ function AdPhotosGallery({
     const deletedIndex = selectedPhotoIndex;
     const nextPhotos = photos.filter((p) => p.fileKey !== fileKey);
 
-    const newIndex = deletedIndex > 0 ? deletedIndex - 1 : 0;
-
-    setSelectedPhotoIndex(Math.min(newIndex, nextPhotos.length - 1));
+    // Deleting the last remaining photo leaves an empty list, and
+    // `nextPhotos.length - 1` would then be -1, which no image lookup
+    // resolves and which would make the next delete read photos[-1].fileKey.
+    setSelectedPhotoIndex(
+      nextPhotos.length === 0
+        ? 0
+        : Math.min(deletedIndex, nextPhotos.length - 1)
+    );
 
     showToast('Photo deleted successfully', 'success');
     router.refresh();
@@ -114,14 +119,16 @@ function AdPhotosGallery({
             </Button>
           }
           trigger={
-            hasPhotos && (
+            // `null` rather than `false`: this is handed to Radix's
+            // `Trigger asChild`, which requires an element, not a falsy value.
+            hasPhotos ? (
               <DeletePhotoButton>
                 <Tooltip
                   trigger={TooltipTrigger}
                   content="Delete photo"
                 />
               </DeletePhotoButton>
-            )
+            ) : null
           }
         />
       </PrimaryPhotoWrapper>

@@ -3,8 +3,8 @@ import 'server-only';
 import { db } from '../db';
 import { eq, count } from 'drizzle-orm';
 import { ads, images } from '../db/schema';
-import { z } from 'zod';
 import { PAGE_SIZE } from '@/constants';
+import { adIdSchema } from '@/lib/validation/ad-schema';
 import type { AdsCursor } from '@/types/db-types';
 
 /**
@@ -88,41 +88,26 @@ export const getAds = async (
   };
 };
 
-// export async function getAdsWithImages() {
-//   const adsWithImages = await db.query.ads.findMany({
-//     with: {
-//       images: true,
-//     },
-//     orderBy: (model, { desc }) => desc(model.createdAt),
-//     limit: 10,
-//   });
-
-//   return adsWithImages;
-// }
-
-async function getAdWithImagesById(id: string) {
-  const adWithImages = await db.query.ads.findFirst({
-    where: eq(ads.id, id),
-    with: {
-      images: true,
-    },
-  });
-
-  if (!adWithImages) {
-    throw new Error('Ad not found');
-  }
-
-  return adWithImages;
-}
-
-const adIdSchema = z.uuid();
-
+/**
+ * Loads a single ad with its photos.
+ *
+ * Returns `null` when there is no such ad, rather than throwing. Both callers
+ * turn a null into `notFound()`, so throwing here replaced a 404 page with an
+ * error page every time somebody followed a link to a deleted ad.
+ */
 export async function getValidatedAd(adId: string) {
   const parsed = adIdSchema.safeParse(adId);
 
   if (!parsed.success) return null;
 
-  return await getAdWithImagesById(parsed.data);
+  const adWithImages = await db.query.ads.findFirst({
+    where: eq(ads.id, parsed.data),
+    with: {
+      images: true,
+    },
+  });
+
+  return adWithImages ?? null;
 }
 
 // Dashboard page

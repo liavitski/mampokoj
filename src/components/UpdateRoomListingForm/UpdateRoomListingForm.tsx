@@ -7,6 +7,7 @@ import styled from 'styled-components';
 import { updateAd } from '@/server/actions/updateAd';
 import { Ad } from '@/types/db-types';
 import { WEIGHTS, CZ_REGIONS } from '@/constants';
+import { toDateInputValue } from '@/utils/date';
 import { useToast } from '../ToastProvider';
 import { useRouter } from 'next/navigation';
 
@@ -43,9 +44,7 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
     showToast(res.error || 'Update failed', 'error');
   }
 
-  const formattedDate = new Date(ad.availableFrom)
-    .toISOString()
-    .slice(0, 10);
+  const formattedDate = toDateInputValue(new Date(ad.availableFrom));
 
   return (
     <>

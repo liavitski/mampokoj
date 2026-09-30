@@ -1,4 +1,4 @@
-import type { AdWithImages, PublicAd } from '@/types/db-types';
+import type { AdsApiResponse, AdWithImages, PublicAd } from '@/types/db-types';
 
 /**
  * An ad that may still be carrying the private columns.
@@ -35,4 +35,27 @@ export function toPublicAd(ad: AdPossiblyPrivate): PublicAd {
     updatedAt: ad.updatedAt,
     images: ad.images,
   };
+}
+
+/**
+ * Narrows an untrusted parsed body to the ad list response.
+ *
+ * The grid spreads `data.items` straight into its state, so a 500 or an HTML
+ * error page arriving where JSON was expected used to throw and blank the
+ * whole page. Checking the shape first turns that into a handled error.
+ */
+export function isAdsApiResponse(value: unknown): value is AdsApiResponse {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const candidate = value as Partial<AdsApiResponse>;
+
+  return (
+    Array.isArray(candidate.items) &&
+    typeof candidate.hasMore === 'boolean' &&
+    (candidate.nextCursor === null ||
+      (typeof candidate.nextCursor === 'object' &&
+        candidate.nextCursor !== null &&
+        typeof candidate.nextCursor.cursorId === 'string' &&
+        typeof candidate.nextCursor.cursorCreatedAt === 'string'))
+  );
 }

@@ -2,32 +2,31 @@
 
 import { db } from '../db';
 import { images } from '../db/schema';
+import { findAdOwnedByCurrentUser } from '@/lib/ads';
 
 export type AddImageToAdProps = {
   adId: string;
   url: string;
   fileKey: string;
-  userId: string;
 };
 
+/**
+ * Attaches an uploaded image to one of the caller's own ads.
+ *
+ * The owner is resolved from the session, never from the arguments: Server
+ * Actions are reachable by direct POST, so a `userId` parameter would simply
+ * be attacker-controlled input.
+ */
 export async function addImageToAd({
   adId,
   url,
   fileKey,
-  userId,
 }: AddImageToAdProps) {
   try {
-    const ad = await db.query.ads.findFirst({
-      where: (t, { eq }) => eq(t.id, adId),
-      columns: { id: true, userId: true },
-    });
+    const owned = await findAdOwnedByCurrentUser(adId);
 
-    if (!ad) {
-      return { success: false, error: 'Ad not found' };
-    }
-
-    if (ad.userId !== userId) {
-      return { success: false, error: 'Forbidden' };
+    if (!owned) {
+      return { success: false, error: 'Not found' };
     }
 
     await db.insert(images).values({
@@ -35,7 +34,7 @@ export async function addImageToAd({
       url,
       fileKey,
     });
-    
+
     return { success: true };
   } catch (e) {
     return {

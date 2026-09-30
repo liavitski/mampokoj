@@ -46,12 +46,12 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ metadata, file }) => {
       const { adId } = metadata;
 
-
+      // addImageToAd re-checks ownership from the session; the userId in
+      // metadata is not trusted for that decision.
       const result = await addImageToAd({
         adId,
         url: file.ufsUrl,
         fileKey: file.key,
-        userId: metadata.userId,
       });
 
       if (!result.success) {

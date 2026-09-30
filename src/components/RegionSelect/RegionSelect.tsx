@@ -46,7 +46,7 @@ function RegionSelect({ data, ...rootProps }: RegionSelectProps) {
 }
 
 const Trigger = styled(Select.Trigger)`
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   border: 1px solid var(--color-border-input);
   padding: 6px 16px;
   font-size: 1rem;
@@ -68,7 +68,7 @@ const Trigger = styled(Select.Trigger)`
 `;
 
 const Content = styled(Select.Content)`
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   border: 1px solid var(--color-border-input);
   border-radius: 16px;
   padding: 6px;
@@ -83,7 +83,7 @@ const ScrollUpButton = styled(Select.ScrollUpButton)`
   align-items: center;
   justify-content: center;
   height: 25px;
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   color: var(--color-text);
   cursor: default;
 `;
@@ -93,7 +93,7 @@ const ScrollDownButton = styled(Select.ScrollDownButton)`
   align-items: center;
   justify-content: center;
   height: 25px;
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   color: var(--color-text);
   cursor: default;
 `;

@@ -210,7 +210,7 @@ const LabelWrapper = styled.div`
 const Label = styled(Form.Label)``;
 
 const Input = styled.input`
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   border: 1px solid var(--color-border-input);
   padding: 6px 16px;
   font-size: 1rem;
@@ -236,7 +236,7 @@ const Input = styled.input`
 const Textarea = styled.textarea`
   padding: 10px;
   border: 1px solid var(--color-border-input);
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   font-weight: ${WEIGHTS.normal};
   color: var(--color-text);
   border-radius: 16px;

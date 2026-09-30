@@ -70,7 +70,7 @@ const NativeDatepicker = styled.input.attrs({ type: 'date' })`
 `;
 
 const PresentationalBit = styled.div`
-  background-color: var(--color-primary-foreground);
+  background-color: var(--color-input-background);
   border: 1px solid var(--color-border-input);
   padding: 6px 16px;
   font-size: 1rem;

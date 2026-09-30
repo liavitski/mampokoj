@@ -22,9 +22,11 @@ export const LIGHT_COLORS = {
   '--color-border': 'hsl(24deg 5.7% 83%)',
   '--color-border-input': '#d6d3d1',
   '--color-card-background': 'hsl(60deg 4.7% 95.8%)',
+  '--color-input-background': '#ffffff',
   '--color-pricetag-background': '#e7e5e4',
   '--color-pricetag-background-hover': '#d8d6d5',
   '--color-accent': '#f3e5f5',
+  '--color-success': '#22c55e',
   '--color-destructive': '#ef4444',
   '--color-destructive-hover': '#ec5151',
   '--color-destructive-foreground': '#ffffff',
@@ -48,9 +50,16 @@ export const DARK_COLORS = {
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
   '--color-border-input': '#3a3633',
   '--color-card-background': 'hsl(25.7deg 8.6% 15.8%)',
+  // Deliberately not `--color-background` or `--color-card-background`: a field
+  // painted the same as the surface behind it reads as a hole, not an input.
+  // It still cannot reach 3:1 against the page, because the thing that
+  // actually delineates a field is `--color-border-input`, which is at 1.22.
+  // See the measured findings in handoff.md before "fixing" this one alone.
+  '--color-input-background': 'hsl(25.7deg 8.6% 20%)',
   '--color-pricetag-background': '#1f1c19',
   '--color-pricetag-background-hover': '#1f1c19e5',
   '--color-accent': '#484441',
+  '--color-success': '#4ade80',
   '--color-destructive': '#ef4444',
   '--color-destructive-hover': '#ec5151',
   '--color-destructive-foreground': '#ffffff',

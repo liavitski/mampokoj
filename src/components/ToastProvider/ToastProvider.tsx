@@ -63,13 +63,13 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
               {toast.type === 'success' ? (
                 <Icon
                   id="checkCircle"
-                  color="green"
+                  color="var(--color-success)"
                   strokeWidth={1.5}
                 />
               ) : (
                 <Icon
                   id="alertOctagon"
-                  color="red"
+                  color="var(--color-destructive)"
                   strokeWidth={1.5}
                 />
               )}
@@ -143,10 +143,18 @@ const Root = styled(Toast.Root)`
   color: var(--color-text);
   padding: 8px;
   border-radius: 16px;
-  color-scheme: light;
   max-width: 100%;
   width: 350px;
-  box-shadow: var(--shadow-card);
+
+  /* Matches the theme-switch transition the surfaces in globals.css get. The
+     toast sets its own colours, so it is not covered by that selector. */
+  transition-property: background-color, color, border-color;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.1, 0.9, 0, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0s;
+  }
 
   &[data-state='open'] {
     animation: ${slideIn} 300ms ease-out;

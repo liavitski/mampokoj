@@ -3,19 +3,19 @@
 State of the repository and what to do next. Written to be read cold, with no
 memory of the work that produced it.
 
-- **Branch:** `security/harden-server-actions` (21 commits ahead of `main`, unpushed)
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 198 tests
-  across 20 files, `next build` succeeds
+- **Branch:** `security/harden-server-actions` (24 commits ahead of `main`, unpushed)
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 211 tests
+  across 21 files, `next build` succeeds
 - **Stack:** Next.js 16.3.6, React 19.3, pnpm 11.1.3, TypeScript 5, Drizzle +
   Neon Postgres, NextAuth v4, UploadThing, Upstash, styled-components v6, Vitest
-- **Dev database:** 100 fake ads / 200 images from `pnpm db:seed`. All test
-  rows, no real user data.
+- **Database:** one Neon database, shared by development and production
+  (§3.9). Holds ~200 generated ads and their images, no real user data.
 
 ---
 
 ## 1. Read this first
 
-Three environment facts that will otherwise waste your time:
+Four environment facts that will otherwise waste your time:
 
 1. **Use `pnpm` 11.1.3.** `packageManager` is pinned. The global `pnpm` on this
    machine is 9.0.0 and will fail with
@@ -71,6 +71,10 @@ updates to this file.
 | `56e071c` | Upload guard: decided to fail closed, documented and pinned by a test (§3.2) |
 | `14b1b86` | Tracked migrations in `drizzle/`, plus `db:baseline` (§3.4) |
 | `6d202b3` | CI fails on schema drift; README documents the migration loop (§3.4) |
+| `baac935` | This file: upload-guard decision and tracked migrations |
+| `4dc798c` | `pnpm db:seed` refuses unless `SEED_ALLOW` names the database; plus a second seed-data incident (§3.9) |
+| `5d9e51a` | Correct the handoff commit count and complete its table |
+| `4072699` | Describe the single database accurately, not a false guarantee (§3.9) |
 
 ### 2.1 Seed script (`ff3d0e1`)
 
@@ -196,6 +200,10 @@ A reviewer looking at the code rather than trusting the suite found it. Read
 
 ## 3. Next steps, in recommended order
 
+Nothing in §3.1–§3.9 is blocking. §3.1 is the largest untouched surface and
+§3.5 the largest piece of work; the ad-limit invariant in §6 is the natural
+next *schema* change now that migrations exist.
+
 ### 3.1 The Lua release script is reviewed, not verified
 
 `RELEASE_SCRIPT` in `src/server/user-lock.ts` is the one piece of the lock that
@@ -233,14 +241,17 @@ A comment is not a guard, so a test pins it: `fails closed when the rate
 limiter is unreachable`. Verified by mutation — adding a `try/catch` turns it
 red. **Do not "fix" this toward consistency with the ad lock.**
 
-### 3.3 Open questions — one still open
+### 3.3 Open questions — none open
 
-1. ~~**upload-guard` fail open or closed**~~ — decided, §3.2.
-2. ~~**Generate the baseline from a scratch database?**~~ — **not necessary at
-   all**, §3.4. `generate` compares the schema to the migration journal, not to
-   a live database, so a create-from-zero set falls out of an empty `drizzle/`.
-3. **Do dev and prod schemas currently match?** — still unanswered, and it is
-   the only remaining question here. See §3.4 for why it no longer blocks work.
+All three are settled.
+
+1. **`upload-guard` fail open or closed** — fail closed, decided and pinned by a
+   test. §3.2.
+2. **Generate the baseline from a scratch database?** — not necessary at all.
+   `generate` compares the schema to the migration journal, not to a live
+   database, so a create-from-zero set falls out of an empty `drizzle/`. §3.4.
+3. **Do dev and prod schemas match?** — there is only one database, so the
+   question dissolved. §3.9.
 
 ### 3.4 Tracked migrations — done (`14b1b86`, `6d202b3`)
 
@@ -265,8 +276,9 @@ this Neon project, so this was tested rather than reasoned about):
 | A migration added after the baseline | applies on top of it |
 | `db:baseline` on an empty db | refuses, exit 1 |
 
-All scratch databases were dropped afterwards; dev is untouched (100 ads, 200
-images) apart from its own `drizzle.__drizzle_migrations` row.
+All scratch databases were dropped afterwards; at the time of that work dev held
+100 ads and 200 images, untouched apart from its own
+`drizzle.__drizzle_migrations` row. The count has since grown — see the header.
 
 **Adopting this on a database that predates it.** `db:migrate` against dev or
 prod would try to `CREATE TABLE` and fail, because the schema is already there
@@ -297,33 +309,6 @@ caught:
 **Known rough edge:** `drizzle-kit migrate` exits non-zero on failure but prints
 nothing about what failed. Diagnosing a failed production migration means
 running the SQL by hand. `db:baseline`'s own errors do explain themselves.
-
-### 3.9 One database, shared by dev and production — deliberate (`0ecc8d6`)
-
-This was found rather than designed: the app was created with a single Neon
-database, Vercel's `DATABASE_URL` points at it, and `.env` is copied to the
-Vercel host. So development and production are the same database, containing
-100 seeded fake ads and no real users.
-
-**Decided to keep it that way.** For a portfolio project with no real users the
-upside is real — production keeps showing the seeded listings, so the site
-demonstrates itself instead of looking broken. **Do not "fix" this by creating a
-second database** unless real users appear; that is the trigger to revisit it.
-
-What this means in practice:
-
-- `pnpm db:seed` writes to production. Safe only because the rows are generated.
-- `pnpm db:migrate` migrates production.
-- A `SEED_ALLOW` guard exists (`src/utils/seed-guard.ts`) and refuses when the
-  variable is absent, which covers CI and a fresh clone. It does **not** cover
-  production: `.env` travels to the Vercel host, so the variable is set there
-  too. This limit is now written in `.env`, the guard's header and the README
-  rather than implied — the earlier version of all three claimed a guarantee
-  that a single database makes impossible.
-
-If real users ever appear: create a second database, `DATABASE_URL=<prod>
-pnpm db:migrate` to build the schema (verified, no `db:baseline` needed), point
-Vercel at it, and remove `SEED_ALLOW` from the Vercel environment.
 
 ### 3.5 Decide on end-to-end tests (blocked on a decision, unchanged)
 
@@ -369,6 +354,33 @@ machine's `~/.npmrc` sets `min-release-age=3` (days), which pnpm surfaces as
 `minimumReleaseAge: 4320` minutes — a supply-chain guard, and **not** a repo
 setting, so do not go looking for it in `pnpm-workspace.yaml`. 16.3.6 is the
 newest version past that window. Do not disable the guard.
+
+### 3.9 One database, shared by dev and production — deliberate (`4dc798c`)
+
+Found rather than designed: the app was created with a single Neon database,
+Vercel's `DATABASE_URL` points at it, and `.env` is copied to the Vercel host.
+So development and production are the same database, holding generated rows and
+no real users.
+
+**Decided to keep it that way.** For a portfolio project with no real users the
+upside is real — production keeps showing the seeded listings, so the site
+demonstrates itself instead of looking broken. **Do not "create a second
+database" as a fix.** Real users appearing is the trigger to revisit this.
+
+In practice:
+
+- `pnpm db:seed` writes to production. Safe only because the rows are generated.
+- `pnpm db:migrate` migrates production.
+- The `SEED_ALLOW` guard (`src/utils/seed-guard.ts`) refuses when the variable is
+  absent, which covers CI and a fresh clone. It does **not** cover production:
+  `.env` travels to the Vercel host, so the variable is set there too. That limit
+  is written in `.env`, the guard's header and the README rather than implied —
+  the earlier version of all three claimed a guarantee a single database makes
+  impossible, which was a false safety claim.
+
+If real users ever appear: create a second database, `DATABASE_URL=<prod>
+pnpm db:migrate` to build the schema (verified, no `db:baseline` needed), point
+Vercel at it, and remove `SEED_ALLOW` from the Vercel environment.
 
 ---
 
@@ -482,18 +494,20 @@ say so — silently losing the guarantee is the part that is not acceptable.
 
 ```bash
 pnpm verify          # lint + typecheck + test + build — the pre-push gate
-pnpm test            # 198 tests
+pnpm test            # 211 tests
 pnpm test src/server # one directory
 pnpm db:generate     # write a migration from the schema into drizzle/
 pnpm db:migrate      # apply pending migrations
 pnpm db:baseline     # ONE TIME, per database predating migration history
 pnpm db:studio       # inspect the database
-pnpm db:seed         # 100 fake ads + ~200 images
+pnpm db:seed         # 100 more fake ads, on top of whatever is already there
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint → typecheck → test → build on every
-push and PR to `main`. Since Next.js 16 no longer lints inside `next build`,
-this workflow is the **only** automated gate in the repo.
+CI (`.github/workflows/ci.yml`) runs lint → typecheck → test → **migration drift
+check** → build on every push and PR to `main`. Since Next.js 16 no longer
+lints inside `next build`, this workflow is the **only** automated gate in the
+repo. The drift step runs `db:generate` and fails if it produces a diff, so a
+schema change cannot reach production without its migration (§3.4).
 
 ---
 

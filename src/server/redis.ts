@@ -1,0 +1,25 @@
+import 'server-only';
+
+import { Redis } from '@upstash/redis';
+
+/**
+ * One shared client, so the rate limiter and the user lock cannot end up
+ * pointed at two different Redis databases.
+ *
+ * Note `fromEnv` does **not** throw when the variables are missing: it logs a
+ * warning and returns a client that looks healthy but fails on every call.
+ * Importing this module therefore proves nothing about the configuration.
+ *
+ * The defaults are tuned for a request path rather than for throughput. The
+ * library would otherwise retry five times with `exp(n) * 50` backoff, so a
+ * Redis outage costs several seconds per call and the `catch` that is meant to
+ * degrade gracefully only runs long after the caller has given up. There is no
+ * request-timeout option in the client, but `signal` may be a factory, which
+ * gives every request its own deadline.
+ */
+export const REDIS_REQUEST_TIMEOUT_MS = 2_000;
+
+export const redis = Redis.fromEnv({
+  retry: { retries: 2, backoff: () => 100 },
+  signal: () => AbortSignal.timeout(REDIS_REQUEST_TIMEOUT_MS),
+});

@@ -77,7 +77,7 @@ Read by libraries rather than by name in `src/`:
 | `NEXTAUTH_SECRET` | yes | Signs the session JWT |
 | `NEXTAUTH_URL` | yes | Canonical origin, e.g. `http://localhost:3000` |
 | `UPLOADTHING_TOKEN` | for uploads | Lets the server delete files from the bucket |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | for uploads | `Redis.fromEnv()` in `src/server/ratelimit.ts` |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | for uploads and ad creation | `Redis.fromEnv()` in `src/server/redis.ts`, shared by the rate limiter and the per-user ad lock. Missing values warn rather than throw, so the client looks healthy and fails on every call. |
 
 OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 

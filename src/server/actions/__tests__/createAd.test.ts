@@ -27,6 +27,7 @@ const { mocks, dbMock } = vi.hoisted(() => {
       countRows,
       countWhere,
       select,
+      withUserLock: vi.fn(),
     },
     dbMock: { insert, select },
   };
@@ -36,13 +37,50 @@ vi.mock('@/server/db', () => ({ db: dbMock }));
 vi.mock('@/lib/session', () => ({
   requireUserId: mocks.requireUserId,
 }));
+vi.mock('@/server/user-lock', async () => {
+  // The real class, so `instanceof` in the action still discriminates.
+  const actual = await vi.importActual<
+    typeof import('@/server/user-lock')
+  >('@/server/user-lock');
+
+  return { ...actual, withUserLock: mocks.withUserLock };
+});
 
 const { createAd } = await import('../createAd');
+const { LockBusyError } = await import('@/server/user-lock');
+
+/**
+ * Order of events, so a test can assert that the count and the insert happen
+ * between acquiring and releasing the lock rather than merely nearby.
+ */
+let order: string[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  order = [];
   mocks.requireUserId.mockResolvedValue('user-a');
-  mocks.countRows.mockResolvedValue([{ value: 0 }]);
+  mocks.countRows.mockImplementation(async () => {
+    order.push('count');
+
+    return [{ value: 0 }];
+  });
+  mocks.insert.mockImplementation(() => {
+    order.push('insert');
+
+    return { values: mocks.values };
+  });
+  // Runs the critical section immediately, as a free lock would.
+  mocks.withUserLock.mockImplementation(
+    async (userId: string, fn: () => Promise<unknown>) => {
+      order.push('lock:acquire');
+
+      try {
+        return await fn();
+      } finally {
+        order.push('lock:release');
+      }
+    }
+  );
 });
 
 describe('createAd validation', () => {
@@ -154,5 +192,91 @@ describe('createAd ad limit', () => {
 
     expect(compiled.sql).toContain('"userId"');
     expect(compiled.params).toEqual(['user-a']);
+  });
+});
+
+describe('createAd concurrency', () => {
+  it('counts and inserts inside the lock, not merely next to it', async () => {
+    // The count and the insert are two separate statements. Serializing them
+    // only works if both are inside the critical section; holding the lock
+    // across the count alone would still let the insert race.
+    await createAd(adFormData());
+
+    expect(order).toEqual([
+      'lock:acquire',
+      'count',
+      'insert',
+      'lock:release',
+    ]);
+  });
+
+  it('holds the lock for the session user, not one supplied by the form', async () => {
+    await createAd(adFormData({ userId: 'someone-else' }));
+
+    expect(mocks.withUserLock.mock.calls[0]![0]).toBe('user-a');
+  });
+
+  it('does not take the lock when the submission is invalid', async () => {
+    await createAd(adFormData({ title: '' }));
+
+    // Nothing is written, so there is nothing to serialize.
+    expect(mocks.withUserLock).not.toHaveBeenCalled();
+  });
+
+  it('does not take the lock when nobody is signed in', async () => {
+    mocks.requireUserId.mockResolvedValue(undefined);
+
+    await createAd(adFormData());
+
+    expect(mocks.withUserLock).not.toHaveBeenCalled();
+  });
+
+  it('asks the caller to retry when the lock is held elsewhere', async () => {
+    mocks.withUserLock.mockRejectedValue(new LockBusyError());
+
+    const result = await createAd(adFormData());
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Please try again in a moment',
+    });
+    expect(mocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('does not report a busy lock as a server error', async () => {
+    mocks.withUserLock.mockRejectedValue(new LockBusyError());
+
+    const result = await createAd(adFormData());
+
+    // The user can fix this by waiting; telling them the server broke is wrong.
+    expect(result.success === false && result.error).toMatch(/try again/i);
+  });
+
+  it('does not leak an unexpected failure through the lock', async () => {
+    mocks.withUserLock.mockRejectedValue(
+      new Error('ECONNRESET 10.0.0.5:6379')
+    );
+
+    const result = await createAd(adFormData());
+
+    expect(result.success).toBe(false);
+    expect(result.success === false && result.error).not.toContain('6379');
+  });
+
+  it('reports the limit normally while holding the lock', async () => {
+    mocks.countRows.mockImplementation(async () => {
+      order.push('count');
+
+      return [{ value: MAX_ADS_PER_USER }];
+    });
+
+    const result = await createAd(adFormData());
+
+    expect(result).toEqual({
+      success: false,
+      error: `Maximum ${MAX_ADS_PER_USER} ads per user`,
+    });
+    // The lock is released even though the section declined to insert.
+    expect(order).toEqual(['lock:acquire', 'count', 'lock:release']);
   });
 });

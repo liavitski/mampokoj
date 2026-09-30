@@ -3,7 +3,7 @@
 State of the repository and what to do next. Written to be read cold, with no
 memory of the work that produced it.
 
-- **Branch:** `security/harden-server-actions` (14 commits ahead of `main`, unpushed)
+- **Branch:** `security/harden-server-actions` (17 commits ahead of `main`, unpushed)
 - **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 189 tests
   across 19 files, `next build` succeeds
 - **Stack:** Next.js 16.3.6, React 19.3, pnpm 11.1.3, TypeScript 5, Drizzle +
@@ -33,8 +33,10 @@ Three environment facts that will otherwise waste your time:
 
 ## 2. What was just done
 
-Fourteen commits. The first eleven were a review-and-harden pass over a
-codebase with zero tests and zero CI; the most recent three are in §2.1–§2.5.
+Seventeen commits. The first eleven were a review-and-harden pass over a
+codebase with zero tests and zero CI. `f026035` rewrote the README and wrote
+this document; four commits of new work are in §2.1–§2.5, interleaved with three
+updates to this file.
 
 | Commit | What |
 | --- | --- |
@@ -49,9 +51,12 @@ codebase with zero tests and zero CI; the most recent three are in §2.1–§2.5
 | `1323220` | Dead code + unused deps removed; bumped to Next 16.3.6; lint to 0 warnings |
 | `31a6899` | GitHub Actions CI: lint → typecheck → test → build |
 | `97c1cac` | `fileKey` leak found in review; `addImageToAd` de-published as an RPC; weak tests tightened |
+| `f026035` | Rewrite the README; add this handoff document |
 | `ff3d0e1` | Seed script made runnable and covered |
 | `8942bbb` | Ad creation serialized behind a per-user Redis lock |
+| `05fd3e5` | This file: seed and ad-lock work |
 | `b891481` | Acquire loop bounded by wall-clock; a second model found the first attempt at it did not hold |
+| `5471215` | This file: second-model review |
 
 ### 2.1 Seed script (`ff3d0e1`)
 

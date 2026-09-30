@@ -29,19 +29,3 @@ export function formatCZPhone(input: string) {
 export function isRegionCode(value: string): value is RegionCode {
   return CZ_REGIONS.some((r) => r.code === value);
 }
-
-type RandomProps = {
-  rounded?: boolean;
-};
-
-export function random(
-  min: number,
-  max: number,
-  { rounded = true }: RandomProps = {}
-): number {
-  if (rounded) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  return Math.random() * (max - min) + min;
-}

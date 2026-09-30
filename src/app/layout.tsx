@@ -10,7 +10,7 @@ import { getCachedSession } from '@/lib/session';
 
 import '@uploadthing/react/styles.css';
 import GlobalStyles from '@/components/GlobalStyles';
-import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
+import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS, COLOR_THEME_COOKIE_NAME } from '@/constants';
 import StyledComponentsRegistry from '@/lib/registry';
 
 import Header from '@/components/Header';
@@ -36,7 +36,7 @@ type RootLayoutProps = Readonly<{
 async function RootLayout({ children, modal }: RootLayoutProps) {
   const cookieStore = await cookies();
   const theme: Theme =
-    cookieStore.get('color-theme')?.value === 'dark'
+    cookieStore.get(COLOR_THEME_COOKIE_NAME)?.value === 'dark'
       ? 'dark'
       : 'light';
 

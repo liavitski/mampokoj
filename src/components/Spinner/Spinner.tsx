@@ -1,16 +1,17 @@
 import * as React from 'react';
-import { Loader } from 'react-feather';
 import styles from './Spinner.module.css';
+
+import Icon from '../Icon';
 
 type SpinnerProps = {
   color?: string;
   size?: number;
 };
 
-function Spinner({ color, size }: SpinnerProps) {
+function Spinner({ color, size = 24 }: SpinnerProps) {
   return (
     <div className={styles.wrapper}>
-      <Loader color={color} size={size} />
+      <Icon id="loader" color={color} size={size} />
     </div>
   );
 }

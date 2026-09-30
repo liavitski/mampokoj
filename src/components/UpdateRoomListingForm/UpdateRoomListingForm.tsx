@@ -57,8 +57,6 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
       </ModalButton>
       <Modal open={open} onOpenChange={setOpen}>
         <Wrapper action={handleSubmit}>
-          <input type="hidden" name="adId" value={ad.id} />
-
           <Field name="title">
             <LabelWrapper>
               <Label>Title</Label>

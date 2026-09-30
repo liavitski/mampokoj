@@ -16,7 +16,9 @@ export default async function Modal({ params }: ModalProps) {
 
   if (!ad) notFound();
 
-  const { userId, ...adData } = ad;
+  // userId is dropped rather than passed down: the compact card has no use for
+  // the poster's account id.
+  const { userId: _userId, ...adData } = ad;
 
   return (
     <RouteModal>

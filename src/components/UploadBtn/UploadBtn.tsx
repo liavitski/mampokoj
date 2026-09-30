@@ -4,7 +4,7 @@ import * as React from 'react';
 import styled from 'styled-components';
 
 import { UploadButton } from '@/utils/uploadthing';
-import { QUERIES, WEIGHTS } from '@/constants';
+import { WEIGHTS } from '@/constants';
 
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';

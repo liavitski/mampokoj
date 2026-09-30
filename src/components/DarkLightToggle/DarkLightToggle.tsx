@@ -3,7 +3,7 @@ import * as React from 'react';
 import type { Theme } from '@/types/theme';
 import Cookie from 'js-cookie';
 import styled from 'styled-components';
-import { LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
+import { LIGHT_TOKENS, DARK_TOKENS, COLOR_THEME_COOKIE_NAME } from '@/constants';
 
 import VisuallyHidden from '../VisuallyHidden';
 import Icon from '../Icon';
@@ -24,7 +24,7 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
     setTheme(nextTheme);
 
     // 2 — Update the cookie, for the user's next visit
-    Cookie.set('color-theme', nextTheme, {
+    Cookie.set(COLOR_THEME_COOKIE_NAME, nextTheme, {
       expires: 1000,
     });
 
@@ -44,9 +44,7 @@ function DarkLightToggle({ initialTheme }: DarkLightToggleProps) {
     });
   }
 
-  const TooltipTrigger = (
-    <Icon id={theme} content="Toggle theme" />
-  );
+  const TooltipTrigger = <Icon id={theme} />;
 
   return (
     <IconWrapper onClick={handleClick}>

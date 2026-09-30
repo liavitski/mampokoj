@@ -16,16 +16,11 @@ type AdCardProps = {
 
 async function AdCardCompact({ ad }: AdCardProps) {
   const {
-    id,
     title,
     price,
     city,
-    region,
-    availableFrom,
     description,
     contactPhone,
-    createdAt,
-    updatedAt,
     images,
   } = ad;
 

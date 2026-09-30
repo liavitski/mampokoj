@@ -3,7 +3,7 @@ import 'server-only';
 import { db } from '../db';
 import { eq, count } from 'drizzle-orm';
 import { ads, images } from '../db/schema';
-import { PAGE_SIZE } from '@/constants';
+import { PAGE_SIZE, MAX_ADS_PER_USER } from '@/constants';
 import { adIdSchema } from '@/lib/validation/ad-schema';
 import type { AdsCursor } from '@/types/db-types';
 
@@ -118,6 +118,10 @@ export async function getUserAds(userId: string) {
       images: true,
     },
     orderBy: (ads, { desc }) => [desc(ads.createdAt)],
+    // Bounded on principle. MAX_ADS_PER_USER caps new ads, but the limit is
+    // not the only thing that writes to this table, and an unbounded read
+    // grows with whatever is in it.
+    limit: MAX_ADS_PER_USER * 10,
   });
 
   return userAds;

@@ -23,11 +23,8 @@ function AdSummaryCard({ ad }: AdCardProps) {
     title,
     price,
     city,
-    region,
-    availableFrom,
     description,
     createdAt,
-    updatedAt,
     images,
   } = ad;
 

@@ -3,9 +3,9 @@
 State of the repository and what to do next. Written to be read cold, with no
 memory of the work that produced it.
 
-- **Branch:** `security/harden-server-actions` (17 commits ahead of `main`, unpushed)
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 189 tests
-  across 19 files, `next build` succeeds
+- **Branch:** `security/harden-server-actions` (21 commits ahead of `main`, unpushed)
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 198 tests
+  across 20 files, `next build` succeeds
 - **Stack:** Next.js 16.3.6, React 19.3, pnpm 11.1.3, TypeScript 5, Drizzle +
   Neon Postgres, NextAuth v4, UploadThing, Upstash, styled-components v6, Vitest
 - **Dev database:** 100 fake ads / 200 images from `pnpm db:seed`. All test
@@ -28,6 +28,17 @@ Three environment facts that will otherwise waste your time:
    (`polite-civet-146529.upstash.io`) does not resolve — `ENOTFOUND`. Anything
    touching Redis is therefore mocked in tests and has **never been run against
    a live instance**. See §3.1.
+4. **Postgres is fully reachable, and `CREATE DATABASE` is permitted.** This is
+   how §3.4 was verified rather than assumed. Two things follow:
+   - The connection string uses the **`-pooler` host**. Those sessions survive
+     the process, so a scratch database cannot be dropped until its idle
+     sessions are terminated first:
+     ```sql
+     SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+     WHERE datname = '<db>' AND pid <> pg_backend_pid();
+     ```
+   - `tsx` scripts importing `dotenv/config` must live **inside the repo** —
+     from `/tmp` the module is not resolvable.
 
 ---
 
@@ -57,6 +68,9 @@ updates to this file.
 | `05fd3e5` | This file: seed and ad-lock work |
 | `b891481` | Acquire loop bounded by wall-clock; a second model found the first attempt at it did not hold |
 | `5471215` | This file: second-model review |
+| `56e071c` | Upload guard: decided to fail closed, documented and pinned by a test (§3.2) |
+| `14b1b86` | Tracked migrations in `drizzle/`, plus `db:baseline` (§3.4) |
+| `6d202b3` | CI fails on schema drift; README documents the migration loop (§3.4) |
 
 ### 2.1 Seed script (`ff3d0e1`)
 
@@ -199,54 +213,92 @@ dependency is `^1.39.0`, so a minor bump can change either without a failing
 test. Getting a working `UPSTASH_REDIS_REST_URL`, or standing up a local Redis
 reachable over HTTP, would close this.
 
-### 3.2 `upload-guard.ts` has no error handling around Redis — needs a decision
+### 3.2 `upload-guard.ts` — decided: fail closed (`56e071c`)
 
-`checkUploadAdmission` awaits `ratelimit.limit()` with no `try/catch`
-(`src/server/upload-guard.ts:30`). If Redis is unreachable this throws out of
-the UploadThing middleware, so uploads break entirely.
+`checkUploadAdmission` awaits `ratelimit.limit()` with no `try/catch`. If Redis
+is unreachable this throws out of the UploadThing middleware and uploads break.
 
-This is **not obviously a bug.** Failing closed on uploads may be the right
-call — you don't want to store files you couldn't rate-limit — and the ad lock
-fails open because a quota is not a security boundary, which is a different
-kind of thing. The problem is only that the two paths differ *accidentally*.
+**Decided: keep failing closed.** The asymmetry with the ad lock is deliberate
+and the reasons are now written into the file, so the next reader does not read
+it as an oversight:
 
-Both models that reviewed this raised it independently, which is a signal it is
-worth a deliberate answer rather than a default. Pick one:
+- A quota is not an authorization boundary, so unreachable Redis should not take
+  ad creation down. That lock fails open and logs.
+- Here the mechanism *is* the control. Failing open would mean the rate limit
+  could be switched off by making Redis unreachable — an outage becomes an abuse
+  window. An unattached file is also a real cost, billed before admission is
+  decided.
 
-- **Fail closed (leave as is).** Say so in a comment, so the next reader does
-  not read it as an oversight and "fix" it toward consistency with the ad lock.
-- **Fail open.** Catch the error, log it, and let the upload through. Consistent
-  with §4's rule, but weakens the upload rate limit during an outage.
+A comment is not a guard, so a test pins it: `fails closed when the rate
+limiter is unreachable`. Verified by mutation — adding a `try/catch` turns it
+red. **Do not "fix" this toward consistency with the ad lock.**
 
-### 3.3 Open questions, unanswered
+### 3.3 Open questions — one still open
 
-Three, all needing a decision from the user rather than more code:
+1. ~~**upload-guard` fail open or closed**~~ — decided, §3.2.
+2. ~~**Generate the baseline from a scratch database?**~~ — **not necessary at
+   all**, §3.4. `generate` compares the schema to the migration journal, not to
+   a live database, so a create-from-zero set falls out of an empty `drizzle/`.
+3. **Do dev and prod schemas currently match?** — still unanswered, and it is
+   the only remaining question here. See §3.4 for why it no longer blocks work.
 
-1. **`upload-guard` should fail open or closed** — §3.2.
-2. **Migrations: generate the baseline from a scratch database?** — §3.4.
-3. **Migrations: do dev and prod schemas currently match?** Production has
-   presumably been receiving `db:push` by hand, and generating anything that
-   assumes parity needs this answered first.
+### 3.4 Tracked migrations — done (`14b1b86`, `6d202b3`)
 
-### 3.4 Add tracked migrations (agreed, not started)
+`drizzle/` is now committed, with `db:generate`, `db:migrate` and `db:baseline`
+scripts. CI runs `db:generate` and fails if it produces a diff, so a schema
+change cannot reach production without its migration.
 
-There is no `drizzle/` directory and no migration files in git — `git ls-files`
-shows only `drizzle.config.tsx`. Schema reaches the database through
-`pnpm db:push` by hand, so **schema is not applied in CI or on Vercel** and dev
-and prod can silently diverge.
+**The "generate from a scratch database" question dissolved.** `generate`
+compares `src/server/db/schema.ts` against `drizzle/meta/_journal.json`, not
+against a live database. With no `drizzle/` directory the diff is therefore
+create-from-zero, produced offline. No scratch database was needed to *write*
+the baseline — only to *verify* it.
 
-Plan: `drizzle-kit generate` into a committed `drizzle/` folder plus a
-`db:migrate` step, replacing `db:push` as the workflow.
+**Verified against real scratch databases** (`CREATE DATABASE` is permitted on
+this Neon project, so this was tested rather than reasoned about):
 
-Two open questions, both for the user:
+| Scenario | Result |
+| --- | --- |
+| Fresh empty db, `db:migrate` alone | creates both tables, exit 0 |
+| `db:push`-shaped schema, `db:baseline`, then `db:migrate` | clean no-op, exit 0 |
+| Db built only from the committed migrations | introspects to the same SQL as dev |
+| A migration added after the baseline | applies on top of it |
+| `db:baseline` on an empty db | refuses, exit 1 |
 
-- **The dev database has no migration history**, so generating against it
-  yields an empty diff. Cleaner to generate from a scratch database for the
-  full create-from-zero set.
-- **Production has presumably been receiving `db:push`.** Confirm dev and prod
-  currently match before generating anything that assumes they do.
+All scratch databases were dropped afterwards; dev is untouched (100 ads, 200
+images) apart from its own `drizzle.__drizzle_migrations` row.
 
-### 3.5 Decide on end-to-end tests (blocked on a decision)
+**Adopting this on a database that predates it.** `db:migrate` against dev or
+prod would try to `CREATE TABLE` and fail, because the schema is already there
+via `db:push` and neither has a migration row. `pnpm db:baseline` records the
+baseline as applied without running it — the standard adoption step. It
+**refuses unless both tables are present**, because baselining an empty
+database would leave `db:migrate` convinced the schema exists. That failure is
+silent and much harder to diagnose than a refusal.
+
+**Dev has been baselined. Production has not** — that needs prod credentials
+and is the one open item in §3.3. It does not block anything else here: the
+migration set is a verified superset of the schema dev actually has, so the
+worst case is that prod needs `db:baseline` before its first `db:migrate`.
+
+Three bugs surfaced by running it, none of which reading the code would have
+caught:
+
+- `ON CONFLICT DO NOTHING` **inserted a duplicate row on every run.** The
+  migrations table has no unique constraint on `(hash, created_at)`, so
+  Postgres has nothing to conflict on. Guarding on what is already recorded is
+  what makes it idempotent — three runs now produce exactly one row.
+- The neon HTTP tag turns **every** interpolation into a bind parameter, so a
+  table name passed through it becomes `INSERT INTO $1`. Positional `$1` via
+  `sql.query` is the form that works.
+- `= ANY($1)` is unusable; the driver sends arrays as text and Postgres reports
+  a malformed array literal.
+
+**Known rough edge:** `drizzle-kit migrate` exits non-zero on failure but prints
+nothing about what failed. Diagnosing a failed production migration means
+running the SQL by hand. `db:baseline`'s own errors do explain themselves.
+
+### 3.5 Decide on end-to-end tests (blocked on a decision, unchanged)
 
 The plan called for Vitest **+ Playwright**. Only Vitest was set up, because
 every route here is dynamic and reads Postgres — an E2E run needs a database
@@ -382,6 +434,15 @@ say so — silently losing the guarantee is the part that is not acceptable.
 - `Redis.fromEnv()` does **not** throw when the variables are missing; it warns
   at construction (`nodejs.mjs:274-278`) and returns a client that fails on
   every call. Importing the module proves nothing about configuration.
+- **The neon HTTP tagged template binds *everything*.** Any interpolation
+  becomes a `$1` parameter, so an identifier or array passed through it produces
+  `INSERT INTO $1` or `malformed array literal`. Use
+  `sql.query('... VALUES ($1,$2)', [a, b])` when a statement needs both a
+  literal table name and bound values. Three of the bugs in §3.4 were this.
+- `getTableConfig(table).columns` is an **array** of column configs on
+  drizzle-orm 0.45, not a name-keyed record. `Object.keys()` over it yields
+  `'0'`, `'1'`, … and a test built on that asserts nothing while looking
+  correct.
 - The Redis client's `signal` option is a **factory evaluated per HTTP
   request**, not per command. So `retries: N` multiplies the effective
   per-command timeout — which is why `MAX_SET_CALL_MS` in `user-lock.ts` is
@@ -394,8 +455,11 @@ say so — silently losing the guarantee is the part that is not acceptable.
 
 ```bash
 pnpm verify          # lint + typecheck + test + build — the pre-push gate
-pnpm test            # 189 tests
+pnpm test            # 198 tests
 pnpm test src/server # one directory
+pnpm db:generate     # write a migration from the schema into drizzle/
+pnpm db:migrate      # apply pending migrations
+pnpm db:baseline     # ONE TIME, per database predating migration history
 pnpm db:studio       # inspect the database
 pnpm db:seed         # 100 fake ads + ~200 images
 ```
@@ -418,8 +482,9 @@ this workflow is the **only** automated gate in the repo.
 - **The ad limit is still not a database invariant.** It is serialized in
   application code and degrades to unenforced if Redis is down. A hard guarantee
   would need a schema change — a `slot smallint` with `UNIQUE(userId, slot)` and
-  retry-on-conflict, which the database can enforce without transactions. Not
-  chosen because it needs the migration system that does not exist yet (§3.4).
+  retry-on-conflict, which the database can enforce without transactions. That
+  was blocked on the migration system not existing; **it exists now (§3.4)**, so
+  this is the natural next schema change.
 - **One account, two providers, two limits.** The lock and the count both key on
   the OAuth provider account id, so a person signing in with both GitHub and
   Google has two ids and can hold 4 ads. Pre-existing, now encoded in the lock

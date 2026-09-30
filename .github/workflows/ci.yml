@@ -62,6 +62,21 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          # The build must not depend on a real database connection.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          # The build must not depend on a real database connection, and it does
+          # not make one: `src/server/db/index.ts` reads this at module scope to
+          # construct the client, and no route runs during the build because
+          # every route here is dynamic. What it does need is a *well-formed*
+          # string, since an absent one throws "DATABASE_URL is missing" while
+          # collecting page data.
+          #
+          # So a placeholder is the default and a secret is the override. With
+          # no secret configured -- an unset `${{ secrets.X }}` expands to an
+          # empty string, not to nothing -- the empty value is what reached the
+          # build before, which is why this step failed on the first run.
+          #
+          # The placeholder is deliberately unroutable. It must never be a real
+          # credential, and it must never point at the production database.
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://build:build@127.0.0.1:5432/build' }}
+          # Never used to sign anything during a build; present because
+          # next-auth reads it at module scope too.
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'build-only-not-a-real-secret' }}

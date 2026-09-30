@@ -6,13 +6,11 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Branch:** `main`
+- **Branch:** `main`, in sync with `origin/main`
 - **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 235 tests
   across 27 files, `next build` succeeds.
 - **Database:** one Neon database shared by development and production (§3).
   ~200 generated ads, no real user data.
-- **Uncommitted:** the frontend work described in §4 is on disk but not
-  committed.
 
 ---
 
@@ -91,11 +89,11 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
 
   The **input boundary fails in both themes, as one problem**:
   `--color-border-input` on `--color-input-background` is **1.49** light and
-  **1.22** dark, where 3:1 is required. The border is what delineates a field, so
+  **1.05** dark, where 3:1 is required. The border is what delineates a field, so
   no fill that still looks like an input can substitute for fixing it — which is
-  why the token test asserts 1.2, pinning "a field is not the page colour"
-  rather than a threshold it cannot reach. Raising `--color-border-input` in
-  both themes is the actual fix.
+  why the token test asserts 1.2 against `--color-background`, pinning "a field
+  is not the page colour" rather than a threshold it cannot reach. Raising
+  `--color-border-input` in both themes is the actual fix.
 
 - **`Modal`'s content box is wrong, deliberately not fixed.** `Modal.tsx` sets
   `position: fixed; inset: 0` with `align-self`/`justify-self: center`, which do
@@ -164,11 +162,10 @@ wrapping the app. If you add a caller that needs `useSession()`, add the
 provider back with it — `signIn`/`signOut` work without one.
 
 **The header's controls share one box model because there is only one.**
-`HeaderControl.tsx` exports `ControlLink`/`ControlButton` plus four label/icon
-wrappers; `ControlLabel` (visible on desktop) and `ControlNameOnly` (never
-visible, for the theme toggle, whose label is a sentence) are the same idea in
-two shapes, and picking the wrong one is a visible regression, so
-`Header.test.tsx` asserts which each control got.
+`HeaderControl.tsx` owns the styling. `ControlLabel` (visible on desktop) and
+`ControlNameOnly` (never visible — the theme toggle's label is a sentence) are
+the same idea in two shapes, and picking the wrong one is a visible regression,
+so `Header.test.tsx` asserts which each control got.
 
 **Not done, on purpose:** no E2E (§2.2), no React Compiler (stable in Next 16,
 not enabled), loading states not revisited (three `loading.tsx` files render a
@@ -186,12 +183,10 @@ Each of these cost real time.
   pass, where it lands in the flight payload and is never emitted — and nothing
   recovers it, because a Server Component does not re-render on the client.
   `StyledComponentsRegistry` does not help; its `StyleSheetManager` only wraps
-  the client pass. This shipped as three unrelated-looking bugs at once (logo
-  unstyled, header not a flex row, page never width-constrained) and none of
-  them threw, logged, or failed the build. An `async` Server Component cannot
-  hold the directive, so those keep their styled definitions in a sibling
-  `*.styles.tsx` that does — `AdCard`, `AdCardCompact`, `MainColumn`,
-  `app/page.tsx`, `app/dashboard/[userId]/page.tsx`. Do not move them back;
+  the client pass. An `async` Server Component cannot hold the directive, so
+  those keep their styled definitions in a sibling `*.styles.tsx` that does —
+  `AdCard`, `AdCardCompact`, `MainColumn`, `app/page.tsx`,
+  `app/dashboard/[userId]/page.tsx`. Do not move them back;
   `src/__tests__/styled-components-boundary.test.ts` fails if you do.
   **To check by hand:** `curl` a route, collect the class names from the body,
   and confirm each appears in a `<style>` element or a linked stylesheet. A class

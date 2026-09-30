@@ -53,7 +53,7 @@ export const DARK_COLORS = {
   // Deliberately not `--color-background` or `--color-card-background`: a field
   // painted the same as the surface behind it reads as a hole, not an input.
   // It still cannot reach 3:1 against the page, because the thing that
-  // actually delineates a field is `--color-border-input`, which is at 1.22.
+  // actually delineates a field is `--color-border-input`, which is at 1.05.
   // See the measured findings in handoff.md before "fixing" this one alone.
   '--color-input-background': 'hsl(25.7deg 8.6% 20%)',
   '--color-pricetag-background': '#1f1c19',

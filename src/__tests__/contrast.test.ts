@@ -24,7 +24,7 @@
  *
  *   non-text, 3:1 needed
  *     --color-input-background    on --color-background       1.36 light
- *     --color-border-input        on --color-input-background 1.49 light, 1.22 dark
+ *     --color-border-input        on --color-input-background 1.49 light, 1.05 dark
  *     --color-success             on --color-card-background 2.08 light
  *
  * The input rows fail together and for one reason: `--color-border-input` is

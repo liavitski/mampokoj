@@ -3,9 +3,9 @@
 State of the repository and what to do next. Written to be read cold, with no
 memory of the work that produced it.
 
-- **Branch:** `security/harden-server-actions` (24 commits ahead of `main`, unpushed)
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 211 tests
-  across 21 files, `next build` succeeds
+- **Branch:** `security/harden-server-actions` (unpushed)
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 217 tests
+  across 22 files, `next build` succeeds
 - **Stack:** Next.js 16.3.6, React 19.3, pnpm 11.1.3, TypeScript 5, Drizzle +
   Neon Postgres, NextAuth v4, UploadThing, Upstash, styled-components v6, Vitest
 - **Database:** one Neon database, shared by development and production
@@ -44,10 +44,12 @@ Four environment facts that will otherwise waste your time:
 
 ## 2. What was just done
 
-Seventeen commits. The first eleven were a review-and-harden pass over a
-codebase with zero tests and zero CI. `f026035` rewrote the README and wrote
-this document; four commits of new work are in §2.1–§2.5, interleaved with three
-updates to this file.
+The first eleven commits were a review-and-harden pass over a codebase with zero
+tests and zero CI. `f026035` rewrote the README and wrote this document; the
+commits after it are the new work in §2.1–§2.5 plus recurring updates to this
+file. `git log --oneline main..HEAD` is the authority on the full list — earlier
+versions of this paragraph carried a count that was stale by the time it was
+written, twice.
 
 | Commit | What |
 | --- | --- |
@@ -75,6 +77,8 @@ updates to this file.
 | `4dc798c` | `pnpm db:seed` refuses unless `SEED_ALLOW` names the database; plus a second seed-data incident (§3.9) |
 | `5d9e51a` | Correct the handoff commit count and complete its table |
 | `4072699` | Describe the single database accurately, not a false guarantee (§3.9) |
+| `c534a7d` | This file: rewritten to be readable cold |
+| `9678dce` | The Redis wire format is now pinned by a test; §3.1 down to the Lua alone, plus two findings for whoever takes §6 |
 
 ### 2.1 Seed script (`ff3d0e1`)
 
@@ -204,22 +208,40 @@ Nothing in §3.1–§3.9 is blocking. §3.1 is the largest untouched surface and
 §3.5 the largest piece of work; the ad-limit invariant in §6 is the natural
 next *schema* change now that migrations exist.
 
-### 3.1 The Lua release script is reviewed, not verified
+### 3.1 The client's wire format is now pinned; the Lua is still never executed
 
-`RELEASE_SCRIPT` in `src/server/user-lock.ts` is the one piece of the lock that
-has never been executed, because Redis does not resolve from this machine
-(§1.3). It is text-pinned by a test and reviewed by eye. Its correctness rests
-on two unverified assumptions:
+`RELEASE_SCRIPT` in `src/server/user-lock.ts` is still the one piece of the lock
+that has never been run, because Redis does not resolve from this machine
+(§1.3). It is text-pinned by a test and reviewed by eye. **That is now the only
+thing left unverified here.**
 
-1. `redis.set(key, token, { nx: true })` returns exactly `'OK'` on success and
-   `null` on a lost race, in `@upstash/redis` 1.39.0.
-2. `redis.eval(script, keys, args)` emits `["eval", script, keys.length, ...keys,
-   ...args]` with strings unquoted, so `ARGV[1]` is the bare token.
+The two assumptions the script rested on were both about the `@upstash/redis`
+*client* rather than about Redis, and a client can be exercised without a server:
+the library calls the bare global `fetch`, so replacing it intercepts the real
+serialization. `src/server/__tests__/redis-client-contract.test.ts` does that and
+confirms, against 1.39.0:
 
-Both were checked against the installed package source, but neither was run. The
-dependency is `^1.39.0`, so a minor bump can change either without a failing
-test. Getting a working `UPSTASH_REDIS_REST_URL`, or standing up a local Redis
-reachable over HTTP, would close this.
+1. `set(key, token, { nx: true, px })` sends
+   `["set", key, token, "nx", "px", ttl]` and answers exactly `'OK'` when it wins
+   the race and `null` when it loses it.
+2. `eval(script, keys, args)` sends `["eval", script, keys.length, ...keys,
+   ...args]` with the strings bare, so `ARGV[1]` is the token and not a quoted
+   copy of it. The release returns `1` when it deleted the key and `0` when the
+   token did not match, and the client passes both through unmangled, so
+   `deleted !== 1` is reading a real distinction.
+
+The dependency is `^1.39.0`, so a minor bump can still change any of that — but
+it now changes a failing test rather than nothing. Verified by mutation: dropping
+`nx`, passing the wrong token to the script, passing the key as an argument
+instead of a key, and treating a lost lock as a successful release each turn the
+suite red.
+
+**Executing the Lua would need a real Redis, not a cleverer fake.** `luajit` is
+installed locally, so the script could be run against a hand-written
+`redis.call` stub — but that stub would encode the very token comparison under
+test and pass no matter what the script said. A working
+`UPSTASH_REDIS_REST_URL`, or a local Redis reachable over HTTP, is the only
+honest way to close the remainder.
 
 ### 3.2 `upload-guard.ts` — decided: fail closed (`56e071c`)
 
@@ -453,6 +475,16 @@ say so — silently losing the guarantee is the part that is not acceptable.
   version of the Redis fake rejected a held key whether or not `nx` was set, so
   deleting `nx` still passed. Model the real primitive: without `NX`, `SET`
   overwrites and returns OK.
+- **Assert on what the code under test produced, not on what the test produced.**
+  The first version of `redis-client-contract.test.ts` called `redis.set` and
+  `redis.eval` itself and asserted on the reply, supplying its own `nx: true`. It
+  passed unchanged after `nx` had been deleted from `user-lock.ts`, because it
+  was pinning the library and saying nothing about the caller. Every assertion in
+  that file is now made against a command `withUserLock` itself issued.
+- **Restore a spy only after asserting on it.** `mockRestore()` also resets
+  `mock.calls`, so restoring in a `finally` and asserting afterwards reads an
+  empty list — a test that fails for a reason unrelated to the code, or worse,
+  one that would pass a mutation. This produced exactly that confusion once.
 - **Assert contention actually happened.** With a single-threaded runtime and
   an in-process fake, "peak concurrency 1" is also what a version that never
   called Redis would produce. Pair it with an assertion that the fake turned
@@ -494,7 +526,7 @@ say so — silently losing the guarantee is the part that is not acceptable.
 
 ```bash
 pnpm verify          # lint + typecheck + test + build — the pre-push gate
-pnpm test            # 211 tests
+pnpm test            # 217 tests
 pnpm test src/server # one directory
 pnpm db:generate     # write a migration from the schema into drizzle/
 pnpm db:migrate      # apply pending migrations
@@ -526,6 +558,20 @@ schema change cannot reach production without its migration (§3.4).
   retry-on-conflict, which the database can enforce without transactions. That
   was blocked on the migration system not existing; **it exists now (§3.4)**, so
   this is the natural next schema change.
+
+  Two things measured against the live database, so the next reader does not have
+  to rediscover them:
+
+  - **A unique violation does not arrive where you would look.** Drizzle wraps
+    driver errors, so a 23505 reaches the caller as a `DrizzleQueryError` with
+    `code: undefined`. The real `NeonDbError` — carrying `code: '23505'` and
+    `constraint` — is on **`.cause`**. Retry-on-conflict has to read
+    `error.cause.code`; `error.code` is undefined and the check silently never
+    matches. Verified on the `mampokoj_images_fileKey_unique` index by a
+    self-selecting insert, which guarantees the violation and writes nothing.
+  - **The backfill is unobstructed.** 201 ads across 201 distinct users, so no
+    user holds more than one and every row can take `slot = 0`. Nothing in the
+    existing data blocks a `UNIQUE(userId, slot)` index.
 - **One account, two providers, two limits.** The lock and the count both key on
   the OAuth provider account id, so a person signing in with both GitHub and
   Google has two ids and can hold 4 ads. Pre-existing, now encoded in the lock

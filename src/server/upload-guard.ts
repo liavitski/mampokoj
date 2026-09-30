@@ -5,7 +5,9 @@ import { imageLimit } from '@/server/queries/select';
 import { ratelimit } from '@/server/ratelimit';
 import { MAX_IMAGES_PER_AD } from '@/constants';
 
-export type UploadAdmission = { ok: true } | { ok: false; reason: string };
+export type UploadAdmission =
+  | { ok: true; userId: string }
+  | { ok: false; reason: string };
 
 /**
  * Decides whether an upload may proceed, before any bytes are transferred.
@@ -17,6 +19,13 @@ export type UploadAdmission = { ok: true } | { ok: false; reason: string };
  *
  * The owner comes from the session; the `adId` in the upload input is
  * untrusted and is only ever used as a lookup key.
+ *
+ * The resolved `userId` is part of the return value because `onUploadComplete`
+ * needs it and cannot get it for itself: UploadThing calls that hook
+ * server-to-server, after the browser is done, so there is no session cookie on
+ * the request and `requireUserId()` yields null. The owner settled here, in a
+ * request that does have the cookie, is handed forward so ownership can be
+ * re-checked at insert time without trusting anything the client supplied.
  */
 export async function checkUploadAdmission(
   adId: string
@@ -60,5 +69,5 @@ export async function checkUploadAdmission(
     };
   }
 
-  return { ok: true };
+  return { ok: true, userId: owned.userId };
 }

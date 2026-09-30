@@ -24,6 +24,26 @@ export async function findAdOwnedByCurrentUser(adId: string) {
 
   if (!userId) return null;
 
+  return findAdOwnedByUser(adId, userId);
+}
+
+/**
+ * The same ownership check, against an explicitly supplied user id.
+ *
+ * This exists for `onUploadComplete`, which cannot use the session. UploadThing
+ * invokes that callback server-to-server after the browser has finished
+ * uploading, so the request carries no session cookie and `requireUserId()`
+ * returns null -- which made every real upload silently fail to attach. The
+ * middleware already resolved the owner in the user's own request and hands the
+ * id on in metadata, so the check survives without the cookie.
+ *
+ * The caller is responsible for where `userId` came from. Passing one that was
+ * not settled by the middleware turns this into a lookup of "does this ad belong
+ * to whoever claims it", which is nothing.
+ */
+export async function findAdOwnedByUser(adId: string, userId: string) {
+  if (!userId) return null;
+
   const parsedAdId = adIdSchema.safeParse(adId);
 
   if (!parsedAdId.success) return null;

@@ -37,7 +37,9 @@ describe('checkUploadAdmission', () => {
   it('admits an upload to an ad the caller owns', async () => {
     const result = await checkUploadAdmission(AD_ID);
 
-    expect(result).toEqual({ ok: true });
+    // The settled owner is part of the result, not just a yes: it travels to
+    // onUploadComplete in metadata, which cannot resolve the session itself.
+    expect(result).toEqual({ ok: true, userId: 'user-a' });
   });
 
   it('refuses an upload aimed at another user ad', async () => {

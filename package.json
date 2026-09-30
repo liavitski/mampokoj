@@ -15,6 +15,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.tsx",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.tsx",
+    "db:baseline": "tsx src/utils/baseline.tsx",
     "db:push": "drizzle-kit push --config=drizzle.config.tsx",
     "db:seed": "tsx src/utils/seed.tsx",
     "db:studio": "drizzle-kit studio --config=drizzle.config.tsx"

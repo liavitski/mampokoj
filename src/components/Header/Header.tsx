@@ -2,7 +2,7 @@ import * as React from 'react';
 import styled from 'styled-components';
 import { QUERIES, WEIGHTS } from '@/constants';
 
-import { requireUserId } from '@/lib/require-user-id';
+import { requireUserId } from '@/lib/session';
 import { Theme } from '@/types/theme';
 
 import Link from 'next/link';

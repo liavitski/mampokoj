@@ -4,7 +4,7 @@ import { count, eq } from 'drizzle-orm';
 
 import { db } from '../db';
 import { ads } from '../db/schema';
-import { requireUserId } from '@/lib/require-user-id';
+import { requireUserId } from '@/lib/session';
 import { parseAdFormData } from '@/lib/validation/ad-schema';
 import { MAX_ADS_PER_USER } from '@/constants';
 

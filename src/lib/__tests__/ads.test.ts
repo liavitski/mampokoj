@@ -14,7 +14,7 @@ const { mocks, dbMock } = vi.hoisted(() => {
 });
 
 vi.mock('@/server/db', () => ({ db: dbMock }));
-vi.mock('@/lib/require-user-id', () => ({
+vi.mock('@/lib/session', () => ({
   requireUserId: mocks.requireUserId,
 }));
 

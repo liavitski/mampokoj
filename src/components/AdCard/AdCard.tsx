@@ -1,13 +1,11 @@
 import * as React from 'react';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { formatCZPhone } from '@/utils/utils';
 
 import type { AdWithImages } from '@/types/db-types';
 
 import { QUERIES, WEIGHTS } from '@/constants';
 import styled from 'styled-components';
-import { requireUserId } from '@/lib/require-user-id';
+import { getSessionUser } from '@/lib/session';
 
 import AdPhotosGallery from '../AdPhotosGallery';
 
@@ -31,9 +29,8 @@ async function AdCard({ ad }: AdCardProps) {
     images,
   } = ad;
 
-  const session = await getServerSession(authOptions);
-  const sessionUserId = await requireUserId();
-  const isAllowedToDeletePhoto = sessionUserId === userId;
+  const currentUser = await getSessionUser();
+  const isAllowedToDeletePhoto = currentUser?.userId === userId;
 
   const formattedPrice = new Intl.NumberFormat('cs-CZ', {
     style: 'currency',
@@ -58,7 +55,9 @@ async function AdCard({ ad }: AdCardProps) {
         </City>
         <ContactPhone>
           <span>Contact:</span>
-          {session ? formattedPhone : 'Log in to see the contact'}
+          {currentUser
+            ? formattedPhone
+            : 'Log in to see the contact'}
         </ContactPhone>
 
         <Price>

@@ -2,7 +2,7 @@ import React from 'react';
 
 import { notFound } from 'next/navigation';
 import { getUserAds } from '@/server/queries/select';
-import { requireUserId } from '@/lib/require-user-id';
+import { requireUserId } from '@/lib/session';
 
 import styled from 'styled-components';
 

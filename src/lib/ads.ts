@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { db } from '@/server/db';
 import { ads } from '@/server/db/schema';
-import { requireUserId } from '@/lib/require-user-id';
+import { requireUserId } from '@/lib/session';
 import { adIdSchema } from '@/lib/validation/ad-schema';
 
 /**

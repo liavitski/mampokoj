@@ -6,7 +6,7 @@ import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin';
 import { extractRouterConfig } from 'uploadthing/server';
 import { ourFileRouter } from '@/app/api/uploadthing/core';
 import { MotionConfig } from 'motion/react';
-import { getServerSession } from 'next-auth';
+import { getCachedSession } from '@/lib/session';
 
 import '@uploadthing/react/styles.css';
 import GlobalStyles from '@/components/GlobalStyles';
@@ -41,7 +41,7 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
       : 'light';
 
   const themeColors = theme === 'light' ? LIGHT_TOKENS : DARK_TOKENS;
-  const session = await getServerSession();
+  const session = await getCachedSession();
 
   return (
     <html

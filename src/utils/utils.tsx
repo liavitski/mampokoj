@@ -1,7 +1,7 @@
 import { CZ_REGIONS } from '@/constants';
 import type { RegionCode } from '@/types/db-types';
 
-export const range = (start: number, end: number, step = 1) => {
+export const range = (start: number, end?: number, step = 1) => {
   const output: number[] = [];
   if (typeof end === 'undefined') {
     end = start;

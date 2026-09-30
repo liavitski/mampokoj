@@ -1,16 +1,17 @@
 'use server';
 
+import { eq } from 'drizzle-orm';
+
 import { db } from '../db';
 import { ads } from '../db/schema';
-import { requireUserId } from '@/lib/require-user-id';
-import { eq } from 'drizzle-orm';
+import { findAdOwnedByCurrentUser } from '@/lib/ads';
 
 export async function updateAd(adId: string, formData: FormData) {
   try {
-    const sessionUserId = await requireUserId();
+    const owned = await findAdOwnedByCurrentUser(adId);
 
-    if (!sessionUserId) {
-      return { success: false, error: 'Unauthorized' };
+    if (!owned) {
+      return { success: false, error: 'Not found' };
     }
 
     await db
@@ -28,7 +29,7 @@ export async function updateAd(adId: string, formData: FormData) {
       })
       .where(eq(ads.id, adId));
 
-    return { success: true, userId: sessionUserId };
+    return { success: true, userId: owned.userId };
   } catch (e: unknown) {
     return {
       success: false,

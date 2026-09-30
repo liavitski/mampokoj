@@ -26,9 +26,16 @@ const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.css'];
  * Custom properties that no file in this repository declares, because they are
  * written into an element's inline style at runtime by something else. Each
  * entry says who, because an allowlist with no owner is how an allowlist rots.
+ *
+ * Fonts are deliberately NOT here. next/font generates the declaration for a
+ * `variable:` at build time, so `variable: '--font-sans'` in src/utils/fonts.tsx
+ * does declare `--font-sans` and is picked up by the `DECLARED` scan below. It
+ * used to be allowlisted by hand instead, and that is exactly how the whole app
+ * rendered in Times for a release: the allowlist said the name in globals.css
+ * matched, nobody compared it with the name in fonts.tsx, and the two had
+ * drifted to `--font-family` vs `--font-sans`.
  */
 const DECLARED_ELSEWHERE: Record<string, string> = {
-  '--font-sans': 'next/font/google, from `variable:` in src/utils/fonts.tsx',
   '--radix-toast-swipe-move-x': '@radix-ui/react-toast, during a swipe',
 };
 
@@ -61,6 +68,18 @@ const USED = /var\(\s*(--[a-zA-Z0-9-]+)/g;
  * writes those keys verbatim, so the quotes are part of the source only).
  */
 const DECLARED = /['"]?(--[a-zA-Z0-9-]+)['"]?\s*:/g;
+
+/**
+ * Matches a next/font `variable: '--x'`.
+ *
+ * This needs its own pattern because `DECLARED` cannot see it: `DECLARED` looks
+ * for a name followed by a colon, and this spelling puts the colon first. The
+ * declaration it stands for is generated into the stylesheet at build time, so
+ * it exists in no file -- but it is a real declaration, and treating it as
+ * missing is what let `--font-family` in fonts.tsx and `var(--font-sans)` in
+ * globals.css disagree without anything noticing.
+ */
+const FONT_VARIABLE = /variable:\s*['"](--[a-zA-Z0-9-]+)['"]/g;
 
 /**
  * Drops comments before scanning.
@@ -107,6 +126,12 @@ describe('custom properties', () => {
     for (const file of files) {
       const source = stripComments(readFileSync(file, 'utf8'));
       for (const name of propertiesIn(source, DECLARED)) {
+        declared.add(name);
+      }
+      // Collected from the real next/font calls rather than listed by hand, so
+      // renaming a `variable:` here fails this test until the matching `var()`
+      // moves with it.
+      for (const name of propertiesIn(source, FONT_VARIABLE)) {
         declared.add(name);
       }
     }

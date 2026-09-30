@@ -298,6 +298,32 @@ caught:
 nothing about what failed. Diagnosing a failed production migration means
 running the SQL by hand. `db:baseline`'s own errors do explain themselves.
 
+### 3.9 One database was serving both dev and production
+
+The app was created with a single Neon database, and Vercel's `DATABASE_URL`
+points at it — so **production was serving the 100 seeded fake ads**, and every
+local `pnpm db:seed` wrote to production. There is one `DATABASE_URL` variable
+and the code cannot tell environments apart, which is correct; the *values* were
+never separated.
+
+Fixed on the code side, and both dashboard steps are still outstanding:
+
+- `pnpm db:seed` now refuses unless `SEED_ALLOW` names the target database
+  exactly (`src/utils/seed-guard.ts`). Pinned to a name, not a boolean, so a
+  truthy flag in production would not satisfy it.
+- The README documents the two-database arrangement.
+
+**Two dashboard actions remain, and neither can be done from the repo:**
+
+1. Create a production database on Neon. `DATABASE_URL=<prod> pnpm db:migrate`
+   creates the schema from scratch — verified, no `db:baseline` needed.
+2. Point Vercel's `DATABASE_URL` at it and redeploy.
+
+**Decided: seed production once, deliberately.** An empty marketplace reads as
+broken to a portfolio reviewer, and there are no real users to lose. Do that as
+a one-off *after* the guard exists, by setting `SEED_ALLOW` to the production
+database name for that single run.
+
 ### 3.5 Decide on end-to-end tests (blocked on a decision, unchanged)
 
 The plan called for Vitest **+ Playwright**. Only Vitest was set up, because
@@ -490,7 +516,7 @@ this workflow is the **only** automated gate in the repo.
   Google has two ids and can hold 4 ads. Pre-existing, now encoded in the lock
   key rather than fixed.
 
-### Incident worth remembering
+### Incident worth remembering — and it happened twice
 
 While verifying the seed script I wrote a scratch script whose cleanup step was
 `db.delete(ads)` with no `where`, which deleted all 60 ads and cascaded to all
@@ -498,3 +524,27 @@ While verifying the seed script I wrote a scratch script whose cleanup step was
 but the lesson is procedural: **never write an unscoped `db.delete` in a file
 described as temporary**, especially next to a real database. Scope by a known
 test `userId` and assert the before/after counts.
+
+**The second time, the delete *was* scoped — and it was still wrong.** Cleaning
+up after a seed verification, I deleted with
+`WHERE "createdAt" > (SELECT min("createdAt") ...) + interval '1 second'`, aiming
+to remove only the 100 rows just inserted. It removed 199 of 200. Seeded ads are
+inserted in a single statement, so **every row shares one `createdAt`** and any
+timestamp-based cutoff is meaningless — the boundary is `min`, so "> min + 1s"
+matches the original batch too.
+
+Restored with `pnpm db:seed`. No real data was ever at stake, but that is the
+only reason, and it is luck rather than design. The general lesson is the
+stronger one:
+
+- **Prefer no delete at all.** Seeding is additive, so restoring is just
+  `pnpm db:seed` again. Reach for a `DELETE` only when a test genuinely has to
+  undo a *partial* run.
+- **Give seed data a marker you can select on.** A known test `userId` prefix or
+  a dedicated tag column makes a scoped delete reliable. Timestamps do not.
+- **Never compute a cutoff from the data you are about to filter.** The
+  predicate and the data being filtered are then the same fact.
+
+This is now also the reason `pnpm db:seed` cannot touch production by accident
+(§3.9) — the data is cheap to regenerate, but a mistake against a shared
+database is not cheap to reason about.

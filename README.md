@@ -76,6 +76,12 @@ afterwards. Prefer `db:migrate`.
 
 `.env.local` (git-ignored; `.env` is also ignored — never commit either).
 
+**Two databases.** Development and production are separate databases, and the
+code cannot tell them apart — it reads `DATABASE_URL` and nothing else. Local
+work uses your development database; Vercel supplies production's value through
+its own environment variables. Set them in different places, not in one file
+that gets copied around.
+
 Read directly in `src/`:
 
 | Variable | Required | Purpose |
@@ -92,6 +98,17 @@ Read by libraries rather than by name in `src/`:
 | `NEXTAUTH_URL` | yes | Canonical origin, e.g. `http://localhost:3000` |
 | `UPLOADTHING_TOKEN` | for uploads | Lets the server delete files from the bucket |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | for uploads and ad creation | `Redis.fromEnv()` in `src/server/redis.ts`, shared by the rate limiter and the per-user ad lock. Missing values warn rather than throw, so the client looks healthy and fails on every call. |
+
+Read only by `pnpm db:seed`:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `SEED_ALLOW` | for `db:seed` | The **database name** that may be filled with fake data, e.g. `SEED_ALLOW=neondb`. |
+
+`pnpm db:seed` refuses to run without it. It is pinned to a database name rather
+than a boolean on purpose: a truthy flag would sail through in production,
+whereas a production database's name will not match a development one. See
+`src/utils/seed-guard.ts`.
 
 OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 

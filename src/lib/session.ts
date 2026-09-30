@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { cache } from 'react';
 import { getServerSession } from 'next-auth';
@@ -13,10 +13,13 @@ export type SessionUser = { userId: string };
  * Every layout, page and server component that needs to know who is signed in
  * shares this one read. `cache()` is scoped to the request, so it dedupes
  * during a render and does not leak between requests.
+ *
+ * Marked `server-only` rather than `use server`: these are read by server
+ * components, not invoked from the client, and `use server` would publish
+ * getCachedSession -- which returns the whole session object -- as a remotely
+ * callable endpoint.
  */
-export const getCachedSession = cache(() =>
-  getServerSession(authOptions)
-);
+export const getCachedSession = cache(() => getServerSession(authOptions));
 
 /**
  * The signed-in user, or null.

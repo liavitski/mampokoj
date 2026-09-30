@@ -8,7 +8,21 @@ export type AdWithImages = Ad & {
   images: Image[];
 };
 
-export type AdWithoutUserId = Omit<AdWithImages, 'userId'>;
+/**
+ * A photo as it may be sent to any client. `fileKey` is the UploadThing
+ * storage key and stays on the server; see PublicImage in lib/ad-dto.
+ */
+export type PublicImageRow = Pick<Image, 'id' | 'url' | 'createdAt'>;
+
+/**
+ * A single ad as shown on its own page, to any visitor.
+ *
+ * No `userId`, and photos without their storage key: only the owner's
+ * dashboard can delete a photo, and only there is the key needed.
+ */
+export type AdWithoutUserId = Omit<Ad, 'userId'> & {
+  images: PublicImageRow[];
+};
 
 /**
  * An ad as it may be sent to any client.
@@ -17,7 +31,9 @@ export type AdWithoutUserId = Omit<AdWithImages, 'userId'>;
  * contact data, so neither travels in a list of ads. A single ad's contact
  * details are fetched separately and gated on the session.
  */
-export type PublicAd = Omit<AdWithImages, 'userId' | 'contactPhone'>;
+export type PublicAd = Omit<Omit<AdWithImages, 'userId' | 'contactPhone'>, 'images'> & {
+  images: PublicImageRow[];
+};
 
 export type RegionCode = (typeof CZ_REGIONS)[number]['code'];
 

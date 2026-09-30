@@ -16,11 +16,27 @@ import Datepicker from '../Datepicker';
 import Button from '../Button';
 import Modal from '../Modal';
 
-type UpdateRoomListingForm = {
-  ad: Ad;
+type UpdateRoomListingFormProps = {
+  /**
+   * Only the fields the form edits. The dashboard deliberately does not pass
+   * the whole ad row: this is a client component, so anything included here is
+   * serialised into the RSC payload, and the row also carries the poster's
+   * account id and phone number.
+   */
+  ad: Pick<
+    Ad,
+    | 'id'
+    | 'title'
+    | 'price'
+    | 'city'
+    | 'region'
+    | 'availableFrom'
+    | 'description'
+    | 'contactPhone'
+  >;
 };
 
-function UpdateRoomListingForm({ ad }: UpdateRoomListingForm) {
+function UpdateRoomListingForm({ ad }: UpdateRoomListingFormProps) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { showToast } = useToast();

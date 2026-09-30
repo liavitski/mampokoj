@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mocks, dbMock } = vi.hoisted(() => {
@@ -18,7 +19,7 @@ vi.mock('@/lib/ads', () => ({
   findAdOwnedByCurrentUser: mocks.findAdOwnedByCurrentUser,
 }));
 
-const { addImageToAd } = await import('../addImageToAd');
+const { addImageToAd } = await import('../attach-image');
 
 const AD_ID = '11111111-1111-4111-8111-111111111111';
 const IMAGE = { url: 'https://example.test/photo.webp', fileKey: 'key-1' };
@@ -46,8 +47,7 @@ describe('addImageToAd', () => {
 
     const result = await addImageToAd({ adId: AD_ID, ...IMAGE });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('Not found');
+    expect(result).toEqual({ success: false, error: 'Not found' });
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 
@@ -73,6 +73,28 @@ describe('addImageToAd', () => {
     const result = await addImageToAd({ adId: AD_ID, ...IMAGE });
 
     expect(result.success).toBe(false);
-    expect(result.error).not.toContain('mampokoj_images_filekey_key');
+    expect(JSON.stringify(result)).not.toContain('mampokoj_images_filekey_key');
+  });
+});
+
+describe('addImageToAd is not a Server Action', () => {
+  const source = readFileSync(
+    new URL('../attach-image.ts', import.meta.url),
+    'utf8'
+  );
+
+  it('is not marked "use server"', () => {
+    // As a Server Action it would be reachable by direct POST, letting a
+    // caller insert image rows carrying an arbitrary url while bypassing the
+    // photo limit and the rate limit the upload middleware applies -- and a
+    // forged row becomes the cover image of the public listing.
+    //
+    // Anchored to a whole line so the prose in the doc comment, which
+    // mentions the directive by name, does not trip it.
+    expect(source).not.toMatch(/^\s*['"]use server['"]\s*;?\s*$/m);
+  });
+
+  it('is marked server-only instead', () => {
+    expect(source).toMatch(/import\s+['"]server-only['"]/);
   });
 });

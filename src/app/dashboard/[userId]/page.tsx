@@ -1,8 +1,8 @@
 import React from 'react';
 
-import { notFound } from 'next/navigation';
 import { getUserAds } from '@/server/queries/select';
 import { requireUserId } from '@/lib/session';
+import { canViewDashboard } from '@/lib/dashboard-access';
 
 import styled from 'styled-components';
 
@@ -20,8 +20,11 @@ async function UserDashboardPage({ params }: UserDashboardPageProps) {
   const serverUserId = await requireUserId();
   const { userId } = await params;
 
-  if (serverUserId !== userId) return <h3>Not allowed.</h3>;
-  if (!userId) notFound();
+  // Checked before the query: this is the only route whose data is selected by
+  // a URL segment rather than by the session.
+  if (!canViewDashboard(serverUserId, userId)) {
+    return <h3>Not allowed.</h3>;
+  }
 
   const userAds = await getUserAds(userId);
 

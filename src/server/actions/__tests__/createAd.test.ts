@@ -1,16 +1,21 @@
 // @vitest-environment node
+import type { SQL } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { adFormData } from '@/test/ad-form-data';
+import { compileWhere } from '@/test/drizzle-where';
+import { MAX_ADS_PER_USER } from '@/constants';
 
 const { mocks, dbMock } = vi.hoisted(() => {
   const returning = vi.fn(async () => [{ id: 'new-ad-id' }]);
   const values = vi.fn((_row: Record<string, unknown>) => ({ returning }));
   const insert = vi.fn(() => ({ values }));
 
-  const countRows = vi.fn(async () => [{ value: 0 }]);
-  const where = vi.fn(() => countRows());
-  const from = vi.fn(() => ({ where }));
+  const countRows = vi.fn(async (): Promise<{ value: number }[]> => [
+    { value: 0 },
+  ]);
+  const countWhere = vi.fn((_clause: unknown) => countRows());
+  const from = vi.fn(() => ({ where: countWhere }));
   const select = vi.fn(() => ({ from }));
 
   return {
@@ -20,6 +25,7 @@ const { mocks, dbMock } = vi.hoisted(() => {
       values,
       insert,
       countRows,
+      countWhere,
       select,
     },
     dbMock: { insert, select },
@@ -117,21 +123,36 @@ describe('createAd ad limit', () => {
   });
 
   it('refuses to create more ads once the limit is reached', async () => {
-    mocks.countRows.mockResolvedValue([{ value: 2 }]);
+    mocks.countRows.mockResolvedValue([{ value: MAX_ADS_PER_USER }]);
 
     const result = await createAd(adFormData());
 
-    expect(result.success).toBe(false);
+    expect(result).toEqual({
+      success: false,
+      error: `Maximum ${MAX_ADS_PER_USER} ads per user`,
+    });
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 
-  it('enforces the limit on the server, not only in the UI', async () => {
-    mocks.countRows.mockResolvedValue([{ value: 2 }]);
+  it('allows creating an ad right up to the limit', async () => {
+    mocks.countRows.mockResolvedValue([{ value: MAX_ADS_PER_USER - 1 }]);
+
+    const result = await createAd(adFormData());
+
+    expect(result.success).toBe(true);
+  });
+
+  it('counts only the caller own ads', async () => {
+    mocks.countRows.mockResolvedValue([{ value: 0 }]);
 
     await createAd(adFormData());
 
-    // The dashboard hides the form at the limit, but the action must not rely
-    // on that.
-    expect(mocks.select).toHaveBeenCalled();
+    // A count of every ad in the table would lock every user out as soon as
+    // anyone filled up, so the count must be scoped by the session's user id.
+    const where = mocks.countWhere.mock.calls.at(-1)![0] as SQL;
+    const compiled = compileWhere(where);
+
+    expect(compiled.sql).toContain('"userId"');
+    expect(compiled.params).toEqual(['user-a']);
   });
 });

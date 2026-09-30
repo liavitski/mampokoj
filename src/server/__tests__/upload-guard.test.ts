@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MAX_IMAGES_PER_AD } from '@/constants';
+
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     findAdOwnedByCurrentUser: vi.fn(),
@@ -93,9 +95,11 @@ describe('checkUploadAdmission', () => {
     expect(mocks.ratelimitLimit).toHaveBeenCalledWith('user-a');
   });
 
-  it('checks the photo count for the requested ad', async () => {
+  it('checks the photo count for the requested ad, at the shared limit', async () => {
     await checkUploadAdmission(AD_ID);
 
-    expect(mocks.imageLimit).toHaveBeenCalledWith(AD_ID, 3);
+    // MAX_IMAGES_PER_AD, not a bare 3: the form, the guard and the constant
+    // must not drift apart.
+    expect(mocks.imageLimit).toHaveBeenCalledWith(AD_ID, MAX_IMAGES_PER_AD);
   });
 });

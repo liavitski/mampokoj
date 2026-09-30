@@ -18,7 +18,12 @@ type PhotoItem = {
   id: string;
   url: string;
   createdAt: Date;
-  fileKey: string;
+  /**
+   * The UploadThing storage key, needed only to delete a photo. It is absent
+   * on the public ad view, where nobody can delete, so the delete control is
+   * hidden rather than assumed present.
+   */
+  fileKey?: string;
 };
 
 type AdPhotosGalleryProps = {
@@ -67,6 +72,9 @@ function AdPhotosGallery({
   }
 
   const hasPhotos = photos?.length > 0;
+  const selectedPhoto = photos?.[selectedPhotoIndex];
+  const canDeleteSelected =
+    hasPhotos && Boolean(selectedPhoto?.fileKey) && allowDeletePhoto;
 
   const imageUrls = photos?.map((photo) => photo.url) ?? [];
 
@@ -110,9 +118,11 @@ function AdPhotosGallery({
               size="small"
               destructive={true}
               style={{ marginLeft: 'auto' }}
-              onClick={() =>
-                handleDeletePhoto(photos[selectedPhotoIndex].fileKey)
-              }
+              onClick={() => {
+                if (selectedPhoto?.fileKey) {
+                  handleDeletePhoto(selectedPhoto.fileKey);
+                }
+              }}
               disabled={isPending}
             >
               Yes, delete photo
@@ -121,7 +131,7 @@ function AdPhotosGallery({
           trigger={
             // `null` rather than `false`: this is handed to Radix's
             // `Trigger asChild`, which requires an element, not a falsy value.
-            hasPhotos ? (
+            canDeleteSelected ? (
               <DeletePhotoButton>
                 <Tooltip
                   trigger={TooltipTrigger}

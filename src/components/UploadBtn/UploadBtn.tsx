@@ -8,6 +8,7 @@ import { WEIGHTS } from '@/constants';
 
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
+import type { AddImageResult } from '@/server/attach-image';
 
 type UploadBtnProps = {
   adId: string;
@@ -25,7 +26,11 @@ function UploadBtn({ adId }: UploadBtnProps) {
         showToast(error.message || 'Upload failed', 'error');
       }}
       onClientUploadComplete={(res) => {
-        const data = res?.[0]?.serverData;
+        // Typed explicitly: UploadThing's inferred serverData widens away the
+        // failure branch, so the union has to be restated to narrow on
+        // `success`. This is a type-only import of a server-only module, so
+        // nothing is pulled into the client bundle.
+        const data = res?.[0]?.serverData as AddImageResult | undefined;
 
         if (!data) {
           showToast('No server response', 'error');
@@ -36,7 +41,7 @@ function UploadBtn({ adId }: UploadBtnProps) {
           showToast('Image uploaded successfully!', 'success');
           router.refresh();
         } else {
-          showToast(data.error || 'Failed to save image', 'error');
+          showToast(data.error, 'error');
         }
       }}
     />

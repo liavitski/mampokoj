@@ -42,7 +42,9 @@ export async function createAd(formData: FormData) {
   try {
     const [ad] = await db
       .insert(ads)
-      .values({ userId, ...parsed.data })
+      // userId last: the session id must win over anything that came out of
+      // the submitted form.
+      .values({ ...parsed.data, userId })
       .returning({ id: ads.id });
 
     return { success: true, adId: ad.id, userId };

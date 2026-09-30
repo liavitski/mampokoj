@@ -1,4 +1,19 @@
-import type { AdsApiResponse, AdWithImages, PublicAd } from '@/types/db-types';
+import type {
+  AdsApiResponse,
+  AdWithImages,
+  Image,
+  PublicAd,
+  PublicImageRow,
+} from '@/types/db-types';
+
+/**
+ * A photo as it may be sent to any client.
+ *
+ * `fileKey` is the UploadThing storage key and is the value
+ * `deletePhotoByFileKey` takes, so it stays on the server. `adId` is implied
+ * by the ad the photo hangs off and is not needed by the client either.
+ */
+export type PublicImage = Pick<Image, 'id' | 'url' | 'createdAt'>;
 
 /**
  * An ad that may still be carrying the private columns.
@@ -21,6 +36,10 @@ type AdPossiblyPrivate = PublicAd &
  * table leaves it out of this function, and because the return type is
  * `PublicAd`, TypeScript then fails until someone decides the new column is
  * safe to publish. A column becomes public deliberately, never by accident.
+ *
+ * The photos are narrowed too. Restricting the ad columns says nothing about
+ * a nested relation, and passing `images` through verbatim shipped each
+ * photo's `fileKey` to every client.
  */
 export function toPublicAd(ad: AdPossiblyPrivate): PublicAd {
   return {
@@ -33,7 +52,16 @@ export function toPublicAd(ad: AdPossiblyPrivate): PublicAd {
     description: ad.description,
     createdAt: ad.createdAt,
     updatedAt: ad.updatedAt,
-    images: ad.images,
+    images: (ad.images ?? []).map(toPublicImage),
+  };
+}
+
+/** Narrows one photo to the fields a client needs to render it. */
+export function toPublicImage(image: PublicImageRow | Image): PublicImage {
+  return {
+    id: image.id,
+    url: image.url,
+    createdAt: image.createdAt,
   };
 }
 

@@ -103,7 +103,12 @@ export async function getValidatedAd(adId: string) {
   const adWithImages = await db.query.ads.findFirst({
     where: eq(ads.id, parsed.data),
     with: {
-      images: true,
+      images: {
+        // This view is shown to visitors, who cannot delete photos, so the
+        // storage key is not selected. Only the owner's dashboard needs it,
+        // because only there can a photo be deleted.
+        columns: { id: true, url: true, createdAt: true },
+      },
     },
   });
 

@@ -4,6 +4,16 @@ import { describe, expect, it } from 'vitest';
 import { toPublicAd } from '../ad-dto';
 import type { AdWithImages } from '@/types/db-types';
 
+const IMAGE_ROW = {
+  id: 'image-1',
+  adId: '11111111-1111-4111-8111-111111111111',
+  url: 'https://example.test/photo.webp',
+  // The UploadThing storage key. It is the argument to deletePhotoByFileKey,
+  // so it has no business in a public payload.
+  fileKey: 'SECRET_STORAGE_KEY',
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+};
+
 const FULL_ROW: AdWithImages = {
   id: '11111111-1111-4111-8111-111111111111',
   userId: 'oauth-account-id-42',
@@ -16,7 +26,7 @@ const FULL_ROW: AdWithImages = {
   contactPhone: '+420776123456',
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  images: [],
+  images: [IMAGE_ROW],
 };
 
 describe('toPublicAd', () => {
@@ -46,7 +56,38 @@ describe('toPublicAd', () => {
       description: 'A bright room.',
       createdAt: FULL_ROW.createdAt,
       updatedAt: FULL_ROW.updatedAt,
-      images: [],
+      images: [
+        {
+          id: IMAGE_ROW.id,
+          url: IMAGE_ROW.url,
+          createdAt: IMAGE_ROW.createdAt,
+        },
+      ],
+    });
+  });
+
+  it('does not leak the photo storage key', () => {
+    // The ad columns are allowlisted, but the nested images relation used to
+    // pass straight through, carrying fileKey -- the value
+    // deletePhotoByFileKey takes -- to every client.
+    const serialised = JSON.stringify(toPublicAd(FULL_ROW));
+
+    expect(serialised).not.toContain('SECRET_STORAGE_KEY');
+  });
+
+  it('does not leak the photo ad id', () => {
+    expect(JSON.stringify(toPublicAd(FULL_ROW))).not.toContain(
+      '"adId"'
+    );
+  });
+
+  it('keeps only the public fields of each photo', () => {
+    const [image] = toPublicAd(FULL_ROW).images;
+
+    expect(image).toEqual({
+      id: IMAGE_ROW.id,
+      url: IMAGE_ROW.url,
+      createdAt: IMAGE_ROW.createdAt,
     });
   });
 

@@ -61,4 +61,19 @@ describe('getValidatedAd', () => {
 
     await expect(getValidatedAd(AD_ID)).resolves.toBeNull();
   });
+
+  it('does not select the photo storage key for a single ad', async () => {
+    mocks.findFirst.mockResolvedValue(ROW);
+
+    await getValidatedAd(AD_ID);
+
+    // The single-ad view is shown to visitors, who cannot delete photos, so
+    // they have no use for fileKey -- which is the value
+    // deletePhotoByFileKey takes.
+    const imageColumns = mocks.findFirst.mock.calls.at(-1)![0].with.images
+      .columns;
+    expect(imageColumns).toBeDefined();
+    expect(imageColumns).not.toHaveProperty('fileKey');
+    expect(imageColumns.url).toBe(true);
+  });
 });

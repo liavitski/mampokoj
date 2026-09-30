@@ -2,7 +2,7 @@ import { createUploadthing, type FileRouter } from 'uploadthing/next';
 import { UploadThingError, UTApi } from 'uploadthing/server';
 import { z } from 'zod';
 
-import { addImageToAd } from '@/server/actions/addImageToAd';
+import { addImageToAd } from '@/server/attach-image';
 import { checkUploadAdmission } from '@/server/upload-guard';
 
 export const utapi = new UTApi();

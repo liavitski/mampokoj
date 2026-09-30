@@ -46,6 +46,19 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      # Catches a schema change committed without its migration, which would
+      # otherwise reach production and fail there -- or, worse, not fail and
+      # leave the two environments divergent. `generate` reads only the schema
+      # and the committed journal, so this needs no database.
+      - name: Check migrations are in sync with the schema
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::Schema changed without a matching migration. Run 'pnpm db:generate' and commit the result."
+            git --no-pager diff --stat drizzle
+            exit 1
+          fi
+
       - name: Build
         run: pnpm build
         env:

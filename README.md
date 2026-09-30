@@ -49,14 +49,28 @@ rendering — against a real database and real object storage.
 ```bash
 pnpm install
 cp .env .env.local     # then fill it in, see below
-pnpm db:push           # create the tables
+pnpm db:migrate        # create the tables
 pnpm dev
 ```
 
 The app runs at http://localhost:3000.
 
-This project uses `drizzle-kit push` rather than checked-in migration files —
-there is no `drizzle/` directory, so schema changes are pushed directly.
+Schema is tracked with checked-in migration files in `drizzle/`. To change it,
+edit `src/server/db/schema.ts`, then:
+
+```bash
+pnpm db:generate       # writes the SQL into drizzle/
+pnpm db:migrate        # applies pending migrations
+```
+
+Commit the generated files. CI fails if the schema and the migrations disagree.
+
+`pnpm db:baseline` exists for databases that predate the migration history —
+see the note in `src/utils/baseline.tsx`. It is not part of the normal loop.
+
+`pnpm db:push` still exists for a throwaway local database, but it does not
+update migration history, so a database touched by it must not be migrated
+afterwards. Prefer `db:migrate`.
 
 ## Environment Variables
 
@@ -93,7 +107,11 @@ OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 | `pnpm test` | Vitest, single run |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm verify` | lint + typecheck + test + build — run this before pushing |
-| `pnpm db:push` | Push the schema to the database |
+| `pnpm db:generate` | Write a migration from the schema into `drizzle/` |
+| `pnpm db:migrate` | Apply pending migrations |
+| `pnpm db:baseline` | Record the baseline as applied on a database that predates migrations |
+| `pnpm db:push` | Push the schema directly, without recording history |
+| `pnpm db:seed` | Insert 100 fake ads and their images |
 | `pnpm db:studio` | Drizzle Studio |
 
 ## Testing
@@ -176,6 +194,11 @@ Deployed on Vercel. Two things to know:
 - `pnpm-workspace.yaml` also sets `allowBuilds`, which controls which
   dependencies may run install scripts. It is not a workspace definition —
   this is a single-package repo.
+- **Schema is not applied on deploy.** Run `pnpm db:migrate` against the
+  production database as a release step. Until that happens, production schema
+  is whatever was last pushed there by hand.
+- If the production database predates the migration history, run
+  `pnpm db:baseline` against it once before the first `db:migrate`.
 
 ## Screenshots
 

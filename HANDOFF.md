@@ -100,31 +100,10 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
   is not the page colour" rather than a threshold it cannot reach. Raising
   `--color-border-input` in both themes is the actual fix.
 
-- **`Modal` is now a fixed-size box; the sizing decision lives in two files.**
-  It was `position: fixed; inset: 0` with `align-self`/`justify-self: center`,
-  both inert on a `position: fixed` element whose parent is `body` — so it was a
-  transparent viewport-sized box whose `border-radius` and `max-height` applied
-  to nothing visible, and the dialog's size came entirely from its content. Fixed:
-  `Content` has its own `width`/`height` (`min(800px, …)` / `min(720px, …)`), its
-  own surface, and centres with `top/left` + `translate`.
-
-  Two things to know before changing it. **`Content` and `AdCardCompact`'s
-  `Wrapper` each own half the box**, coordinated by a `data-modal-box` attribute
-  that `Modal.tsx` sets and `AdCardCompact.styles.tsx` selects on: inside the
-  dialog the card drops its own background/border/padding and takes
-  `min-height: 100%`, because the box supplies both. Rename that attribute
-  without updating the other file and you get a card within a card. And **a
-  comment inside a styled-components template literal cannot contain a
-  backtick** — it closes the string and the parse error points at an unrelated
-  line. Both are covered by tests.
-
-- **jsdom computes no layout, so a CSS test must read the stylesheet.**
-  `Modal.test.tsx` and `AdCardCompact.styles.test.tsx` assert on injected rules
-  and `getComputedStyle` rather than measuring. Two traps found while writing
-  them: the CSSOM does not round-trip declarations (`border: none` serialises as
-  `border: medium`, a *width*), and `getComputedStyle` reports a transparent
-  background as `rgba(0, 0, 0, 0)`, not the `transparent` keyword. Asserting the
-  source text passes and asserts nothing.
+- **`Modal` is a fixed 800x720 box; the card supplies no surface inside it.**
+  `Content` and `AdCardCompact`'s `Wrapper` split the box via a `data-modal-box`
+  attribute set in `Modal.tsx` and selected in `AdCardCompact.styles.tsx` — rename
+  it in one file without the other and the dialog draws a card within a card.
 
 - **`contactPhone` is visible to any signed-in user, not just the owner.**
   Predates the review work and looks intentional. If the threat model is
@@ -235,31 +214,6 @@ Each of these cost real time.
   appearing only inside a `<script>` is dead CSS.
 - **Global rules are in `src/app/globals.css`** — same failure one level up; a
   stylesheet linked from `<head>` cannot regress it and needs no boundary.
-- **A backtick inside a styled-components comment ends the stylesheet.** The
-  comment lives inside a template literal, so it closes the string there and the
-  parse error is reported on some later, unrelated line. This cost two build
-  failures in `Modal.tsx` and `AdCardCompact.styles.tsx`. It is invisible to
-  review because the comment reads fine; `tsc` and ESLint both accept the file up
-  to the point the parser gives up.
-- **`inset: 0` plus `align-self: center` centres nothing.** Those alignment
-  properties position a flex or grid *item*; on a `position: fixed` element whose
-  parent is `body` they do nothing, and an explicit `width` alongside `inset: 0`
-  pins the box to the top-left corner. Centre with `top/left` + `translate`.
-- **`align-items` on a column container is horizontal.** This one shipped twice in
-  `Modal.tsx`. `Content` is `flex-direction: column`, so `align-items: center`
-  acts on the **cross** axis — the horizontal one — and shrink-wraps the scroll
-  area to its text instead of centring it vertically. Measured in Chrome: an
-  800px box holding 259px of content, photo and info halves at 122px each. It
-  looks plausible in review because "centre the content" is what you meant.
-  **When a CSS test is written from the code rather than from the rendered box,
-  it can encode the bug** — the first version of `Modal.test.tsx` asserted
-  `align-items: center` was present, which is what kept the regression alive.
-  Measure in the browser.
-- **Chrome DevTools MCP is configured globally** in
-  `~/.config/opencode/opencode.json` (`chrome-devtools-mcp --isolated`, its own
-  throwaway profile). Use it for any layout or visual question — `evaluate_script`
-  returning `getBoundingClientRect()` and computed style settles in one call what
-  a stylesheet test can only guess at.
 - **A custom property that resolves to nothing is silent.** For an inherited
   property the declaration is simply invalid at computed-value time and the
   element keeps its parent's value. `src/__tests__/tokens.test.ts` fails on this.

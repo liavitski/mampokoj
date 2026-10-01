@@ -245,6 +245,21 @@ Each of these cost real time.
   properties position a flex or grid *item*; on a `position: fixed` element whose
   parent is `body` they do nothing, and an explicit `width` alongside `inset: 0`
   pins the box to the top-left corner. Centre with `top/left` + `translate`.
+- **`align-items` on a column container is horizontal.** This one shipped twice in
+  `Modal.tsx`. `Content` is `flex-direction: column`, so `align-items: center`
+  acts on the **cross** axis — the horizontal one — and shrink-wraps the scroll
+  area to its text instead of centring it vertically. Measured in Chrome: an
+  800px box holding 259px of content, photo and info halves at 122px each. It
+  looks plausible in review because "centre the content" is what you meant.
+  **When a CSS test is written from the code rather than from the rendered box,
+  it can encode the bug** — the first version of `Modal.test.tsx` asserted
+  `align-items: center` was present, which is what kept the regression alive.
+  Measure in the browser.
+- **Chrome DevTools MCP is configured globally** in
+  `~/.config/opencode/opencode.json` (`chrome-devtools-mcp --isolated`, its own
+  throwaway profile). Use it for any layout or visual question — `evaluate_script`
+  returning `getBoundingClientRect()` and computed style settles in one call what
+  a stylesheet test can only guess at.
 - **A custom property that resolves to nothing is silent.** For an inherited
   property the declaration is simply invalid at computed-value time and the
   element keeps its parent's value. `src/__tests__/tokens.test.ts` fails on this.

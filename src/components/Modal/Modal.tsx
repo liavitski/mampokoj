@@ -98,18 +98,24 @@ const Content = styled(Dialog.Content)`
     inset: 0 and an explicit width, the box is pinned to the top-left corner and
     the alignment properties centre its *children* rather than itself, which is
     how it ended up off-centre with a viewport-sized transparent frame.
-
-    align-items/justify-content are kept as a no-op-safe default for the single
-    child, ScrollArea, which is the only thing in the box that needs filling.
   */
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  align-items: center;
-  justify-content: center;
 
   display: flex;
   flex-direction: column;
+
+  /*
+    align-items is left at its initial stretch, and that is load-bearing.
+
+    On a column container the cross axis is *horizontal*, so align-items: center
+    does not centre vertically -- it shrink-wraps the scroll area to its text and
+    centres it. Measured in the browser: an 800px box containing 259px of
+    content, with the photo and info halves at 122px each. justify-content:
+    center is likewise wrong here: the main axis is already filled by ScrollArea's
+    flex: 1, so it does nothing.
+  */
 
   /*
     A fixed height is the point. Content longer than this scrolls inside

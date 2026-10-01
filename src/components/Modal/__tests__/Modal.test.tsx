@@ -91,23 +91,50 @@ describe('Modal box', () => {
     ).toMatch(/(?<![-\w])height\s*:\s*min\(/);
   });
 
-  it('centres the box with alignment properties that actually apply', () => {
+  it('centres the box itself, not its content', () => {
     const dialog = renderModal();
 
     const rules = unconditionalRules(dialog).join('\n');
 
-    // `align-self`/`justify-self` centre a flex or grid *item* within its
-    // parent. This element is the flex container and its parent is `body`, so
-    // they were inert. `align-items`/`justify-content` centre its children.
-    expect(rules, 'the dialog is not a flex container').toMatch(
-      /display\s*:\s*flex/
+    // Offset-and-translate, because this element's parent is `body` (Dialog.Portal
+    // renders it there) and `align-self`/`justify-self` position a flex or grid
+    // *item*, so they do nothing here.
+    expect(rules, 'the dialog is not offset from the viewport top').toMatch(
+      /top\s*:\s*50%/
     );
-    expect(rules, 'the dialog does not centre its content on the main axis').toMatch(
-      /align-items\s*:\s*center/
+    expect(rules, 'the dialog is not offset from the viewport left').toMatch(
+      /left\s*:\s*50%/
     );
-    expect(rules, 'the dialog does not centre its content on the cross axis').toMatch(
-      /justify-content\s*:\s*center/
+    expect(rules, 'the dialog is not pulled back onto the centre').toMatch(
+      /transform\s*:\s*translate\(-50%,\s*-50%\)/
     );
+  });
+
+  it('stretches its content across the box rather than shrink-wrapping it', () => {
+    // The regression this catches: `align-items: center` on a
+    // `flex-direction: column` container applies to the *cross* axis, which is
+    // horizontal, so the scroll area shrink-wrapped to its text instead of
+    // filling the 800px box. Measured in the browser: an 800px box whose content
+    // was 259px wide, with the photo and info halves at 122px each.
+    const dialog = renderModal();
+    const rules = unconditionalRules(dialog).join('\n');
+
+    expect(rules, 'the dialog is not a column flex container').toMatch(
+      /flex-direction\s*:\s*column/
+    );
+
+    // `stretch` is the initial value, so the correct fix is simply to not set
+    // `align-items` to anything that shrink-wraps.
+    const alignItems = /align-items\s*:\s*([^;]+)/.exec(rules)?.[1]?.trim();
+
+    expect(
+      alignItems,
+      'the dialog centres its content horizontally, so the scroll area shrink-wraps instead of filling the box'
+    ).not.toBe('center');
+    expect(
+      ['flex-start', 'start', 'stretch', 'flex-end', 'end', 'baseline'],
+      `unexpected align-items on the dialog: ${alignItems}`
+    ).toContain(alignItems ?? 'stretch');
   });
 
   it('paints the box, so it reads as a dialog rather than floating text', () => {

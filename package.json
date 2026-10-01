@@ -20,7 +20,8 @@
     "db:baseline": "tsx src/utils/baseline.tsx",
     "db:push": "drizzle-kit push --config=drizzle.config.tsx",
     "db:seed": "tsx src/utils/seed.tsx",
-    "db:studio": "drizzle-kit studio --config=drizzle.config.tsx"
+    "db:studio": "drizzle-kit studio --config=drizzle.config.tsx",
+    "storage:reconcile": "tsx --conditions=react-server src/utils/storage-reconcile.tsx"
   },
   "dependencies": {
     "@faker-js/faker": "^10.4.0",
@@ -41,6 +42,7 @@
     "next-auth": "^4.24.14",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "styled-components": "^6.5.3",
     "uploadthing": "^7.7.4",
     "zod": "^4.6.5"

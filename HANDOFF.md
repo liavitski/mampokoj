@@ -6,9 +6,10 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Branch:** `main`, in sync with `origin/main`
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 235 tests
-  across 27 files, `next build` succeeds.
+- **Branch:** `main`, 2 commits ahead of `origin/main` at time of writing (the
+  upload-orphan fix and the reconcile script), unpushed.
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 253 tests
+  across 28 files, `next build` succeeds.
 - **Database:** one Neon database shared by development and production (§3).
   ~200 generated ads, no real user data.
 
@@ -73,6 +74,16 @@ Then cover, in priority order: browse → region filter → load more → ad det
 intercepting modal → 404 for a deleted ad. Anonymous flows only.
 
 ### 2.3 Smaller items
+
+- **The upload bucket and the database cannot be kept in step, so
+  `pnpm storage:reconcile` exists.** UploadThing stores and bills a file before
+  its row is written; a delete removes the file before the row. Either way an
+  incident — a crash, an outage, a rate limit — leaves one side pointing at
+  nothing, and neither delete flow can see the gap, because both resolve through
+  `images.fileKey`. Dry run by default; `--delete` removes orphans. Not
+  automated and not scheduled: run it by hand after any incident involving
+  uploads or deletes, and before assuming the bucket is empty. It found 0
+  orphans and 0 real dangling rows on the live bucket when it was written.
 
 - **Six contrast failures in the palette, measured, not fixed.** Computed from
   the tokens as they stand. `src/__tests__/contrast.test.ts` asserts a floor
@@ -161,6 +172,23 @@ every navigation. With no consumer, the provider was deleted rather than left
 wrapping the app. If you add a caller that needs `useSession()`, add the
 provider back with it — `signIn`/`signOut` work without one.
 
+**Reconciliation deletes orphans but never dangling rows.** `storage:reconcile.tsx`
+reports a row whose file is missing in the bucket and then leaves it alone. That
+asymmetry is the whole design: a missing file does not prove the row is
+unwanted — a deleted ad's rows, an in-flight UploadThing deletion and genuine
+damage are indistinguishable from outside — and deleting one destroys user data,
+where keeping it costs a broken thumbnail. **Do not "complete" it by deleting
+dangling rows.** The plan lives in `src/utils/storage-reconcile-plan.ts`, which
+is pure and where the reasoning is asserted.
+
+**Seeded rows are excluded from that report, and it is not a filter for taste.**
+Their synthetic `seeded-<uuid>` keys never existed in the bucket, so every seeded
+row is permanently "dangling" by the rule above. Measured against the live
+bucket: without this rule the script reports all 394 seeded rows as damage. Since
+development and production share a database, acting on that report would delete
+a hundred generated listings' worth of rows. If the seed key format in
+`seed-data.ts` ever changes, this prefix has to change with it.
+
 **The header's controls share one box model because there is only one.**
 `HeaderControl.tsx` owns the styling. `ControlLabel` (visible on desktop) and
 `ControlNameOnly` (never visible — the theme toggle's label is a sentence) are
@@ -221,6 +249,16 @@ Each of these cost real time.
 - **`drizzle-kit migrate` exits non-zero on failure but prints nothing about
   what failed.** Diagnosing it means running the SQL by hand.
   (`db:baseline`'s own errors do explain themselves.)
+- **`server-only` is an alias Next provides, not a package that resolves on its
+  own.** Next maps it in the bundler and `vitest.config.mts` maps it to a stub,
+  but `tsx` resolves neither, so a `tsx` script importing any `server-only`
+  module — which includes `src/server/storage.ts` and `attach-image.ts` — fails
+  `MODULE_NOT_FOUND`. It is now a real dependency and `storage:reconcile` passes
+  `--conditions=react-server`, which resolves the marker to its no-op build
+  outside a client graph. Applies to every future `tsx` script that imports one.
+- **`utapi.listFiles` is paginated, and a partial read looks like a bucket full
+  of orphans.** Reconcile pages until `hasMore` is false; without that, every file
+  past the first page looks unreferenced and `--delete` would remove live photos.
 - **Excess-property checking does not reach through `flatMap` inference.** A seed
   builder set a column that does not exist and `tsc` was silent; the insert
   succeeded anyway. That is why the seed tests compare against

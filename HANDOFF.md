@@ -6,26 +6,21 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Branch:** `main`, 2 commits ahead of `origin/main` at time of writing (the
-  upload-orphan fix and the reconcile script), unpushed.
 - **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 253 tests
   across 28 files, `next build` succeeds.
-- **Database:** one Neon database shared by development and production (§3).
-  ~200 generated ads, no real user data.
+- **Database:** one Neon database (`neondb`) shared by development and
+  production (§3). 201 generated ads and 394 images, all seeded, no real
+  mampokoj user data. **It also holds tables this repo does not own** — `users`,
+  `customers`, `invoices`, `revenue`, with rows in them. See §8.
 
 ---
 
 ## 1. Environment facts that will otherwise waste your time
 
-1. **Use `pnpm` 11.1.3.** The global `pnpm` here is 9.0.0 and fails with
-   `ERR_PNPM_UNEXPECTED_STORE`. Run `corepack enable`, or `npx pnpm@11.1.3 <cmd>`.
-2. **`pnpm-workspace.yaml` is not a workspace file** — it exists only to hold
-   `allowBuilds`. Do not add a `packages:` key; this is a single-package repo.
-   `sharp` is intentionally not built (Vercel supplies it for `next/image`).
-3. **Upstash Redis does not resolve from this machine** (`ENOTFOUND`). Anything
+1. **Upstash Redis does not resolve from this machine** (`ENOTFOUND`). Anything
    touching Redis is mocked in tests and has **never run against a live
    instance**. See §2.1.
-4. **Postgres is reachable and `CREATE DATABASE` is permitted**, which is how the
+2. **Postgres is reachable and `CREATE DATABASE` is permitted**, which is how the
    migration work was verified rather than assumed. Two consequences:
    - The connection string uses the **`-pooler` host**. Those sessions outlive
      the process, so a scratch database cannot be dropped until its idle
@@ -124,11 +119,13 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
   model no longer depends on the version. Revisit only if v5 goes stable.
 - **Deferred upgrades**, one per change with a green suite either side: `motion`
   12→13, `eslint` 9→10, `@types/node` 20→26, `typescript` 5→7.
-- **`next@16.3.7`** exists but was published 2026-09-29. This machine's
-  `~/.npmrc` sets `min-release-age=3` days, which pnpm surfaces as
-  `minimumReleaseAge: 4320` minutes. That is a **machine** supply-chain guard,
-  not a repo setting — do not go looking for it in `pnpm-workspace.yaml`, and do
-  not disable it. 16.3.6 is the newest version past that window.
+- **This machine's `~/.npmrc` sets `min-release-age=3` days**, which pnpm
+  surfaces as `minimumReleaseAge: 4320` minutes. A **machine** supply-chain
+  guard, not a repo setting — do not go looking for it in
+  `pnpm-workspace.yaml`, and do not disable it. The effect is that `next` lags
+  npm by up to three days, so a version being installable is not evidence it is
+  the newest. Check `npm view next time` rather than assuming the pinned version
+  is current.
 
 ---
 
@@ -163,7 +160,8 @@ demonstrating itself. **Do not "create a second database" as a fix.** Real users
 appearing is the trigger to revisit. The `SEED_ALLOW` guard
 (`src/utils/seed-guard.ts`) covers CI and a fresh clone but **not** production,
 since `.env` travels to the Vercel host; that limit is stated in the guard's
-header rather than papered over.
+header rather than papered over. The database also holds four tables from
+another project — see §8, which is a sharper risk than this one.
 
 **There is no `SessionProvider`.** `AuthButton` was the last caller of
 `useSession()`; it takes the session as a prop from the layout, so the header is
@@ -325,14 +323,16 @@ reach production without its migration.
 baseline falls out of an empty `drizzle/` offline. No scratch database is needed
 to *write* a migration, only to verify one.
 
-**Dev is baselined. Production is not**, and cannot be until it has its own
-credentials — nothing is blocked on it, since the migration set is a verified
-superset of the schema dev actually has, so the worst case is that production
-needs `pnpm db:baseline` before its first `db:migrate`. On a database that
-predates the migration files, `db:migrate` would try to `CREATE TABLE` and fail;
-`db:baseline` records the baseline without running it, and refuses unless both
-tables are already present, since baselining an empty database would leave
-`db:migrate` convinced the schema exists.
+**The shared database is baselined** — `0000_init` is recorded in
+`drizzle.__drizzle_migrations`, so `db:migrate` runs normally and there is no
+`db:baseline` step in any release. An earlier version of this file claimed
+production was not baselined, which cannot be true while it is the same database
+as development (§3).
+
+For a database that predates the migration files, `db:migrate` would try to
+`CREATE TABLE` and fail; `db:baseline` records the baseline without running it,
+and refuses unless both tables are already present, since baselining an empty
+database would leave `db:migrate` convinced the schema exists.
 
 ---
 
@@ -353,3 +353,43 @@ Two things measured against the live database, so they need not be rediscovered:
 Known related limitation: the lock and the count both key on the OAuth provider
 account id, so a person signing in with both GitHub and Google has two ids and
 can hold 4 ads. Pre-existing, now encoded in the lock key rather than fixed.
+
+---
+
+## 8. The shared database holds data that is not this project's
+
+Measured on the live database, not inferred. `public` contains six tables, and
+only two belong to mampokoj:
+
+| table | rows | owner |
+|---|---|---|
+| `mampokoj_ads` | 201 | this repo, all seeded |
+| `mampokoj_images` | 394 | this repo, all seeded |
+| `users` | 1 | **not this repo** |
+| `customers` | 6 | **not this repo** |
+| `invoices` | 11 | **not this repo** |
+| `revenue` | 12 | **not this repo** |
+
+The database is Neon `neondb`, the first database on the account, so it looks
+like another project sharing the account rather than residue from this one. This
+repo has no schema for those tables and no code that reads or writes them.
+
+**Nothing here should touch them.** Concretely:
+
+- `SEED_ALLOW=neondb` is scoped to *filling this project's tables*, and seeding
+  only inserts into `mampokoj_ads` / `mampokoj_images`. It does not imply
+  anything about the other four tables.
+- **`drizzle-kit push` is the one command that could.** It diffs the live
+  database and drops what it does not recognise, so `pnpm db:push` against this
+  database would propose deleting `users`, `customers`, `invoices` and `revenue`
+  along with their data. `db:generate`/`db:migrate` are safe — they only ever
+  emit `CREATE`/`ALTER` for tables this schema declares. **Prefer `db:migrate`;
+  treat `db:push` as unsafe here even though the README scopes it to "a
+  throwaway local database".**
+- Any future migration needs the same care: a hand-written statement in
+  `drizzle/*.sql` runs against whatever `DATABASE_URL` points at, and those four
+  tables have no migration guarding them.
+
+This is the sharpest edge in the repository. An earlier version of this file
+described the database as holding nothing but generated data; that is true of
+this project's tables and false of the database.

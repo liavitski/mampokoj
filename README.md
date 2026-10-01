@@ -70,7 +70,8 @@ see the note in `src/utils/baseline.tsx`. It is not part of the normal loop.
 
 `pnpm db:push` still exists for a throwaway local database, but it does not
 update migration history, so a database touched by it must not be migrated
-afterwards. Prefer `db:migrate`.
+afterwards. Prefer `db:migrate`. **Never run `db:push` against the shared
+database** — see below.
 
 ## Environment Variables
 
@@ -84,6 +85,13 @@ site demonstrates itself. The trade-off is that `pnpm db:seed` writes to
 production too, and `pnpm db:migrate` migrates production. Both are safe only
 while that database holds nothing but generated data. If real users appear, add
 a second database rather than relying on that.
+
+**That database holds more than this project.** `neondb` also contains `users`,
+`customers`, `invoices` and `revenue` tables, with rows in them, belonging to
+another project on the same Neon account. This app neither reads nor writes
+them, and seeding leaves them alone — but `pnpm db:push` diffs the live database
+and would propose dropping them. Use `db:migrate`; see
+[HANDOFF.md](HANDOFF.md) §8.
 
 Read directly in `src/`:
 
@@ -129,9 +137,10 @@ OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 | `pnpm db:generate` | Write a migration from the schema into `drizzle/` |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:baseline` | Record the baseline as applied on a database that predates migrations |
-| `pnpm db:push` | Push the schema directly, without recording history |
+| `pnpm db:push` | Push the schema directly, without recording history. **Unsafe on the shared database** — see above |
 | `pnpm db:seed` | Insert 100 fake ads and their images |
 | `pnpm db:studio` | Drizzle Studio |
+| `pnpm storage:reconcile` | Report (and with `--delete` remove) upload-bucket files no database row references |
 
 ## Testing
 
@@ -139,7 +148,7 @@ OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 pnpm test
 ```
 
-135 tests across 17 files, using Vitest with Testing Library. Tests live in
+253 tests across 28 files, using Vitest with Testing Library. Tests live in
 `__tests__` folders next to the code they cover, mirroring the source tree.
 
 Two conventions are worth knowing before adding tests:
@@ -172,6 +181,7 @@ src/
     actions/              server actions (mutations)
     queries/select.tsx    reads
     upload-guard.ts       pre-upload admission checks
+    storage.ts            UploadThing server SDK
     db/                   drizzle client + schema
   types/                  shared types
   test/                   test helpers

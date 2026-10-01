@@ -9,9 +9,8 @@ current shape, the code says so.
 - **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 253 tests
   across 28 files, `next build` succeeds.
 - **Database:** one Neon database (`neondb`) shared by development and
-  production (§3). 201 generated ads and 394 images, all seeded, no real
-  mampokoj user data. **It also holds tables this repo does not own** — `users`,
-  `customers`, `invoices`, `revenue`, with rows in them. See §8.
+  production (§3). 201 generated ads and 394 images, all seeded, no real mampokoj
+  user data. Also holds 128 KB of abandoned tables from two older projects (§8).
 
 ---
 
@@ -157,11 +156,12 @@ mutual exclusion outside the database, hence Redis.
 `DATABASE_URL` points at the dev database and `.env` is copied to the Vercel
 host. Kept, because for a portfolio project with no real users production keeps
 demonstrating itself. **Do not "create a second database" as a fix.** Real users
-appearing is the trigger to revisit. The `SEED_ALLOW` guard
-(`src/utils/seed-guard.ts`) covers CI and a fresh clone but **not** production,
-since `.env` travels to the Vercel host; that limit is stated in the guard's
-header rather than papered over. The database also holds four tables from
-another project — see §8, which is a sharper risk than this one.
+appearing is the trigger to revisit — not the Free plan, which allows 100
+projects and this database is 8.4 MB, so sharing is a choice here rather than a
+constraint. The `SEED_ALLOW` guard (`src/utils/seed-guard.ts`) covers CI and a
+fresh clone but **not** production, since `.env` travels to the Vercel host; that
+limit is stated in the guard's header rather than papered over. The database also
+serves other projects on the account, isolated by table prefix; see §8.
 
 **There is no `SessionProvider`.** `AuthButton` was the last caller of
 `useSession()`; it takes the session as a prop from the layout, so the header is
@@ -257,6 +257,13 @@ Each of these cost real time.
 - **`utapi.listFiles` is paginated, and a partial read looks like a bucket full
   of orphans.** Reconcile pages until `hasMore` is false; without that, every file
   past the first page looks unreferenced and `--delete` would remove live photos.
+- **`db:migrate` can be a silent no-op, because the migration ledger is not
+  prefixed.** `drizzle.__drizzle_migrations` is named by library default, so it
+  is *not* covered by the `mampokoj_` table prefix, and the migrator reads
+  **only the newest row** to decide what is pending. A newer row written by
+  another drizzle project on this same database makes this repo's `db:migrate`
+  apply nothing, print nothing and exit 0. Nothing on this database does that
+  today (§8), but it is the symptom to recognise the day one starts.
 - **Excess-property checking does not reach through `flatMap` inference.** A seed
   builder set a column that does not exist and `tsc` was silent; the insert
   succeeded anyway. That is why the seed tests compare against
@@ -329,6 +336,10 @@ to *write* a migration, only to verify one.
 production was not baselined, which cannot be true while it is the same database
 as development (§3).
 
+That ledger is unprefixed and therefore shared with any future drizzle project
+on this database; a newer row elsewhere would make `db:migrate` skip everything
+silently. Nothing does today — see §8.
+
 For a database that predates the migration files, `db:migrate` would try to
 `CREATE TABLE` and fail; `db:baseline` records the baseline without running it,
 and refuses unless both tables are already present, since baselining an empty
@@ -356,40 +367,52 @@ can hold 4 ads. Pre-existing, now encoded in the lock key rather than fixed.
 
 ---
 
-## 8. The shared database holds data that is not this project's
+## 8. This database holds leftovers from two abandoned projects
 
-Measured on the live database, not inferred. `public` contains six tables, and
-only two belong to mampokoj:
+`neondb` is shared across several of this owner's projects by choice, and the
+`mampokoj_` table prefix keeps them apart. Four tables in `public` are **not**
+this repo's, and one schema is empty:
 
-| table | rows | owner |
+| object | rows | what it is |
 |---|---|---|
 | `mampokoj_ads` | 201 | this repo, all seeded |
 | `mampokoj_images` | 394 | this repo, all seeded |
-| `users` | 1 | **not this repo** |
-| `customers` | 6 | **not this repo** |
-| `invoices` | 11 | **not this repo** |
-| `revenue` | 12 | **not this repo** |
+| `users`, `customers`, `invoices`, `revenue` | 1 / 6 / 11 / 12 | a tutorial project, **abandoned** |
+| `roomFinder` (schema) | empty | an older project, **abandoned** |
 
-The database is Neon `neondb`, the first database on the account, so it looks
-like another project sharing the account rather than residue from this one. This
-repo has no schema for those tables and no code that reads or writes them.
+They are residue, not live neighbours. They carry no foreign keys to each other
+or to anything else, so dropping them would break no constraint — but there is
+also no reason to, at 128 KB total against a 1 GB per-project Free allowance.
+**Do not write a migration that drops them.** They are not this repo's to delete,
+§5's rule against an unscoped `db.delete` applies with extra force, and a
+migration is permanent while a manual `DROP TABLE` is one command you can see
+first.
 
-**Nothing here should touch them.** Concretely:
+### Isolation, and the one gap in it
 
-- `SEED_ALLOW=neondb` is scoped to *filling this project's tables*, and seeding
-  only inserts into `mampokoj_ads` / `mampokoj_images`. It does not imply
-  anything about the other four tables.
-- **`drizzle-kit push` is the one command that could.** It diffs the live
-  database and drops what it does not recognise, so `pnpm db:push` against this
-  database would propose deleting `users`, `customers`, `invoices` and `revenue`
-  along with their data. `db:generate`/`db:migrate` are safe — they only ever
-  emit `CREATE`/`ALTER` for tables this schema declares. **Prefer `db:migrate`;
-  treat `db:push` as unsafe here even though the README scopes it to "a
-  throwaway local database".**
-- Any future migration needs the same care: a hand-written statement in
-  `drizzle/*.sql` runs against whatever `DATABASE_URL` points at, and those four
-  tables have no migration guarding them.
+Isolation is **by table prefix**, and it holds. `pgTableCreator` in `schema.ts`
+renames every table to `mampokoj_*`, and `drizzle.config.tsx` sets
+`tablesFilter: ['mampokoj_*']` to match. The filter is applied when drizzle-kit
+introspects the live database, so unprefixed tables are never read and cannot
+appear in a diff.
 
-This is the sharpest edge in the repository. An earlier version of this file
-described the database as holding nothing but generated data; that is true of
-this project's tables and false of the database.
+**`pnpm db:push` is therefore safe here.** An earlier version of this file claimed
+it would drop `users`, `customers`, `invoices` and `revenue`, and the README
+repeated it. That was wrong — it assumed `push` diffs the entire database, and
+the filter stops it well before that.
+
+The prefix does **not** cover one thing: `drizzle.__drizzle_migrations` is a
+single unprefixed table, named by library default (`migrationsTable ??
+"__drizzle_migrations"`, `migrationsSchema ?? "drizzle"` in
+`drizzle-orm/neon-http/migrator.cjs`), and the migrator decides what to run from
+**only the newest row** (`order by created_at desc limit 1`). A newer row written
+by any other drizzle project on this database would make `db:migrate` skip
+everything here — silently, no error, no tables created.
+
+**That cannot happen today:** measured, there is exactly one migration table in
+the whole database and it holds one row, this repo's `0000_init`. The abandoned
+projects never ran drizzle's migrator. It becomes real only if a *new* project
+starts using drizzle against this same database — which is the moment to set
+`migrationsSchema: 'mampokoj_drizzle'` in `drizzle.config.tsx` **and** the
+matching `MIGRATIONS_SCHEMA` in `src/utils/baseline.tsx`, before its first
+migration.

@@ -70,8 +70,7 @@ see the note in `src/utils/baseline.tsx`. It is not part of the normal loop.
 
 `pnpm db:push` still exists for a throwaway local database, but it does not
 update migration history, so a database touched by it must not be migrated
-afterwards. Prefer `db:migrate`. **Never run `db:push` against the shared
-database** — see below.
+afterwards. Prefer `db:migrate`.
 
 ## Environment Variables
 
@@ -86,12 +85,11 @@ production too, and `pnpm db:migrate` migrates production. Both are safe only
 while that database holds nothing but generated data. If real users appear, add
 a second database rather than relying on that.
 
-**That database holds more than this project.** `neondb` also contains `users`,
-`customers`, `invoices` and `revenue` tables, with rows in them, belonging to
-another project on the same Neon account. This app neither reads nor writes
-them, and seeding leaves them alone — but `pnpm db:push` diffs the live database
-and would propose dropping them. Use `db:migrate`; see
-[HANDOFF.md](HANDOFF.md) §8.
+**That database is also used by other projects** on the same Neon account, which
+is why every table here is prefixed `mampokoj_` and `drizzle.config.tsx` filters
+on that prefix — so migrations and `db:push` cannot see anyone else's tables.
+Four unprefixed tables remain from abandoned projects; this app neither reads nor
+writes them, and they are left alone. See [HANDOFF.md](HANDOFF.md) §8.
 
 Read directly in `src/`:
 
@@ -137,7 +135,7 @@ OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 | `pnpm db:generate` | Write a migration from the schema into `drizzle/` |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:baseline` | Record the baseline as applied on a database that predates migrations |
-| `pnpm db:push` | Push the schema directly, without recording history. **Unsafe on the shared database** — see above |
+| `pnpm db:push` | Push the schema directly, without recording history |
 | `pnpm db:seed` | Insert 100 fake ads and their images |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm storage:reconcile` | Report (and with `--delete` remove) upload-bucket files no database row references |

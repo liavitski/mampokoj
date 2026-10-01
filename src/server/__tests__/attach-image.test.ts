@@ -7,7 +7,7 @@ const { mocks, dbMock } = vi.hoisted(() => {
   const insert = vi.fn(() => ({ values: vi.fn(async () => undefined) }));
 
   return {
-    mocks: { findAdOwnedByUser, insert },
+    mocks: { findAdOwnedByUser, insert, deleteFiles: vi.fn() },
     dbMock: { insert },
   };
 });
@@ -17,6 +17,9 @@ vi.mock('@/server/db', () => ({ db: dbMock }));
 // src/lib/__tests__/ads.test.ts for how that predicate is verified.
 vi.mock('@/lib/ads', () => ({
   findAdOwnedByUser: mocks.findAdOwnedByUser,
+}));
+vi.mock('@/server/storage', () => ({
+  utapi: { deleteFiles: mocks.deleteFiles },
 }));
 
 const { addImageToAd } = await import('../attach-image');
@@ -87,6 +90,52 @@ describe('addImageToAd', () => {
 
     expect(result.success).toBe(false);
     expect(JSON.stringify(result)).not.toContain('mampokoj_images_filekey_key');
+  });
+});
+
+describe('addImageToAd compensates a failed attach', () => {
+  // UploadThing has already stored and billed for the file by the time this
+  // runs. Without compensation every failure here left a file in the bucket
+  // that no database row referenced and neither delete flow could ever see,
+  // because both of those work from `images.fileKey`.
+  it('removes the uploaded file when the insert fails', async () => {
+    mocks.insert.mockImplementationOnce(() => {
+      throw new Error('duplicate key value violates unique constraint');
+    });
+
+    await addImageToAd({ adId: AD_ID, ...IMAGE });
+
+    expect(mocks.deleteFiles).toHaveBeenCalledWith('key-1');
+  });
+
+  it('removes the uploaded file when the ad turns out not to be the caller’s', async () => {
+    // The ad can be deleted between the middleware settling ownership and this
+    // callback running, so the re-check here is the one that can refuse.
+    mocks.findAdOwnedByUser.mockResolvedValue(null);
+
+    await addImageToAd({ adId: AD_ID, ...IMAGE });
+
+    expect(mocks.deleteFiles).toHaveBeenCalledWith('key-1');
+  });
+
+  it('leaves the file in place when the attach succeeds', async () => {
+    await addImageToAd({ adId: AD_ID, ...IMAGE });
+
+    expect(mocks.deleteFiles).not.toHaveBeenCalled();
+  });
+
+  it('still reports the failure when the compensating delete also fails', async () => {
+    // The compensation is best-effort. If it throws, the upload callback has to
+    // fail loudly rather than report success, or UploadThing keeps the file and
+    // the client is told the photo was saved.
+    mocks.insert.mockImplementationOnce(() => {
+      throw new Error('insert failed');
+    });
+    mocks.deleteFiles.mockRejectedValueOnce(new Error('uploadthing is down'));
+
+    const result = await addImageToAd({ adId: AD_ID, ...IMAGE });
+
+    expect(result.success).toBe(false);
   });
 });
 

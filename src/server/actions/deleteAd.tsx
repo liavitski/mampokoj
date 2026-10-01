@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { ads, images } from '../db/schema';
 import { findAdOwnedByCurrentUser } from '@/lib/ads';
-import { utapi } from '@/app/api/uploadthing/core';
+import { utapi } from '@/server/storage';
 
 export async function deleteAdById(adId: string) {
   const owned = await findAdOwnedByCurrentUser(adId);

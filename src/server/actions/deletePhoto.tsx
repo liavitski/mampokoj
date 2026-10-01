@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { db } from '@/server/db';
 import { ads, images } from '@/server/db/schema';
 import { requireUserId } from '@/lib/session';
-import { utapi } from '@/app/api/uploadthing/core';
+import { utapi } from '@/server/storage';
 
 /** UploadThing file keys are URL-safe base64. */
 const fileKeySchema = z

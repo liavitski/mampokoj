@@ -22,7 +22,7 @@ vi.mock('@/server/db', () => ({ db: dbMock }));
 vi.mock('@/lib/ads', () => ({
   findAdOwnedByCurrentUser: mocks.findAdOwnedByCurrentUser,
 }));
-vi.mock('@/app/api/uploadthing/core', () => ({
+vi.mock('@/server/storage', () => ({
   utapi: { deleteFiles: mocks.deleteFiles },
 }));
 

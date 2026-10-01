@@ -43,7 +43,7 @@ vi.mock('@/server/db', () => ({ db: dbMock }));
 vi.mock('@/lib/session', () => ({
   requireUserId: mocks.requireUserId,
 }));
-vi.mock('@/app/api/uploadthing/core', () => ({
+vi.mock('@/server/storage', () => ({
   utapi: { deleteFiles: mocks.deleteFiles },
 }));
 

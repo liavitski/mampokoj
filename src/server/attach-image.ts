@@ -3,6 +3,7 @@ import 'server-only';
 import { db } from '@/server/db';
 import { images } from '@/server/db/schema';
 import { findAdOwnedByUser } from '@/lib/ads';
+import { utapi } from '@/server/storage';
 
 export type AddImageToAdProps = {
   adId: string;
@@ -46,6 +47,8 @@ export async function addImageToAd({
   const owned = await findAdOwnedByUser(adId, userId);
 
   if (!owned) {
+    await discardUpload(fileKey);
+
     return { success: false, error: 'Not found' };
   }
 
@@ -58,6 +61,28 @@ export async function addImageToAd({
     // message can name tables, columns and constraints.
     console.error('Failed to attach image to ad', adId);
 
+    await discardUpload(fileKey);
+
     return { success: false, error: 'Could not save the image' };
+  }
+}
+
+/**
+ * Removes an uploaded file that has no database row pointing at it.
+ *
+ * UploadThing has already stored and billed for the file before this runs, and
+ * both delete flows work from `images.fileKey`, so an uncompensated failure here
+ * leaves a file in the bucket that nothing in the database can ever reach. It
+ * is billed forever.
+ *
+ * Best-effort by design. A failure here is logged and swallowed so the caller
+ * still receives the real reason the attach failed; the orphan this leaves is
+ * what `pnpm storage:reconcile` exists to clean up.
+ */
+async function discardUpload(fileKey: string): Promise<void> {
+  try {
+    await utapi.deleteFiles(fileKey);
+  } catch {
+    console.error('Failed to discard an unattached upload');
   }
 }

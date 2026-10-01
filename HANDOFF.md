@@ -6,8 +6,8 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 253 tests
-  across 28 files, `next build` succeeds.
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 272 tests
+  across 33 files, `next build` succeeds.
 - **Database:** one Neon database (`neondb`) shared by development and
   production (§3). 201 generated ads and 394 images, all seeded, no real mampokoj
   user data. Also holds 128 KB of abandoned tables from two older projects (§8).
@@ -35,8 +35,9 @@ current shape, the code says so.
 
 ## 2. Open work
 
-Nothing is blocking. The ad-limit invariant in §7 is the natural next *schema*
-change, now that migrations exist.
+**The next session should start at §9** — the app runs, but these are the gaps
+between a portfolio demo and a site with real landlords on it. Everything in §2.1
+to §2.3 is still open and none of it blocks.
 
 ### 2.1 The Lua release script has still never been executed
 
@@ -105,10 +106,6 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
   attribute set in `Modal.tsx` and selected in `AdCardCompact.styles.tsx` — rename
   it in one file without the other and the dialog draws a card within a card.
 
-- **`contactPhone` is visible to any signed-in user, not just the owner.**
-  Predates the review work and looks intentional. If the threat model is
-  "contact data must not leak", gate it on
-  `currentUser?.userId === ad.userId` in `AdCardCompact.tsx`.
 - **`next-auth` v5** is `5.0.0-beta.32` — beta after three years. The ownership
   model no longer depends on the version. Revisit only if v5 goes stable.
 - **Deferred upgrades**, one per change with a green suite either side: `motion`
@@ -411,3 +408,85 @@ starts using drizzle against this same database — which is the moment to set
 `migrationsSchema: 'mampokoj_drizzle'` in `drizzle.config.tsx` **and** the
 matching `MIGRATIONS_SCHEMA` in `src/utils/baseline.tsx`, before its first
 migration.
+
+---
+
+## 9. Taking real users: what stands between this and a live site
+
+The app runs, and the authorization core is genuinely solid — ownership is
+settled in the query predicate rather than after the read, and the public payload
+is allowlisted twice. That part needs no work.
+
+What follows is what changes when the users are real landlords rather than
+seeded rows. Ordered by how much damage each one does, not by effort.
+
+### 9.1 Blocking: `contactPhone` reaches every signed-in visitor
+
+`getValidatedAd` (`select.tsx:98`) selects the whole row, and both cards render
+`currentUser ? formattedPhone : …` — so *any* signed-in user sees *any* ad's
+number. Not the owner. Anyone with a GitHub account.
+
+The list API is correct (`publicAdColumns` excludes it, `select.tsx:18`) and
+`toPublicAd` strips it as a second barrier. The single-ad path is the hole.
+
+The blur in `BlurredPhone` does **not** help here and is not the fix: it blurs
+what is already in the HTML. Fixing this means not selecting the column for
+non-owners, or selecting it only when the caller owns the ad.
+
+### 9.2 Blocking: the ad limit fails open, and nothing else rate-limits creation
+
+`withUserLock` runs the critical section **unserialized** when Redis is
+unreachable (`user-lock.ts:228-240`). Deliberate — a soft quota should not become
+an availability dependency — and fine while the only adversary is a bored user.
+
+Two things make it a real hole now:
+
+- **There is no rate limit on `createAd` at all.** `ratelimit` is wired only into
+  `checkUploadAdmission`; the create action has the lock and nothing else.
+- So an outage, or anyone who can make Redis unreachable, means unlimited ads per
+  account. The limit is the only thing standing between a spammer and a thousand
+  listings.
+
+The fix that removes the dependency rather than adding one is §7: a `slot
+smallint` with `UNIQUE(userId, slot)` and retry-on-conflict, which Postgres
+enforces without transactions or Redis. The measured backfill is in §7 and the
+backfill is unobstructed.
+
+### 9.3 Then: no moderation, no reporting, no admin
+
+Anyone can post any phone number. When a scam ad goes up there is no flag to click
+and no query to answer "what do we take down" — the remedy is a hand-written
+`DELETE`.
+
+A site this size does not need an admin UI. A `reportedAt` column, a report
+button on the public card, and one query covers it.
+
+### 9.4 Then: Redis has never run against a live instance
+
+`ENOTFOUND` from this machine (§1, item 3). Every rate-limit and lock path is
+mocked; `RELEASE_SCRIPT` has never executed (§2.1). The mechanism meant to be the
+primary abuse defence is **unverified in production**, which is a different and
+weaker claim than "well tested against a fake".
+
+A working `UPSTASH_REDIS_REST_URL`, or a local Redis behind an HTTP shim, closes
+this. Half a day.
+
+### 9.5 Worth doing, not blocking
+
+- **Two providers means two identities.** GitHub *and* Google gives two ids, so
+  four ads instead of two (`user-lock.ts:149-152`). A real user hits this by
+  accident. Needs account linking, or one provider.
+- **No account deletion.** Name, OAuth id and phone are stored with no erasure
+  path. `deleteAdById` covers one ad, not the account.
+- **No email contact channel**, which is also the only route to verifying that a
+  poster controls the number they published.
+
+### 9.6 Not on this list, deliberately
+
+- **A database-enforced ad limit** — that is §7, and it is the fix for 9.2 rather
+  than a separate project.
+- **An admin UI** — see 9.3; the column and the query are the actual requirement.
+- **The dev/prod database split** — §3 explains why it is a deliberate choice, and
+  §8 covers the sharing. Real users appearing *is* the trigger to revisit, so it
+  belongs on this list in spirit, but it is a database-provisioning task rather
+  than an application change.

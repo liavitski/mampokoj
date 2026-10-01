@@ -7,6 +7,7 @@ import type { AdWithoutUserId } from '@/types/db-types';
 import { getSessionUser } from '@/lib/session';
 
 import AdPhotosGallery from '../AdPhotosGallery';
+import BlurredPhone from '../BlurredPhone';
 import {
   Wrapper,
   InfoWrapper,
@@ -53,7 +54,16 @@ async function AdCardCompact({ ad }: AdCardProps) {
         </City>
         <ContactPhone>
           <span>Contact:</span>
-          {currentUser ? formattedPhone : 'Log in to see the contact'}
+          {/*
+            Signed out: the digits are never rendered, so there is nothing to
+            blur. Signed in: blurred until clicked. See BlurredPhone for why the
+            blur is a courtesy and not a gate -- the number is in the HTML.
+          */}
+          {currentUser ? (
+            <BlurredPhone phone={formattedPhone} />
+          ) : (
+            'Log in to see the contact'
+          )}
         </ContactPhone>
 
         <Price>

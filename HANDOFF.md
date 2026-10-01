@@ -100,15 +100,31 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
   is not the page colour" rather than a threshold it cannot reach. Raising
   `--color-border-input` in both themes is the actual fix.
 
-- **`Modal`'s content box is wrong, deliberately not fixed.** `Modal.tsx` sets
-  `position: fixed; inset: 0` with `align-self`/`justify-self: center`, which do
-  nothing because the element is not a flex container. The dialog is a
-  full-viewport *transparent* box, so its `border-radius` and `max-height` apply
-  to nothing visible. `AdCardCompact` centres itself in it and reads correctly;
-  the overlay itself is still a screen-sized element with no background. Fixing
-  it means making `Content` a real centring flex container and constraining
-  `ScrollArea`, which changes how every dialog positions its content — its own
-  pass, not a drive-by.
+- **`Modal` is now a fixed-size box; the sizing decision lives in two files.**
+  It was `position: fixed; inset: 0` with `align-self`/`justify-self: center`,
+  both inert on a `position: fixed` element whose parent is `body` — so it was a
+  transparent viewport-sized box whose `border-radius` and `max-height` applied
+  to nothing visible, and the dialog's size came entirely from its content. Fixed:
+  `Content` has its own `width`/`height` (`min(800px, …)` / `min(720px, …)`), its
+  own surface, and centres with `top/left` + `translate`.
+
+  Two things to know before changing it. **`Content` and `AdCardCompact`'s
+  `Wrapper` each own half the box**, coordinated by a `data-modal-box` attribute
+  that `Modal.tsx` sets and `AdCardCompact.styles.tsx` selects on: inside the
+  dialog the card drops its own background/border/padding and takes
+  `min-height: 100%`, because the box supplies both. Rename that attribute
+  without updating the other file and you get a card within a card. And **a
+  comment inside a styled-components template literal cannot contain a
+  backtick** — it closes the string and the parse error points at an unrelated
+  line. Both are covered by tests.
+
+- **jsdom computes no layout, so a CSS test must read the stylesheet.**
+  `Modal.test.tsx` and `AdCardCompact.styles.test.tsx` assert on injected rules
+  and `getComputedStyle` rather than measuring. Two traps found while writing
+  them: the CSSOM does not round-trip declarations (`border: none` serialises as
+  `border: medium`, a *width*), and `getComputedStyle` reports a transparent
+  background as `rgba(0, 0, 0, 0)`, not the `transparent` keyword. Asserting the
+  source text passes and asserts nothing.
 
 - **`contactPhone` is visible to any signed-in user, not just the owner.**
   Predates the review work and looks intentional. If the threat model is
@@ -219,6 +235,16 @@ Each of these cost real time.
   appearing only inside a `<script>` is dead CSS.
 - **Global rules are in `src/app/globals.css`** — same failure one level up; a
   stylesheet linked from `<head>` cannot regress it and needs no boundary.
+- **A backtick inside a styled-components comment ends the stylesheet.** The
+  comment lives inside a template literal, so it closes the string there and the
+  parse error is reported on some later, unrelated line. This cost two build
+  failures in `Modal.tsx` and `AdCardCompact.styles.tsx`. It is invisible to
+  review because the comment reads fine; `tsc` and ESLint both accept the file up
+  to the point the parser gives up.
+- **`inset: 0` plus `align-self: center` centres nothing.** Those alignment
+  properties position a flex or grid *item*; on a `position: fixed` element whose
+  parent is `body` they do nothing, and an explicit `width` alongside `inset: 0`
+  pins the box to the top-left corner. Centre with `top/left` + `translate`.
 - **A custom property that resolves to nothing is silent.** For an inherited
   property the declaration is simply invalid at computed-value time and the
   element keeps its parent's value. `src/__tests__/tokens.test.ts` fails on this.

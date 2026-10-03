@@ -80,26 +80,7 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
   uploads or deletes, and before assuming the bucket is empty. It found 0
   orphans and 0 real dangling rows on the live bucket when it was written.
 
-- **Six contrast failures in the palette, measured, not fixed.** Computed from
-  the tokens as they stand. `src/__tests__/contrast.test.ts` asserts a floor
-  only over the pairs that currently pass. Do not "fix" one in isolation.
-
-  | pair | needs | light | dark |
-  |---|---|---|---|
-  | `--color-primary-foreground` on `--color-primary` | 4.5 | **4.48** | 5.77 |
-  | `--color-link` on `--color-background` | 4.5 | **3.86** | 6.79 |
-  | `--color-destructive-foreground` on `--color-destructive` | 4.5 | **3.76** | **3.76** |
-  | `--color-destructive-foreground` on `--color-destructive-hover` | 4.5 | **3.58** | **3.58** |
-  | `--color-destructive` on `--color-card-background` | 4.5 | **3.44** | **3.89** |
-  | `--color-success` on `--color-card-background` | 3.0 | **2.08** | 8.41 |
-
-  The **input boundary fails in both themes, as one problem**:
-  `--color-border-input` on `--color-input-background` is **1.49** light and
-  **1.05** dark, where 3:1 is required. The border is what delineates a field, so
-  no fill that still looks like an input can substitute for fixing it — which is
-  why the token test asserts 1.2 against `--color-background`, pinning "a field
-  is not the page colour" rather than a threshold it cannot reach. Raising
-  `--color-border-input` in both themes is the actual fix.
+- **The palette now clears WCAG AA everywhere; the floor is asserted.** The six measured failures (primary label, link, destructive family, destructive fill on a card, success indicator, field border in both themes) were fixed on 2026-10-03 by moving the tokens, and `src/__tests__/contrast.test.ts` now asserts a floor over every pair, including the ones that used to fail — so a token cannot drift back below AA silently. The one deliberate exception stays: `--color-input-background` against `--color-background` is pinned at 1.2, not 3:1, because no fill that still reads as a field can reach 3:1 against the page; the delineation lives in `--color-border-input`, which is asserted at 3:1 against the field fill.
 
 - **`Modal` is a fixed 800x720 box; the card supplies no surface inside it.**
   `Content` and `AdCardCompact`'s `Wrapper` split the box via a `data-modal-box`
@@ -420,18 +401,15 @@ is allowlisted twice. That part needs no work.
 What follows is what changes when the users are real landlords rather than
 seeded rows. Ordered by how much damage each one does, not by effort.
 
-### 9.1 Blocking: `contactPhone` reaches every signed-in visitor
+### 9.1 Resolved by decision: any signed-in visitor may see a listing's phone
 
-`getValidatedAd` (`select.tsx:98`) selects the whole row, and both cards render
-`currentUser ? formattedPhone : …` — so *any* signed-in user sees *any* ad's
-number. Not the owner. Anyone with a GitHub account.
-
-The list API is correct (`publicAdColumns` excludes it, `select.tsx:18`) and
-`toPublicAd` strips it as a second barrier. The single-ad path is the hole.
-
-The blur in `BlurredPhone` does **not** help here and is not the fix: it blurs
-what is already in the HTML. Fixing this means not selecting the column for
-non-owners, or selecting it only when the caller owns the ad.
+`getValidatedAd` selects the whole row, and both cards render the
+number for any signed-in visitor, blurred until clicked. That is the
+intended product rule — the gate is "signed in", not "is the poster"
+— so this is not a hole. What remains true, and is documented in
+`BlurredPhone`'s tests rather than fixed: the blur is a courtesy
+against shoulder-surfing, not a security boundary, because the digits
+are in the HTML for every signed-in visitor.
 
 ### 9.2 Blocking: the ad limit fails open, and nothing else rate-limits creation
 

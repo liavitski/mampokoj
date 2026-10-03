@@ -12,26 +12,13 @@
  * Thresholds are WCAG 2.1 AA: 4.5:1 for body text, 3:1 for a boundary or
  * other non-text element (1.4.11).
  *
- * MEASURED FAILURES, not asserted, so they are on the record rather than
- * silently absent. Each was computed from these same token values:
- *
- *   text, 4.5:1 needed
- *     --color-primary-foreground  on --color-primary          4.48 light
- *     --color-link                on --color-background       3.86 light
- *     --color-destructive-foreground on --color-destructive   3.76 both
- *     --color-destructive-foreground on --color-destructive-hover  3.58 both
- *     --color-destructive         on --color-card-background 3.44 light, 3.89 dark
- *
- *   non-text, 3:1 needed
- *     --color-input-background    on --color-background       1.36 light
- *     --color-border-input        on --color-input-background 1.49 light, 1.05 dark
- *     --color-success             on --color-card-background 2.08 light
- *
- * The input rows fail together and for one reason: `--color-border-input` is
- * what delineates a field, and it is nearly invisible in both themes. Moving
- * `--color-input-background` cannot fix that on its own. `--color-success`
- * fails only in light mode, where `#22c55e` is too light against a near-white
- * card.
+ * The rows after the focus ring were measured failures of the palette as it
+ * stood until 2026-10-03 -- each was computed from the token values then in
+ * `constants.tsx` and is now asserted, so a token cannot drift back below AA
+ * without this file going red. The destructive rows diverge between the
+ * themes on purpose: dark mode runs a light fill with a dark label (as
+ * `--color-primary` always has there), because in dark mode no single red
+ * clears 4.5:1 against both a white label and the dark card behind it.
  */
 import { describe, it, expect } from 'vitest';
 import { LIGHT_TOKENS, DARK_TOKENS } from '@/constants';
@@ -126,13 +113,14 @@ const PAIRS: Pair[] = [
   { what: 'field placeholder', foreground: '--color-text-muted-foreground', background: '--color-input-background', min: AA_TEXT },
   { what: 'active region in the nav', foreground: '--color-secondary-foreground', background: '--color-secondary', min: AA_TEXT },
   // A regression guard, not an AA floor. AA wants 3:1 for a boundary and no
-  // fill this dark can reach that against `--color-background` -- the border is
-  // what delineates a field, and that is the separate failure listed above. What
-  // this pins is the bug that actually shipped: `--color-input-background`
-  // used to be `--color-primary-foreground`, which in dark mode was *the same
-  // colour as the page* (1.00:1), so the fields were not merely low contrast,
-  // they were absent. 1.2 is loose against the 1.26 light mode has always
-  // managed, and tight enough that a field cannot go back to vanishing.
+  // fill this dark can reach that against `--color-background` -- the thing
+  // that delineates a field is `--color-border-input`, asserted at 3:1
+  // against the field fill below. What this pins is the bug that actually
+  // shipped: `--color-input-background` used to be `--color-primary-foreground`,
+  // which in dark mode was *the same colour as the page* (1.00:1), so the
+  // fields were not merely low contrast, they were absent. 1.2 is loose
+  // against the 1.26 light mode has always managed, and tight enough that a
+  // field cannot go back to vanishing.
   {
     what: 'form field surface vs the page behind it',
     foreground: '--color-input-background',
@@ -141,6 +129,55 @@ const PAIRS: Pair[] = [
   },
   // Focus ring is a non-text indicator and must be visible against the page.
   { what: 'focus ring', foreground: '--color-focus-ring', background: '--color-background', min: AA_NON_TEXT },
+  // The primary fill and the label it carries.
+  {
+    what: 'label on the primary fill',
+    foreground: '--color-primary-foreground',
+    background: '--color-primary',
+    min: AA_TEXT,
+  },
+  // Links, at rest and hovered, against the page they sit on. The hover is
+  // a row of its own because a hover that is lighter than its link is a
+  // hover that got harder to read.
+  { what: 'link on the page', foreground: '--color-link', background: '--color-background', min: AA_TEXT },
+  { what: 'link on hover', foreground: '--color-link-hover', background: '--color-background', min: AA_TEXT },
+  // The destructive family: the label on the fill, and the fill on the card
+  // the destructive control sits on.
+  {
+    what: 'label on the destructive fill',
+    foreground: '--color-destructive-foreground',
+    background: '--color-destructive',
+    min: AA_TEXT,
+  },
+  {
+    what: 'label on the destructive hover fill',
+    foreground: '--color-destructive-foreground',
+    background: '--color-destructive-hover',
+    min: AA_TEXT,
+  },
+  {
+    what: 'destructive fill on a card',
+    foreground: '--color-destructive',
+    background: '--color-card-background',
+    min: AA_TEXT,
+  },
+  // The success indicator is an icon, so the floor is the non-text one.
+  {
+    what: 'success indicator on a card',
+    foreground: '--color-success',
+    background: '--color-card-background',
+    min: AA_NON_TEXT,
+  },
+  // The border is what delineates a field, so it must read against the fill
+  // it outlines. No fill that still looks like an input can substitute for
+  // this, which is why the guard above pins the field surface at 1.2 against
+  // the page rather than at a threshold it cannot reach.
+  {
+    what: 'field border on the field fill',
+    foreground: '--color-border-input',
+    background: '--color-input-background',
+    min: AA_NON_TEXT,
+  },
 ];
 
 const THEMES = [

@@ -17,22 +17,33 @@ export const LIGHT_COLORS = {
   '--color-text-foreground': '#1e293b',
   '--color-background': 'hsl(20deg 5.8% 90%)',
   '--color-text-muted-foreground': '#6b7280',
-  '--color-link': 'hsl(220deg 9% 46%)',
-  '--color-link-hover': 'hsl(220deg 9% 56%)',
+  // 46% measured 3.86:1 on the page. The hover raises saturation
+  // rather than lightness: against a near-white page, any lighter
+  // hover falls back below the floor, so the link intensifies
+  // instead of brightening.
+  '--color-link': 'hsl(220deg 9% 41%)',
+  '--color-link-hover': 'hsl(220deg 20% 41%)',
   '--color-border': 'hsl(24deg 5.7% 83%)',
-  '--color-border-input': '#d6d3d1',
+  // The border is what delineates a field, so it has to read against the
+  // fill it outlines: 3:1, where #d6d3d1 managed 1.49.
+  '--color-border-input': 'hsl(28deg 4% 56%)',
   '--color-card-background': 'hsl(60deg 4.7% 95.8%)',
   '--color-input-background': '#ffffff',
   '--color-pricetag-background': '#e7e5e4',
   '--color-pricetag-background-hover': '#d8d6d5',
   '--color-accent': '#f3e5f5',
-  '--color-success': '#22c55e',
-  '--color-destructive': '#ef4444',
-  '--color-destructive-hover': '#ec5151',
+  // The success indicator sits on a card, so it needs 3:1 there;
+  // #22c55e managed 2.08 against a near-white card.
+  '--color-success': 'hsl(142deg 50% 40%)',
+  // Dark enough that a white label clears 4.5:1 *and* the fill clears
+  // 4.5:1 against a card; #ef4444 managed 3.76 and 3.44.
+  '--color-destructive': 'hsl(0deg 84% 47%)',
+  '--color-destructive-hover': 'hsl(0deg 84% 49%)',
   '--color-destructive-foreground': '#ffffff',
 
-  '--color-primary': 'hsl(238.7deg 83.5% 66.6%)',
-  '--color-primary-hover': 'hsla(238.7deg 83.5% 66.6% / 0.9)',
+  // 66.6% left a white label at 4.48:1 -- a rounding error short of AA.
+  '--color-primary': 'hsl(238.7deg 83.5% 65.5%)',
+  '--color-primary-hover': 'hsla(238.7deg 83.5% 65.5% / 0.9)',
   '--color-primary-foreground': '#ffffff',
   '--color-secondary': 'hsl(24deg 5.7% 83%)',
   '--color-overlay-modal': 'hsla(24deg 5.7% 83% / 0.346)',
@@ -48,21 +59,28 @@ export const DARK_COLORS = {
   '--color-link': 'hsl(217.8deg 10.6% 65%)',
   '--color-link-hover': 'hsl(217.8deg 10.6% 75%)',
   '--color-border': 'hsl(25.7deg 6.4% 21.3%)',
-  '--color-border-input': '#3a3633',
+  // Same job as the light theme's border, raised from #3a3633
+  // (1.05 against the field fill).
+  '--color-border-input': 'hsl(28deg 4% 50%)',
   '--color-card-background': 'hsl(25.7deg 8.6% 15.8%)',
   // Deliberately not `--color-background` or `--color-card-background`: a field
   // painted the same as the surface behind it reads as a hole, not an input.
-  // It still cannot reach 3:1 against the page, because the thing that
-  // actually delineates a field is `--color-border-input`, which is at 1.05.
-  // See the measured findings in handoff.md before "fixing" this one alone.
+  // It still cannot reach 3:1 against the page, because no fill that reads
+  // as a field can -- which is why the contrast test pins it at 1.2 and
+  // leaves the delineation to `--color-border-input`, asserted at 3:1
+  // against this fill.
   '--color-input-background': 'hsl(25.7deg 8.6% 20%)',
   '--color-pricetag-background': '#1f1c19',
   '--color-pricetag-background-hover': '#1f1c19e5',
   '--color-accent': '#484441',
   '--color-success': '#4ade80',
-  '--color-destructive': '#ef4444',
-  '--color-destructive-hover': '#ec5151',
-  '--color-destructive-foreground': '#ffffff',
+  // A light fill with a dark label, as `--color-primary` has always
+  // been in this theme: in dark mode no single red clears 4.5:1
+  // against both a white label and the dark card behind it, so the
+  // label darkens instead of the fill.
+  '--color-destructive': 'hsl(0deg 72% 68%)',
+  '--color-destructive-hover': 'hsl(0deg 72% 70%)',
+  '--color-destructive-foreground': '#1e1b18',
 
   '--color-primary': 'hsl(234.4deg 89.4% 74%)',
   '--color-primary-hover': 'hsla(234.4deg 89.4% 74% / 0.9)',

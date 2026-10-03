@@ -8,6 +8,7 @@ import { getSessionUser } from '@/lib/session';
 
 import AdPhotosGallery from '../AdPhotosGallery';
 import BlurredPhone from '../BlurredPhone';
+import ReportButton from '../ReportButton';
 import {
   Wrapper,
   InfoWrapper,
@@ -16,6 +17,7 @@ import {
   City,
   ContactPhone,
   Price,
+  ReportRow,
 } from './AdCardCompact.styles';
 
 type AdCardProps = {
@@ -70,6 +72,22 @@ async function AdCardCompact({ ad }: AdCardProps) {
           <span>Price: </span>
           {formattedPrice}
         </Price>
+
+        {/*
+          Signed in only, for the same reason the phone number is: the session
+          is already read here, and an anonymous visitor gets a control that
+          could only ever be refused. Deliberately inside InfoWrapper, so the
+          modal's box owns the surface as it does for the rest of the card.
+
+          This renders in both copies of this card -- /ad/[adId] and the
+          intercepting modal -- which is consistent rather than duplicated: both
+          are the same ad, shown two ways.
+        */}
+        {currentUser && (
+          <ReportRow>
+            <ReportButton adId={ad.id} />
+          </ReportRow>
+        )}
       </InfoWrapper>
     </Wrapper>
   );

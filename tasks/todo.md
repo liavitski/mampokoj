@@ -24,17 +24,17 @@ column cannot reach the public payload by accident. Generate the migration with
 satisfy the existing `toContain('CREATE')` assertion while being the wrong shape.
 
 **Acceptance criteria:**
-- [ ] `schema.ts` declares `reportedAt` nullable with no default, and a partial index whose `where` is `IS NOT NULL`
-- [ ] `PublicAd`'s `Omit` includes `'reportedAt'`; `toPublicAd` is unchanged
-- [ ] `pnpm db:generate` produces a migration, and `git diff --exit-code` is clean afterwards (CI's check)
-- [ ] `migrations.test.ts` asserts both the `ADD COLUMN` and the `WHERE "reportedAt" IS NOT NULL` clause
-- [ ] `pnpm typecheck` passes — `PublicAd` must still compile with the extra column omitted
+- [x] `schema.ts` declares `reportedAt` nullable with no default, and a partial index whose `where` is `IS NOT NULL`
+- [x] `PublicAd`'s `Omit` includes `'reportedAt'`; `toPublicAd` is unchanged
+- [x] `pnpm db:generate` produces a migration, and `git diff --exit-code` is clean afterwards (CI's check)
+- [x] `migrations.test.ts` asserts both the `ADD COLUMN` and the `WHERE "reportedAt" IS NOT NULL` clause
+- [x] `pnpm typecheck` passes — `PublicAd` must still compile with the extra column omitted
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Migration generated: `pnpm db:generate && git status --short` shows a new `.sql` plus journal/snapshot updates
-- [ ] Build: `pnpm build`
-- [ ] Manual: read the generated SQL and confirm it is exactly one `ALTER TABLE ... ADD COLUMN` and one `CREATE INDEX`, with no `DROP` and no data change
+- [x] Tests: `pnpm test`
+- [x] Migration generated: `pnpm db:generate && git status --short` shows a new `.sql` plus journal/snapshot updates
+- [x] Build: `pnpm build`
+- [x] Manual: read the generated SQL and confirm it is exactly one `ALTER TABLE ... ADD COLUMN` and one `CREATE INDEX`, with no `DROP` and no data change
 
 **Dependencies:** None
 **Files:** `src/server/db/schema.ts`, `src/types/db-types.tsx`, `drizzle/*`, `src/utils/__tests__/migrations.test.ts`
@@ -53,16 +53,16 @@ claim, not a fact, and because `.returning()` over neon-http is an assumption
 Task 3 depends on.
 
 **Acceptance criteria:**
-- [ ] A scratch database is created, `db:migrate` runs clean against it, and the migration ledger holds both rows
-- [ ] `"reportedAt"` exists on `mampokoj_ads` and is nullable
-- [ ] `mampokoj_ads_reported_idx` exists **and its definition contains `WHERE "reportedAt" IS NOT NULL`**
-- [ ] The scratch database is dropped, after `pg_terminate_backend` on its idle sessions
-- [ ] The shared dev/prod database was **not** migrated as part of this work
+- [x] A scratch database is created, `db:migrate` runs clean against it, and the migration ledger holds both rows
+- [x] `"reportedAt"` exists on `mampokoj_ads` and is nullable
+- [x] `mampokoj_ads_reported_idx` exists **and its definition contains `WHERE "reportedAt" IS NOT NULL`**
+- [x] The scratch database is dropped, after `pg_terminate_backend` on its idle sessions
+- [x] The shared dev/prod database was **not** migrated as part of this work
 
 **Verification:**
-- [ ] Query `information_schema.columns` and `pg_indexes` on the scratch DB and paste the output
-- [ ] `SELECT count(*) FROM mampokoj_ads` on the shared database still returns 201 — the untouched baseline
-- [ ] Manual: confirm `drizzle/0002_*.sql` was not applied to `neondb` by checking the shared ledger still has exactly two rows
+- [x] Query `information_schema.columns` and `pg_indexes` on the scratch DB and paste the output
+- [x] `SELECT count(*) FROM mampokoj_ads` on the shared database still returns 201 — the untouched baseline
+- [x] Manual: confirm `drizzle/0002_*.sql` was not applied to `neondb` by checking the shared ledger still has exactly two rows
 
 **Dependencies:** Task 1
 **Files:** none committed (scratch verification only; findings go in the Task 1 test assertions)
@@ -72,10 +72,10 @@ Task 3 depends on.
 
 ## Checkpoint: Foundation
 
-- [ ] `pnpm verify` green — lint 0 warnings, `tsc` clean, 277 tests + new ones, build succeeds
-- [ ] Migration applied to a real scratch database; column and partial index confirmed
-- [ ] Shared dev/prod database untouched, still 201 seeded ads
-- [ ] **Review with human before proceeding**
+- [x] `pnpm verify` green — lint 0 warnings, `tsc` clean, 277 tests + new ones, build succeeds
+- [x] Migration applied to a real scratch database; column and partial index confirmed
+- [x] Shared dev/prod database untouched, still 201 seeded ads
+- [x] **Review with human before proceeding**
 
 ---
 

@@ -89,9 +89,10 @@ export const InfoWrapper = styled.div`
     'description description'
     'city city'
     'contact contact'
-    'price price';
+    'price price'
+    'report report';
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto auto auto auto;
+  grid-template-rows: auto auto auto auto auto auto;
 `;
 
 export const Title = styled.h2`
@@ -133,4 +134,19 @@ export const Price = styled.p`
   span {
     font-weight: ${WEIGHTS.medium};
   }
+`;
+
+/**
+ * The report control's row.
+ *
+ * Inside InfoWrapper rather than beside the gallery, so the modal's box owns
+ * the surface the same way it does for everything else in the card. Pushed to
+ * the end because it is the last thing to want on a page, and given a top margin
+ * because the price above it is the thing a reader came for.
+ */
+export const ReportRow = styled.div`
+  grid-area: report;
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 12px;
 `;

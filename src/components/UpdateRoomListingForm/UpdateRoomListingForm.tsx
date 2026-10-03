@@ -36,31 +36,66 @@ type UpdateRoomListingFormProps = {
   >;
 };
 
+/**
+ * What the last submission returned, as far as the form is concerned.
+ *
+ * Identical in shape to `RoomListingForm`'s, and deliberately not shared: the two
+ * forms are separate components with separate state, and a shared type would
+ * couple them for no gain. `error: null` before anything is submitted, so "no
+ * failure yet" and "a failure that said nothing" stay distinguishable.
+ */
+type UpdateAdFormState = {
+  error: string | null;
+};
+
+const INITIAL_STATE: UpdateAdFormState = { error: null };
+
 function UpdateRoomListingForm({ ad }: UpdateRoomListingFormProps) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [isPending, setIsPending] = React.useState(false);
-
-  async function handleSubmit(formData: FormData) {
-    setIsPending(true);
-
-    const res = await updateAd(ad.id, formData);
-
-    setIsPending(false);
-
-    if (res.success) {
-      showToast('Ad updated successfully', 'success');
-      setOpen(false);
-      router.push(`/dashboard/${res.userId}`);
-      return;
-    }
-
-    showToast(res.error || 'Update failed', 'error');
-  }
-
   const formattedDate = toDateInputValue(new Date(ad.availableFrom));
+
+  /**
+   * `useActionState`, per `10-error-handling.md`, for the same reasons and with
+   * the same history as `RoomListingForm` -- read that file's comment first;
+   * the short version is that the `useState` pending flag this replaces never
+   * applied, because a *client* function passed to `<form action>` is not run
+   * inside a transition.
+   *
+   * That mattered more here than in the create form. This one edits an ad that
+   * already exists, and `updateAd` takes the id as a separate argument, so the
+   * slot loop that stops `createAd` duplicating an insert has no equivalent: a
+   * double submit was two `UPDATE`s of the same row. Harmless to the data and
+   * still wrong -- two round trips for one edit, and two toasts.
+   *
+   * `ad.id` is closed over rather than bound into the action. Binding would work
+   * and would keep the action itself a direct server reference; the closure is
+   * here because the action passed to `useActionState` has to be
+   * `(prevState, formData)` while `updateAd` is `(adId, formData)`, so one of
+   * the two has to give. See the note on progressive enhancement below.
+   */
+  const [state, formAction, pending] = React.useActionState(
+    async (
+      _prev: UpdateAdFormState,
+      formData: FormData
+    ): Promise<UpdateAdFormState> => {
+      const res = await updateAd(ad.id, formData);
+
+      if (res.success) {
+        showToast('Ad updated successfully', 'success');
+        setOpen(false);
+        router.push(`/dashboard/${res.userId}`);
+
+        return { error: null };
+      }
+
+      /** No toast: the message is rendered in the form, where it stays. */
+      return { error: res.error || 'Update failed' };
+    },
+    INITIAL_STATE
+  );
 
   return (
     <>
@@ -72,7 +107,14 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingFormProps) {
         Update ad
       </ModalButton>
       <Modal open={open} onOpenChange={setOpen}>
-        <Wrapper action={handleSubmit}>
+        {/*
+         * Progressive enhancement: pointing `action` at React's own form action
+         * is the shape that lets the server-rendered form post without
+         * JavaScript. Not yet true here -- the modal only exists once `open` is
+         * set by a click -- but a client function as `action` can never do it,
+         * so this is the form that could.
+         */}
+        <Wrapper action={formAction}>
           <Field name="title">
             <LabelWrapper>
               <Label>Title</Label>
@@ -192,7 +234,22 @@ function UpdateRoomListingForm({ ad }: UpdateRoomListingFormProps) {
             </Form.Control>
           </Field>
 
-          <SubmitButton type="submit" disabled={isPending}>
+          {/*
+           * `!pending` because `useActionState` holds the previous state until
+           * the new action resolves, so a retry would leave the last refusal on
+           * screen for the whole request -- saying the update failed while a new
+           * attempt is in flight.
+           *
+           * `role="alert"` because this is now the only feedback a failed
+           * update produces, and `aria-busy` rather than a changing label so the
+           * button keeps its accessible name while pending. `RoomListingForm`
+           * explains both at more length.
+           */}
+          {state.error && !pending && (
+            <SubmitError role="alert">{state.error}</SubmitError>
+          )}
+
+          <SubmitButton type="submit" disabled={pending} aria-busy={pending}>
             Update ad
           </SubmitButton>
         </Wrapper>
@@ -275,6 +332,24 @@ const Textarea = styled.textarea`
 const Error = styled(Form.Message)`
   color: var(--color-destructive);
   font-size: 0.875rem;
+`;
+
+/**
+ * A refusal from the action. Styled as `RoomListingForm`'s of the same name, and
+ * for the same reason: the form's own validation messages above are plain red
+ * text, so a bordered box is what keeps a server refusal from reading as an
+ * unrelated second system.
+ */
+const SubmitError = styled.p`
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-destructive);
+  border-radius: 8px;
+  background-color: var(--color-secondary);
+  color: var(--color-destructive);
+  font-size: 0.875rem;
+  font-weight: ${WEIGHTS.medium};
+  text-align: center;
 `;
 
 const SubmitButton = styled(Form.Submit)`

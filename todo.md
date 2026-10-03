@@ -163,16 +163,55 @@ action and hand-rolls pending state with `React.useState`. Consequences: no
 transition, and **the form is not progressively enhanced** — with JavaScript
 unavailable or failed, submission does nothing instead of posting.
 
-**Fix:** `<form action={formAction}>` where `formAction` comes from
-`useActionState(createAd, initialState)`, take `pending` from the same call for
-`disabled`, and surface `state.error` — which also lets the error render in the
-form instead of only in a toast.
+**Shipped 2026-10-03**, both forms. 27 cases across
+`src/components/RoomListingForm/__tests__/RoomListingForm.test.tsx` and
+`src/components/UpdateRoomListingForm/__tests__/UpdateRoomListingForm.test.tsx`.
+The action signatures did not change, so the existing action tests are untouched.
 
-**Tests:** the existing action tests are unaffected (the action signatures do not
-change). Add a component test asserting the submit button disables while pending
-and that a returned error renders in the form.
+Two real defects surfaced rather than the docs-alignment this was filed as:
 
-**Effort:** S per form.
+- **`disabled={isPending}` never applied.** A *client* function passed to
+  `<form action>` is not run inside a transition, so `setIsPending(true)` on the
+  first line of the handler was not flushed until the action settled — by which
+  point the handler had set it back to false. The button stayed enabled for the
+  whole request. Reachable without touching it: Enter in a text field is implicit
+  submission, which a disabled button does not block. For `createAd` the slot
+  loop absorbed the duplicate into the next free slot, so two submissions
+  quietly consumed two of the user's allowance and both reported success; for
+  `updateAd` there is no such guard and it was two `UPDATE`s of one row.
+  `useActionState`'s `pending` comes from React's action queue rather than
+  component state, so the identical `disabled` prop works there.
+- **A refusal was a toast and nothing else.** It vanished in seconds, and the
+  form said nothing. Now `state.error` renders above the submit button with
+  `role="alert"`, and the failure toast is gone rather than duplicated.
+
+Two things the write-up above did not anticipate:
+
+- **Progressive enhancement is still not achieved, and cannot be while the form
+  lives in a modal.** Verified: `curl` of `/dashboard/[userId]` returns zero
+  `<form>` elements, because `Modal` only renders its children once `open` is set
+  by a click. `<form action={formAction}>` is now the shape that *could* post
+  without JavaScript, and both files say so. Getting the actual guarantee means
+  a create/edit route that renders the form server-side — a product decision, not
+  a refactor.
+- **The fields are cleared after any submission.** React resets a form whose
+  `action` is a function (`recursivelyResetForms`), so "keep what the user typed
+  after a failure" does not hold here. Confirmed against the pre-change code,
+  which cleared them identically. Preserving them means making every field
+  controlled. Asserted as-is so the behaviour is documented rather than
+  rediscovered.
+
+`aria-busy` on the button rather than a "Creating ad…" label, so the accessible
+name does not change mid-interaction. Verified in a browser with a
+temporarily-gated forced failure: `disabled` true and `aria-busy="true"` during
+the request, label unchanged, then the alert rendered inside the dialog with the
+form scrolled to it.
+
+Also note `useActionState` holds the previous state until the new action
+resolves, so a retry would otherwise leave the last refusal on screen for the
+whole request — hence `state.error && !pending`.
+
+**Effort:** S per form, as estimated.
 
 ---
 

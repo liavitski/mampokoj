@@ -3,6 +3,7 @@
 import * as React from 'react';
 
 import { deleteAdAsModerator } from '@/server/actions/deleteAdAsModerator';
+import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
 
 import ConfirmDialog from '../ConfirmDialog';
@@ -24,6 +25,7 @@ type TakeDownButtonProps = {
  * check is the boundary, and neither is doing the other's job.
  */
 function TakeDownButton({ adId }: TakeDownButtonProps) {
+  const router = useRouter();
   const { showToast } = useToast();
   const [isPending, setIsPending] = React.useState(false);
 
@@ -35,6 +37,18 @@ function TakeDownButton({ adId }: TakeDownButtonProps) {
 
       if (res.success) {
         showToast('Ad taken down', 'success');
+
+        /**
+         * The queue is rendered from the server, so without this the ad that
+         * was just taken down stays on screen until a manual reload -- which
+         * reads as a takedown that silently did nothing, on every row of a
+         * queue a moderator is working through. Same pattern as
+         * `UploadBtn` and `AdPhotosGallery` after their own writes.
+         *
+         * Success only: on a refusal the queue is unchanged, so re-rendering it
+         * would be noise, and the error toast is the only feedback needed.
+         */
+        router.refresh();
         return;
       }
 

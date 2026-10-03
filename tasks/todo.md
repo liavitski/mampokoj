@@ -10,65 +10,50 @@ only open work.
 
 ---
 
-# OPEN: the bucket half of checks 3 and 4 could not be verified
+# OPEN: two items, one of them needing your decision
 
 The five browser checks were run on 2026-10-03 with Playwright driving a real
-Chrome and a real Google sign-in. Four passed outright; the fifth passed except
-for the part that was never possible to test. Details below.
+Chrome and a real Google sign-in, and the one half that could not be tested then
+was retested afterwards once Redis turned out to be reachable. Everything that
+was open is now closed. What remains is below.
 
 - [x] **Restart `pnpm dev`.** The running server had started at 11:26; `.env`
       was last written at 12:34, so `MODERATORS` genuinely was not loaded.
       Restarted and confirmed via `next dev`'s `Environments: .env` line.
 - [x] **`/moderation` lists the reported ads.** Rendered **6 rows** for the
       moderator, each with a `tel:` link and a "Take down" button. Ordering
-      checked against the database, not just against the page: `getReportedAds`
-      returned the same six ids in the same `reportedAt DESC` order. The
-      anonymous refusal path still refuses.
-- [x] **Take one down.** `deleteAdAsModerator` ran live for
-      `044ef7a4` ("Krátkodobý pronájem pokoje"). Row gone, image row cascaded
-      away with it, queue went 6 → 5, and `/ad/044ef7a4` now renders
-      **"404 - Page Not Found"**. `ConfirmDialog` appeared with "Yes, take it
-      down" / Cancel before anything was deleted.
+      checked against the database, not just against the page.
+- [x] **Take one down.** `deleteAdAsModerator` ran live for `044ef7a4`. Row
+      gone, queue 6 → 5, `/ad/044ef7a4` renders "404 - Page Not Found".
 - [x] **Delete one of the owner's own ads.** `deleteAdById` ran live for
-      `227f7b25`; dashboard shows "You dont have any ads." Both callers of the
-      extracted `teardownAd` therefore work against a real session.
-- [x] **Dashboard still shows the ad limit as 2.** "Maximum 2 ads per user"
-      with one ad held. The slot index is unaffected by dropping GitHub.
+      `227f7b25`. Both callers of the extracted `teardownAd` work against a
+      real session.
+- [x] **Dashboard still shows the ad limit as 2.** The slot index is unaffected
+      by dropping GitHub.
+- [x] **`utapi.deleteFiles` removes a real file.** Retested once Redis was
+      reachable and uploads worked. Precondition measured first — 1 real file in
+      the bucket, non-`seeded-*` key, matching image row — then the ad was
+      deleted and all four results asserted: bucket back to 0, ad row gone,
+      image row gone, `/ad/[adId]` 404s. `storage:reconcile` reports no drift.
+- [x] **The queue refreshes after a takedown.** Fixed, with a test proved by
+      reverting it. See below.
+- [x] **The Lua release script executes correctly.** Run against live Redis,
+      8/8 checks passed, including that a stale holder cannot delete a lock
+      somebody else now holds. `HANDOFF.md` §2.1.
 
-- [ ] **Verify `utapi.deleteFiles` removes a real file.** Still open, and it is
-      a data problem rather than a code one — see below.
+## Two things found along the way, both fixed
 
-## Why the bucket check could not be run
+**The queue did not refresh after a takedown.** `TakeDownButton` called the
+action and toasted, but never re-rendered, so the deleted ad stayed on screen
+until a manual reload — which reads as a takedown that silently did nothing,
+on every row of a queue a moderator is working through. Fixed with
+`router.refresh()` on success only; `TakeDownButton` had no test file at all
+and has one now.
 
-Checks 3 and 4 each said "its photos should leave the UploadThing bucket". That
-half is **unverifiable against the current database**, for a reason already
-predicted in `HANDOFF.md` §3:
-
-- `utapi.listFiles` over the live bucket returns **0 files**.
-- All **394** image rows carry a `seeded-<uuid>` key. Every one is synthetic
-  and none was ever uploaded, so there is nothing for a delete to remove.
-- The owner's own ad had **0** image rows at all, so deleting it could not
-  exercise the file path even in principle.
-
-So `teardownAd` ran live on both paths and deleted its rows correctly, but the
-`utapi.deleteFiles` call inside it only ever received keys that were never in
-the bucket. It did not error, which is weak evidence the call shape is right —
-a wrong key would also not error.
-
-To close this, upload one real photo to a real ad and delete that ad, then
-confirm `utapi.listFiles` drops to 0 again. That is the only honest way to prove
-the bucket half works. Worth doing before any real landlord uses this.
-
-## A bug found while checking: the queue does not refresh after a takedown
-
-After confirming "Yes, take it down", the page **still showed all 6 rows**
-including the ad just deleted. The database was correct immediately; only the
-rendered list was stale. A reload showed the right 5.
-
-`TakeDownButton` calls the action and never calls `router.refresh()`, and the
-moderation page's list is not otherwise revalidated, so a moderator taking down
-two ads in a row gets no feedback on the first. The ad row stays in the queue
-until they reload, which reads as "the takedown did not work".
+**Redis resolves from this machine**, contradicting four separate claims in
+`HANDOFF.md`. That unblocked the bucket test above, the Lua script, and uploads
+generally — `upload-guard.ts` fails closed, which is likely why the owner's ad
+had no photos at all. All four stale claims are corrected.
 
 ## If `/moderation` refuses anyway
 
@@ -79,9 +64,6 @@ simply refuses. See `HANDOFF.md` §1.
 
 ## Still open, and the maintainer's call — not started
 
-- [ ] **Fix the stale queue after a takedown** (`router.refresh()`, or
-      `revalidatePath` in the action). Found by the browser check above; not
-      fixed, because the checks were meant to be verification only.
 - [ ] **§2.2 — the E2E decision.** (a) a Neon branch per CI run, (b) a
       `postgres` service container needing a driver swap behind an env check,
       (c) local-only Playwright run by hand. Priority order once chosen: browse →
@@ -90,15 +72,23 @@ simply refuses. See `HANDOFF.md` §1.
 
       **Partly de-risked.** A Playwright MCP server is configured, so a browser
       can be driven against a running dev server without writing test files —
-      which is how the five checks above were done. It is *not* option (c):
-      there is no committed suite and nothing in CI. MCP gave manual
-      verification, not coverage.
-- [ ] **§9.2 — retiring `withUserLock`.** Would delete `user-lock.ts`,
-      `user-lock.test.ts`, `redis-client-contract.test.ts` and close §2.1 and
-      §9.4 with it. Left alone deliberately: it removes a deliberately
-      engineered module whose Lua release script has an open verification item.
+      which is how everything above was verified. It is *not* option (c): there
+      is no committed suite and nothing in CI. MCP gave manual verification, not
+      coverage.
+- [ ] **§9.2 — retiring `withUserLock`, now genuinely unblocked.** Would delete
+      `user-lock.ts`, `user-lock.test.ts`, `redis-client-contract.test.ts` and
+      close §2.1 with it. **Its stated reason for being left alone is gone:**
+      the Lua release script has now been executed against live Redis and is
+      correct, so the open verification item that held this back no longer
+      exists. §9.4's remaining gap (acquire-loop contention) is the only thing
+      still unexercised, and retiring the lock would delete the question rather
+      than answer it. Your call, but it is a real decision again rather than a
+      deferred one.
 - [ ] **Migrate `DeleteAdButton` onto `ConfirmDialog`.** Not needed, so not done
       while it was the risky path. It is the last duplicated dialog in the app.
+- [ ] **`withUserLock` acquire-loop contention, if the lock stays.** Two
+      concurrent callers, one winner, bounded by wall-clock. Needs live Redis
+      and two simultaneous requests; half a day.
 
 ---
 
@@ -164,11 +154,19 @@ simply refuses. See `HANDOFF.md` §1.
 ## Data note
 
 The six reported rows in the shared database were the maintainer's own manual
-tests. **The browser checks consumed two of them**: the takedown deleted
-`044ef7a4` outright, and the owner's own ad `227f7b25` is gone. Five reported
-rows remain, and the owner now holds **0 of their 2 ad slots** — so the queue
-still has data to work with, and the ad limit can be re-tested by posting
-another ad. Total ads went 201 → 200.
+tests. **The verification work consumed two of them**, plus two more ads created
+and deleted for the bucket test:
+
+| Ad | How it went |
+|---|---|
+| `044ef7a4` | deleted by moderator takedown (queue 6 → 5) |
+| `227f7b25` | deleted by owner path |
+| `c7aa714b` | created + uploaded a real PNG for the bucket test, then deleted |
+
+**Five reported rows remain, the owner holds 0 of their 2 ad slots, and total ads
+went 201 → 200.** The bucket is back to **0 files** and all 393 remaining image
+rows are synthetic `seeded-*` keys, so `storage:reconcile` reports no drift —
+the database and the bucket agree.
 
 To restore, re-report an ad from its detail page. **Never an unscoped delete**
 (`HANDOFF.md` §5).

@@ -6,20 +6,26 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 361 tests
-  across 42 files, `next build` succeeds.
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 367 tests
+  across 43 files, `next build` succeeds.
 - **Database:** one Neon database (`neondb`) shared by development and
-  production (§3). 201 generated ads and 394 images, all seeded, plus one ad
-  posted by the owner while testing. Also holds 128 KB of abandoned tables from
-  two older projects (§8).
+  production (§3). 200 generated ads and 393 images, all seeded. Also holds
+  128 KB of abandoned tables from two older projects (§8). The owner holds 0 of
+  their 2 ad slots, and the UploadThing bucket is empty and agrees with the
+  database.
 
 ---
 
 ## 1. Environment facts that will otherwise waste your time
 
-1. **Upstash Redis does not resolve from this machine** (`ENOTFOUND`). Anything
-   touching Redis is mocked in tests and has **never run against a live
-   instance**. See §2.1.
+1. **Upstash Redis resolves from this machine and responds** (`PING` → `PONG`),
+   as of 2026-10-03. This is the opposite of what earlier sessions recorded
+   (`ENOTFOUND`), and it changed what could be verified: the Lua release script
+   has now executed for real (§2.1), and the upload path works, which is what
+   made the bucket verification possible (§9.3). **Do not assume either from a
+   test** — both are still mocked in the suite, and a mocked Redis proves
+   nothing about a live one. If something Redis-backed looks broken, ping it
+   first; the failure mode is silent rather than loud.
 2. **`MODERATORS` lists OAuth account ids, not email addresses.** It is the
    comma-separated allowlist for the moderation queue (§9.3) and is read by
    `src/lib/moderator-guard.ts`. The value is the same id `ads.userId` holds and
@@ -46,24 +52,32 @@ current shape, the code says so.
 ## 2. Open work
 
 **The next session should start at §9.5** — the app runs, and §9.1, §9.2 and §9.3
-are closed. Everything in §2.1 to §2.3 is still open and none of it blocks; the
-one item that genuinely needs a decision from you is §2.2 (E2E), and §9.2 still
-holds the `withUserLock` retirement question.
+are closed. §2.1 is closed too, and with it the last stated reason for leaving
+`withUserLock` in place. What remains in §2.2 to §2.3 does not block; the item
+that genuinely needs a decision from you is still §2.2 (E2E), and §9.2's
+`withUserLock` retirement is now a live decision rather than a deferred one.
 
-### 2.1 The Lua release script has still never been executed
+### 2.1 Resolved: the Lua release script executes correctly
 
-`RELEASE_SCRIPT` in `src/server/user-lock.ts` is text-pinned by a test and
-reviewed by eye, but never run, because Redis is unreachable (§1, item 1). Its
-assumptions were about the `@upstash/redis` *client*, which can be exercised
-without a server since the library calls the bare global `fetch`;
-`src/server/__tests__/redis-client-contract.test.ts` does that and pins the wire
-format both ways.
+`RELEASE_SCRIPT` in `src/server/user-lock.ts` is now **run against a live
+Redis** (2026-10-03), which closed the item this section used to hold open. All
+eight checks passed, against a key the script created and cleaned up itself:
 
-**Executing the Lua needs a real Redis, not a cleverer fake.** `luajit` is
-installed locally, so the script could run against a hand-written `redis.call`
-stub — but that stub would encode the very token comparison under test and pass
-whatever the script said. A working `UPSTASH_REDIS_REST_URL`, or a local Redis
-over HTTP, is the only honest way to close this.
+- the owner releases, `DEL` runs, and the script returns **1** so `releaseAdLock`
+  can detect a lost lock
+- **a stale holder whose TTL expired returns 0 and leaves the new holder's lock
+  intact** — the whole reason this is Lua and not a bare `DEL`, and the one that
+  a `redis.call` stub would have faked
+- the rightful owner can still release afterwards
+- releasing an already-free key is a no-op returning 0, not an error
+
+The script was text-pinned by a test and reviewed by eye before this; what was
+missing was a real server, and the `luajit` stub route was correctly rejected
+because it would have encoded the token comparison under test.
+
+**What is still unverified is the client around it, not the script.** The
+acquire loop's contention behaviour — two callers, one winner, bounded by
+wall-clock — has not been exercised against live Redis either. §9.4.
 
 ### 2.2 Decide on end-to-end tests (blocked on your decision)
 
@@ -485,11 +499,19 @@ bandwidth rather than row count.
 
 **One decision is left, and it is yours, not an oversight.** `withUserLock` now
 buys only serialization (§7). Retiring it — deleting `user-lock.ts`,
-`user-lock.test.ts` and `redis-client-contract.test.ts`, and closing §2.1 and
-§9.4 with it — would take Redis out of the create path completely. It was left
-in place here because it deletes a deliberately engineered module whose Lua
-release script has an open verification item of its own (§2.1), and that is not
-a decision to make silently inside a schema change.
+`user-lock.test.ts` and `redis-client-contract.test.ts`, and closing §2.1 with it
+— would take Redis out of the create path completely.
+
+**This was deferred once, for a reason that has since expired.** It was left in
+place because the Lua release script had never been executed (§2.1), and
+deleting an engineered module on the strength of a text-pinned test is not a
+call to make silently. That script has now run against live Redis and is
+correct, so the blocker is gone. Two things argue for doing it: the lock is
+redundant for the limit itself, and Redis has been an unreached dependency
+through most of this project's history. Two argue against: the acquire loop's
+contention behaviour is the one Redis path still never exercised (§9.4), and
+retiring deletes the question instead of answering it. Worth deciding on its own
+terms rather than as a footnote to a schema change.
 
 ### 9.3 Resolved: reporting, a moderation queue, and a takedown
 
@@ -534,30 +556,39 @@ refuses. A takedown and an owner delete both ran live — rows and image rows
 gone, queue count correct, and `/ad/[adId]` 404s afterwards. The dashboard still
 reports the limit as 2 with the slot index holding.
 
-**One thing this could not verify: the bucket.** `utapi.listFiles` returns **0
-files** on the live bucket, and all 394 image rows are synthetic `seeded-<uuid>`
-keys that were never uploaded (`§3`). So `utapi.deleteFiles` ran live through
-`teardownAd` on both paths and deleted its rows, but only ever received keys
-that were never in the bucket — which does not error, and so proves little.
-**The file-deletion half of teardown remains unverified until someone uploads
-one real photo and deletes the ad holding it.**
+**The bucket is now verified too, with a real file.** The first attempt could
+not check it — the bucket held 0 files and every image key was synthetic
+(`§3`), so `utapi.deleteFiles` only ever received keys that were never there,
+which does not error and therefore proves nothing. With Redis reachable (§1),
+an upload works, so the check was repeated honestly:
 
-**And the queue does not refresh after a takedown.** `TakeDownButton` never
-calls `router.refresh()`, so the deleted ad stays on screen until a manual
-reload — which reads as "the takedown failed". The database was correct
-immediately; only the render was stale. Open in `tasks/todo.md`.
+1. created a real ad and uploaded a real PNG through the dashboard
+2. **confirmed the precondition first** — `utapi.listFiles` returned exactly 1
+   file, key `kpgjANcHnEQ7ITMs8vycUzdRP2L5ZTWJYpOVvgmAarQ6Noxf`, matching the
+   image row and *not* a `seeded-*` key
+3. deleted the ad through the owner path (self-report is refused by design, so
+   it could not be routed through the queue)
+4. **asserted all four results**: bucket back to 0 files, ad row gone, image row
+   gone, zero non-seeded orphan rows, and `/ad/[adId]` 404s
+5. `pnpm storage:reconcile` reports no drift
 
-### 9.4 Then: Redis has never run against a live instance
+**So `teardownAd` genuinely removes files from the bucket, and this is the
+evidence for it — not the earlier run that returned cleanly against an empty
+target.** The generalisable part is step 2: the first attempt produced a
+*passing* result that meant nothing, and only measuring the precondition
+distinguished it.
 
-`ENOTFOUND` from this machine (§1, item 1). Every rate-limit and lock path is
-mocked; `RELEASE_SCRIPT` has never executed (§2.1). What is **unverified in
-production** is now the smaller surface: the upload rate limit and the ad-create
-serialization. That is a weaker claim than "well tested against a fake", but it
-is no longer the primary abuse defence — the ad limit is the slot index, which
-the migration exercised against real rows.
+### 9.4 Then: the ad-create lock's contention is still unverified
 
-A working `UPSTASH_REDIS_REST_URL`, or a local Redis behind an HTTP shim, closes
-this. Half a day.
+`RELEASE_SCRIPT` now executes correctly against live Redis (§2.1), and the
+upload rate limit is reachable — but the remaining gap is the **acquire loop's
+contention behaviour**: two concurrent callers, one winner, the other backing
+off and eventually failing, bounded by wall-clock rather than by a sleep count.
+That needs two simultaneous requests against live Redis and has not been run.
+
+It matters less than it did, because the ad limit is the slot index (§7), so a
+lost race costs a free slot, never an over-limit account. Half a day with
+Redis reachable.
 
 ### 9.5 Worth doing, not blocking
 

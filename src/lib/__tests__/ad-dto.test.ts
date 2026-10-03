@@ -27,6 +27,9 @@ const FULL_ROW: AdWithImages = {
   contactPhone: '+420776123456',
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  // A real timestamp rather than null, so a leak shows up as a recognisable
+  // value in the serialised output below instead of as an absent-looking null.
+  reportedAt: new Date('2026-02-02T00:00:00.000Z'),
   images: [IMAGE_ROW],
 };
 
@@ -44,6 +47,17 @@ describe('toPublicAd', () => {
     // limit. It is server machinery, so it leaves with the
     // poster id rather than riding along in the payload.
     expect(toPublicAd(FULL_ROW)).not.toHaveProperty('slot');
+  });
+
+  it('drops the moderation flag', () => {
+    // `reportedAt` is moderation state, not a property of the room. Publishing
+    // it would label an ad as reported to everyone, and -- because the queue
+    // filters on `IS NOT NULL` -- would let anyone probe which ad ids have been
+    // reported by watching for its presence.
+    expect(toPublicAd(FULL_ROW)).not.toHaveProperty('reportedAt');
+    expect(JSON.stringify(toPublicAd(FULL_ROW))).not.toContain(
+      '2026-02-02T00:00:00.000Z'
+    );
   });
 
   it('does not leak the private values anywhere in the output', () => {

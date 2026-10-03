@@ -18,9 +18,11 @@ export type PublicImageRow = Pick<Image, 'id' | 'url' | 'createdAt'>;
  * A single ad as shown on its own page, to any visitor.
  *
  * No `userId`, and photos without their storage key: only the owner's
- * dashboard can delete a photo, and only there is the key needed.
+ * dashboard can delete a photo, and only there is the key needed. No
+ * `reportedAt` either -- the detail page is public, so moderation state has no
+ * business in its payload.
  */
-export type AdWithoutUserId = Omit<Ad, 'userId'> & {
+export type AdWithoutUserId = Omit<Ad, 'userId' | 'reportedAt'> & {
   images: PublicImageRow[];
 };
 
@@ -31,10 +33,15 @@ export type AdWithoutUserId = Omit<Ad, 'userId'> & {
  * contact data, so neither travels in a list of ads. A single ad's contact
  * details are fetched separately and gated on the session. `slot` is which
  * of the user's ad slots the row occupies -- it exists so the database can
- * enforce the per-user limit, and a client has no use for it.
+ * enforce the per-user limit, and a client has no use for it. `reportedAt` is
+ * moderation state: publishing it would both label an ad as reported and, since
+ * the queue filters on it, let anyone probe which ad ids are flagged.
  */
 export type PublicAd = Omit<
-  Omit<AdWithImages, 'userId' | 'contactPhone' | 'slot'>,
+  Omit<
+    AdWithImages,
+    'userId' | 'contactPhone' | 'slot' | 'reportedAt'
+  >,
   'images'
 > & {
   images: PublicImageRow[];

@@ -4,8 +4,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 
 import { ads, images } from '@/server/db/schema';
+import { compileWhere } from '@/test/drizzle-where';
 
 const MIGRATIONS_FOLDER = 'drizzle';
 
@@ -139,6 +141,77 @@ describe('committed migrations', () => {
       'CREATE UNIQUE INDEX "mampokoj_ads_user_slot_unique"'
     );
     expect(allSql).toContain('("userId","slot")');
+  });
+
+  it('declares reportedAt in the schema as a nullable column with no default', () => {
+    // First-report-wins is enforced in the write's own predicate
+    // (`reportedAt IS NULL`), so the column has to be able to hold "nobody has
+    // reported this" -- a default of now() would mark all 201 seeded ads as
+    // reported the moment the migration landed, and a NOT NULL would make the
+    // column impossible to leave unset.
+    const config = getTableConfig(ads);
+    const reportedAt = config.columns.find((column) => column.name === 'reportedAt');
+
+    expect(reportedAt, 'schema has no reportedAt column').toBeDefined();
+    expect(reportedAt!.notNull).toBe(false);
+    expect(reportedAt!.hasDefault).toBe(false);
+  });
+
+  it('declares the moderation index in the schema as partial on reportedAt', () => {
+    // A plain index over a column that is null on almost every row indexes
+    // nothing useful and costs writes on every ad. The predicate is what makes
+    // it an index of the queue rather than of the table, so a `.where()` dropped
+    // from schema.ts has to fail here rather than degrade quietly.
+    const config = getTableConfig(ads);
+    const reportedIndex = config.indexes.find(
+      (index) =>
+        (index as unknown as { config: { name: string } }).config.name ===
+        'mampokoj_ads_reported_idx'
+    );
+
+    expect(reportedIndex, 'schema declares no mampokoj_ads_reported_idx').toBeDefined();
+
+    const indexConfig = (
+      reportedIndex as unknown as {
+        config: {
+          unique: boolean;
+          columns: { name: string }[];
+          where: SQL | undefined;
+        };
+      }
+    ).config;
+
+    expect(indexConfig.columns.map((column) => column.name)).toEqual(['reportedAt']);
+    // Non-unique: two reported ads must both be in the queue.
+    expect(indexConfig.unique).toBe(false);
+    expect(compileWhere(indexConfig.where).sql).toContain('"reportedAt" IS NOT NULL');
+  });
+
+  it('adds the reportedAt column in a migration, without a NOT NULL', () => {
+    const allSql = journal.map((e) => readMigrationSql(e.tag)).join('\n');
+
+    // The ADD COLUMN and its nullability, rather than relying on the generic
+    // "creates every column" check above -- that one only proves the word
+    // "reportedAt" appears somewhere, which a dropped column in a later
+    // migration would also satisfy.
+    expect(allSql).toContain('ADD COLUMN "reportedAt"');
+    expect(allSql).not.toMatch(/ADD COLUMN "reportedAt"[^;]*NOT NULL/);
+  });
+
+  it('creates the moderation index as partial, over reportedAt only', () => {
+    const allSql = journal.map((e) => readMigrationSql(e.tag)).join('\n');
+
+    // The WHERE is asserted, not just the CREATE: without it the index is the
+    // wrong shape but still satisfies the generic `toContain('CREATE')` check
+    // above, so a non-partial index would pass unnoticed.
+    expect(allSql).toContain('CREATE INDEX "mampokoj_ads_reported_idx"');
+    expect(allSql).toContain('("reportedAt")');
+    // Table-qualified, because that is what drizzle-kit emits for a partial
+    // index and it is the unambiguous form. Asserted in full so a plain
+    // (non-partial) index, or a predicate over some other column, fails here.
+    expect(allSql).toContain(
+      'WHERE "mampokoj_ads"."reportedAt" IS NOT NULL'
+    );
   });
 
   it('has no migration that drops a table the schema still declares', () => {

@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getTableConfig } from 'drizzle-orm/pg-core';
+
+import { ads } from '@/server/db/schema';
+
 const { mocks } = vi.hoisted(() => ({ mocks: { findFirst: vi.fn() } }));
 
 vi.mock('@/server/db', () => ({
@@ -75,5 +79,38 @@ describe('getValidatedAd', () => {
     expect(imageColumns).toBeDefined();
     expect(imageColumns).not.toHaveProperty('fileKey');
     expect(imageColumns.url).toBe(true);
+  });
+
+  it('does not select reportedAt for the public detail view', async () => {
+    mocks.findFirst.mockResolvedValue(ROW);
+
+    await getValidatedAd(AD_ID);
+
+    // Type-level omission is not enough. `AdWithoutUserId` omits the field,
+    // but the value still crosses the wire inside the RSC flight payload for
+    // /ad/[adId] and its intercepting modal, so the column has to be absent
+    // from the query itself -- the same rule `publicAdColumns` already follows.
+    const columns = mocks.findFirst.mock.calls.at(-1)![0].columns;
+    expect(columns, 'reportedAt reaches a public payload').not.toHaveProperty(
+      'reportedAt'
+    );
+  });
+
+  it('selects every ad column except the one deliberately withheld', async () => {
+    mocks.findFirst.mockResolvedValue(ROW);
+
+    await getValidatedAd(AD_ID);
+
+    // Derived from the schema rather than listed, so a column added later fails
+    // here until someone decides whether a public page may carry it. Without
+    // this, the allowlist above would quietly narrow: a new column would simply
+    // be missing, and the only symptom would be an undefined value somewhere
+    // downstream.
+    const columns = mocks.findFirst.mock.calls.at(-1)![0].columns;
+    const tableColumns = getTableConfig(ads).columns.map((column) => column.name);
+
+    expect(Object.keys(columns).sort()).toEqual(
+      tableColumns.filter((name) => name !== 'reportedAt').sort()
+    );
   });
 });

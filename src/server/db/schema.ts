@@ -1,5 +1,5 @@
 import { pgTableCreator, index, uniqueIndex } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 export const createTable = pgTableCreator(
   (name) => `mampokoj_${name}`
@@ -36,6 +36,25 @@ export const ads = createTable(
       .timestamp({ withTimezone: true })
       .$onUpdate(() => new Date())
       .notNull(),
+    /**
+     * When a signed-in visitor flagged this listing, or null if nobody has.
+     *
+     * First report wins, enforced in the report write's own predicate rather
+     * than by a read: the update only matches `reportedAt IS NULL`, so a second
+     * report updates no rows and two concurrent reports resolve without either
+     * of them failing. No transaction and no Redis are involved -- the same
+     * reasoning that put the ad limit on the slot index.
+     *
+     * Deliberately absent from `PublicAd`. This is moderation state, not a
+     * property of the room, and a public flag would let anyone probe which ad
+     * ids have been reported.
+     *
+     * Note that reporting an ad also moves `updatedAt`, because this is a
+     * single `db.update` and drizzle applies `$onUpdate` to every one. Accepted
+     * deliberately: preserving the old value would need raw SQL, which would
+     * cost the compiled-SQL assertions the authorization tests depend on.
+     */
+    reportedAt: d.timestamp({ withTimezone: true }),
   }),
   (t) => [
     index('mampokoj_ads_user_idx').on(t.userId),
@@ -46,6 +65,16 @@ export const ads = createTable(
       t.id
     ),
     index('mampokoj_ads_created_id_idx').on(t.createdAt, t.id),
+    /**
+     * Partial, and not unique: it indexes the moderation queue
+     * (`WHERE "reportedAt" IS NOT NULL`) rather than the table, which matters
+     * because this column is null on every ad nobody has reported -- which is
+     * every ad in practice. Two reported ads must both appear in the queue, so
+     * uniqueness would be wrong.
+     */
+    index('mampokoj_ads_reported_idx')
+      .on(t.reportedAt)
+      .where(sql`${t.reportedAt} IS NOT NULL`),
   ]
 );
 

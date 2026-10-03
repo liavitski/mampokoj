@@ -89,6 +89,34 @@ export const getAds = async (
 };
 
 /**
+ * Columns for the public detail view of one ad.
+ *
+ * This view reaches every visitor, including the intercepting modal, so it is
+ * an allowlist like `publicAdColumns` rather than the whole row. The one column
+ * missing from the row that is deliberately so: `reportedAt` is moderation
+ * state, and leaving it out here is what keeps it out of the RSC payload
+ * rather than merely out of the prop type.
+ *
+ * `getValidatedAd` selects the whole row for the poster's own fields --
+ * `contactPhone` and `userId` are both needed here -- which is why the omission
+ * has to be explicit rather than a consequence of the DTO.
+ */
+const detailAdColumns = {
+  id: true,
+  userId: true,
+  slot: true,
+  title: true,
+  price: true,
+  city: true,
+  region: true,
+  availableFrom: true,
+  description: true,
+  contactPhone: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+/**
  * Loads a single ad with its photos.
  *
  * Returns `null` when there is no such ad, rather than throwing. Both callers
@@ -102,6 +130,7 @@ export async function getValidatedAd(adId: string) {
 
   const adWithImages = await db.query.ads.findFirst({
     where: eq(ads.id, parsed.data),
+    columns: detailAdColumns,
     with: {
       images: {
         // This view is shown to visitors, who cannot delete photos, so the

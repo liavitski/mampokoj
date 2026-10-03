@@ -228,6 +228,21 @@ Each of these cost real time.
   another drizzle project on this same database makes this repo's `db:migrate`
   apply nothing, print nothing and exit 0. Nothing on this database does that
   today (§8), but it is the symptom to recognise the day one starts.
+- **A schema change and the database are one deploy, not two.** `schema.ts` is
+  what the running app compiles against, and development uses the shared
+  database (§3), so committing a column without running `db:migrate` breaks the
+  app immediately rather than at some later deploy. Adding `reportedAt`
+  (`drizzle/0002`) did exactly this: the dashboard threw
+  `column "reportedAt" does not exist` from `getUserAds`, and every report
+  failed too, because the generated SQL named a column the database did not
+  have yet. Two symptoms, one cause — and the second was invisible, because the
+  action's `catch` turned the driver error into a generic toast.
+  **`getUserAds` is the canary, and deliberately so:** it selects the whole row,
+  so it is the first thing to break on a missing column. Restricting it to an
+  explicit column list would make the failure *silent* — a field quietly
+  `undefined` — instead of loud. The fix is `pnpm db:migrate`, not a narrower
+  query. Verifying a migration on a scratch database (§1) proves the SQL is
+  correct; it does **not** mean the shared database has it.
 - **Excess-property checking does not reach through `flatMap` inference.** A seed
   builder set a column that does not exist and `tsc` was silent; the insert
   succeeded anyway. That is why the seed tests compare against

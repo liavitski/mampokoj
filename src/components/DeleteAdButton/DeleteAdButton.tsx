@@ -1,45 +1,79 @@
 'use client';
 
 import * as React from 'react';
-import * as Alert from '@radix-ui/react-alert-dialog';
-import { WEIGHTS } from '@/constants';
-import styled, { keyframes } from 'styled-components';
 
 import { deleteAdById } from '@/server/actions/deleteAd';
 import { useRouter } from 'next/navigation';
 import { useToast } from '../ToastProvider';
 
 import Button from '../Button';
+import ConfirmDialog from '../ConfirmDialog';
 
 type DeleteButtonProps = {
   adId: string;
 };
 
+/**
+ * Deletes one of the owner's own ads.
+ *
+ * On the shared `ConfirmDialog`, which it did not use before. It had been given
+ * its own `Alert.Root`, `Overlay`, `Content`, `Title`, `Description` and a second
+ * copy of the overlay keyframes -- roughly 50 lines duplicated from
+ * `ConfirmDialog`, kept in step by hand and drifting. That is the erosion
+ * `HANDOFF.md` §9.6 names as the way the moderation surface grows into an admin
+ * UI by accident.
+ *
+ * It keeps `Button` as the trigger rather than taking the dialog's default button,
+ * because this control sits in the owner's ad row with a `margin-left: auto` that
+ * pushes it to the right edge; falling back would have changed how it looks and
+ * where it sits as a side effect of a refactor. `ConfirmDialog` takes a trigger
+ * element for exactly that case.
+ *
+ * The `try/catch` was added with the move. The handler used to await the action
+ * with no `catch`, so a rejected promise skipped `setIsPending(false)` on every
+ * path and left the button permanently disabled with nothing on screen to say why
+ * -- the shape of bug `ReportButton` and `TakeDownButton` already guard against.
+ */
 function DeleteAdButton({ adId }: DeleteButtonProps) {
   const router = useRouter();
   const { showToast } = useToast();
 
   const [isPending, setIsPending] = React.useState(false);
 
-  async function handleDelete(adId: string) {
+  async function handleDelete() {
     setIsPending(true);
 
-    const res = await deleteAdById(adId);
+    try {
+      const res = await deleteAdById(adId);
 
-    setIsPending(false);
+      if (res.success) {
+        showToast('Ad deleted successfully', 'success');
 
-    if (res.success) {
-      showToast('Ad deleted successfully', 'success');
-      router.push(`/dashboard/${res.userId}`);
-      return;
+        /**
+         * A redirect rather than a refresh: the ad is gone and the dashboard is
+         * where the owner's remaining ads are listed, so staying would leave the
+         * control on a row that no longer exists.
+         */
+        router.push(`/dashboard/${res.userId}`);
+        return;
+      }
+
+      // The action's own message, rather than a friendlier string that could
+      // disagree with the server about what happened.
+      showToast(res.error || 'Delete failed', 'error');
+    } catch {
+      // The action is documented never to throw; handling it anyway is what keeps
+      // a network failure from stranding this control in a permanently disabled
+      // state with no explanation.
+      showToast('Delete failed', 'error');
+    } finally {
+      setIsPending(false);
     }
-
-    showToast(res.error || 'Delete failed', 'error');
   }
 
   return (
-    <Alert.Root>
-      <Alert.Trigger asChild>
+    <ConfirmDialog
+      trigger={
         <Button
           variant="fill"
           size="small"
@@ -48,90 +82,16 @@ function DeleteAdButton({ adId }: DeleteButtonProps) {
         >
           Delete ad
         </Button>
-      </Alert.Trigger>
-
-      <Alert.Portal>
-        <Overlay />
-        <Content>
-          <Title>Are you absolutely sure?</Title>
-
-          <Description>
-            This action cannot be undone. This will permanently delete
-            your ad and remove your ad data from our servers.
-          </Description>
-          <ActionsWrapper>
-            <Alert.Cancel asChild>
-              <Button variant="outline" size="small">
-                Cancel
-              </Button>
-            </Alert.Cancel>
-            <Alert.Action asChild>
-              <Button
-                variant="fill"
-                size="small"
-                destructive
-                style={{ marginLeft: 'auto' }}
-                onClick={() => handleDelete(adId)}
-                disabled={isPending}
-              >
-                Yes, delete ad
-              </Button>
-            </Alert.Action>
-          </ActionsWrapper>
-        </Content>
-      </Alert.Portal>
-    </Alert.Root>
+      }
+      triggerLabel="Delete ad"
+      dialogTitle="Are you absolutely sure?"
+      description="This action cannot be undone. This will permanently delete your ad and remove your ad data from our servers."
+      confirmLabel="Yes, delete ad"
+      onConfirm={handleDelete}
+      destructive
+      isPending={isPending}
+    />
   );
 }
-
-const overlayShow = keyframes`
-    from {
-      opacity: 0
-    } to {
-      opacity: 1
-    }
-  `;
-
-const Overlay = styled(Alert.Overlay)`
-  position: fixed;
-  inset: 0;
-  background-color: var(--color-overlay-modal);
-  animation: ${overlayShow} 150ms cubic-bezier(0.16, 1, 0.3, 1);
-`;
-
-const Title = styled(Alert.Title)`
-  font-weight: ${WEIGHTS.normal};
-  font-size: 1.5rem;
-  margin-top: -8px;
-`;
-
-const Description = styled(Alert.Description)`
-  font-weight: ${WEIGHTS.normal};
-  font-size: 1rem;
-`;
-
-const Content = styled(Alert.Content)`
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 90vw;
-  max-width: 500px;
-  max-height: 85vh;
-
-  background-color: var(--color-card-background);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-card);
-  padding: 16px;
-  color: var(--color-text);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-const ActionsWrapper = styled.div`
-  display: flex;
-`;
 
 export default DeleteAdButton;

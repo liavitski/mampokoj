@@ -20,6 +20,10 @@ rendering — against a real database and real object storage.
 - Up to 3 photos per ad, enforced before the upload is stored
 - Light and dark themes, persisted in a cookie and applied without a flash
 - Responsive from 320px up
+- SEO: per-ad Open Graph cards, `schema.org` JSON-LD with price and
+  availability, `sitemap.xml`, `robots.txt`, self-referencing canonicals, and
+  real HTTP 404s for removed listings
+- The interface and all metadata are in Czech; `lang="cs"`
 
 ## Tech Stack
 
@@ -103,7 +107,7 @@ Read by libraries rather than by name in `src/`:
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `NEXTAUTH_SECRET` | yes | Signs the session JWT |
-| `NEXTAUTH_URL` | yes | Canonical origin, e.g. `http://localhost:3000` |
+| `NEXTAUTH_URL` | yes | Canonical origin, e.g. `http://localhost:3000`. Also the origin every SEO URL is built from — canonicals, `og:url`, `sitemap.xml` and the sitemap pointer in `robots.txt`. It falls back to `VERCEL_URL` (which Vercel provides automatically) so a Preview deployment without this variable cannot advertise production canonicals, and to `http://localhost:3000` last. See `src/lib/seo.tsx`. |
 | `UPLOADTHING_TOKEN` | for uploads | Lets the server delete files from the bucket |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | for uploads and ad creation | `Redis.fromEnv()` in `src/server/redis.ts`, shared by the rate limiter and the per-user ad lock. Missing values warn rather than throw, so the client looks healthy and fails on every call. |
 
@@ -114,8 +118,10 @@ Read only by `pnpm db:seed`:
 | `SEED_ALLOW` | for `db:seed` | The **database name** that may be filled with fake data, e.g. `SEED_ALLOW=neondb`. |
 
 `pnpm db:seed` refuses to run without it, so CI and a fresh clone cannot seed by
-accident. It does **not** stop a seed against production: `.env` is copied to
-the Vercel host, so the variable is set there. See `src/utils/seed-guard.ts`.
+accident. It does **not** stop a seed against production: every env var here is
+set **by hand in the Vercel dashboard, per environment** — `.env` is gitignored,
+so it does not travel with a push — and `SEED_ALLOW` should be assumed present
+there. See `src/utils/seed-guard.ts` and `HANDOFF.md` §1.
 
 OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 
@@ -130,12 +136,13 @@ OAuth callback URLs are `http://localhost:3000/api/auth/callback/<provider>`.
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm test` | Vitest, single run |
 | `pnpm test:watch` | Vitest in watch mode |
+| `pnpm test:e2e` | Playwright, 43 specs. Hand-run, not in CI. Kill any stale server on :3000 first |
 | `pnpm verify` | lint + typecheck + test + build — run this before pushing |
 | `pnpm db:generate` | Write a migration from the schema into `drizzle/` |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:baseline` | Record the baseline as applied on a database that predates migrations |
 | `pnpm db:push` | Push the schema directly, without recording history |
-| `pnpm db:seed` | Insert 100 fake ads and their images |
+| `pnpm db:seed` | Insert 100 fake ads and their images (additive — run it twice if you wiped the table) |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm storage:reconcile` | Report (and with `--delete` remove) upload-bucket files no database row references |
 
@@ -158,7 +165,13 @@ Two conventions are worth knowing before adding tests:
   compiles a `where` clause with Drizzle's `PgDialect` so a test can assert on
   the SQL text and bound parameters. See `src/lib/__tests__/ads.test.ts`.
 
-There is no end-to-end suite yet — see [HANDOFF.md](HANDOFF.md).
+**There is an end-to-end suite, and it is run by hand rather than in CI.**
+`pnpm test:e2e` runs 43 Playwright specs in `e2e/` covering browse → region filter
+→ load more → ad detail → intercepting modal → not-found → SEO. Every spec is an
+anonymous read, so it is safe against the shared development database, and that
+same constraint is why the ad limit, the report predicate and the moderation
+takedown have no E2E coverage — they need a signed-in session and a disposable
+database. See [HANDOFF.md](HANDOFF.md) §2.1.
 
 ## Project Structure
 

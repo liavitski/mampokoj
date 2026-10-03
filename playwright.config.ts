@@ -16,7 +16,7 @@ import { defineConfig, devices } from '@playwright/test';
  *   write path.
  *
  * Chosen because this project's E2E gap was never "no browser driver" -- a
- * Playwright MCP server was already configured, and every claim in `tasks/todo.md`
+ * Playwright MCP server was already configured, and every claim in the work log
  * was verified through it. What was missing was *coverage*: MCP gave manual
  * verification that left no trace and failed silently when a step was skipped.
  *

@@ -3,10 +3,10 @@
 Implements HANDOFF.md §9.3 ("no moderation, no reporting, no admin"), plus the
 takedown path §9.3 implies but does not name.
 
-**This spec does not resolve §9.2** (whether to retire `withUserLock`) **or §2.2**
-(E2E decision). Both stay exactly as they are. §9.3 touches neither the ad lock,
-the slot index, nor the route topology E2E would cover, so it is implementable
-without either decision.
+**This spec resolves neither §9.2** (the ad lock) **nor §2.1** (E2E), by design:
+§9.3 touches neither the ad lock, the slot index, nor the route topology E2E would
+cover, so it was implementable without either decision. Both have since been taken
+separately, and neither touched anything in this spec.
 
 ---
 
@@ -70,7 +70,7 @@ ownership, behind its own authorization check.
 4. **A poster cannot report their own ad.** One extra predicate; it keeps the
    queue free of self-inflicted noise and forecloses a poster gaming assumption 2.
 5. **`MODERATORS` fails closed.** Unset or empty means nobody is a moderator.
-6. **No admin UI** (HANDOFF §9.6 keeps excluding it). The moderation surface is
+6. **No admin UI** (HANDOFF §9.5 keeps excluding it). The moderation surface is
    one list and one button, not user management or content editing.
 
 → Correct me now, or I proceed.
@@ -252,7 +252,7 @@ cannot be matched by a malformed allowlist.
 `deleteAdById` (owner removes own ad) and `deleteAdAsModerator` (operator removes
 any ad) must delete the same things in the same order: UploadThing files, then
 image rows, then the ad row. Duplicating that sequence across two files is how
-the next change orphans a file in a bucket that bills for it (HANDOFF §2.3).
+the next change orphans a file in a bucket that bills for it (HANDOFF §2.2).
 
 `src/server/ad-teardown.ts`:
 
@@ -475,8 +475,8 @@ down; confirm the ad 404s and its photos are gone from the bucket.
 **Ask first**
 
 - Any change to the `(userId, slot)` unique index or the ad limit (§7).
-- Any change to `withUserLock`, `user-lock.ts`, or the `RELEASE_SCRIPT` (§9.2,
-  still an open decision).
+- Reintroducing an advisory lock on the create path. It was deleted (§9.2) and the
+  slot index is what holds the limit.
 - Any new table, or a non-partial index.
 - Adding `reportedAt` to `PublicAd`, or any other change to `toPublicAd`.
 - Touching `users`, `customers`, `invoices`, `revenue` or the `roomFinder`
@@ -534,7 +534,7 @@ date than the poster earned. **§5.2 asserts this so it cannot be rediscovered a
 a bug.**
 
 **8.2 The queue page is triage, not an admin UI — kept.**
-HANDOFF §9.6 excludes an admin UI, and the maintainer confirmed a `/moderation`
+HANDOFF §9.5 excludes an admin UI, and the maintainer confirmed a `/moderation`
 list-and-one-button counts as triage. Recorded here because it is a reading of an
 explicit exclusion, not something the handoff said outright. The fallback was a
 documented `SELECT` with a gated action and no page; that was declined because it

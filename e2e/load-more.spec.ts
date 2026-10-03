@@ -124,7 +124,7 @@ async function everyIdInRegion(
 /**
  * "Load more", and the keyset cursor underneath it.
  *
- * Third on §2.2's priority list, and the only flow here that is entirely
+ * Third on §2.1's priority list, and the only flow here that is entirely
  * client-driven after first paint: `AdGrid` fetches `/api/ads` with a
  * `(cursorCreatedAt, cursorId)` pair and appends. Two ways this breaks that a
  * first-page assertion cannot see -- the same ad appended twice when a cursor

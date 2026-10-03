@@ -57,7 +57,7 @@ type ConfirmDialogProps = {
  * **This did in fact get copied once.** `DeleteAdButton` grew its own `Alert.Root`,
  * `Overlay`, `Content`, `Title`, `Description` and a second `overlayShow`
  * keyframes animation after this was extracted, which is the erosion `HANDOFF.md`
- * §9.6 warns about. It now uses this component, and a source-read assertion in
+ * §9.5 warns about. It now uses this component, and a source-read assertion in
  * `DeleteAdButton.test.tsx` fails if a second dialog is ever built alongside it.
  *
  * Client-side because Radix needs it. All three callers are client components.

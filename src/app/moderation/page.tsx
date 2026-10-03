@@ -55,7 +55,7 @@ function AdTitle({ adId, title }: { adId: string; title: string }) {
  * The moderation page: every reported ad, and every ad on the site.
  *
  * Not an admin UI -- no user management, no content editing, no dashboards --
- * which is what HANDOFF §9.6 excludes. It is two lists and three buttons, and the
+ * which is what HANDOFF §9.5 excludes. It is two lists and three buttons, and the
  * buttons are what make the reports worth filing.
  *
  * The second list is the addition, and it rests on a distinction worth stating:

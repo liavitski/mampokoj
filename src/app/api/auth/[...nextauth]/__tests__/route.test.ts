@@ -2,7 +2,7 @@
 /**
  * One sign-in provider.
  *
- * §9.5 recorded that signing in with both GitHub and Google gives one person two
+ * §7 recorded that signing in with both GitHub and Google gives one person two
  * account ids -- the ad limit keys on `ads.userId`, so four ads became possible
  * -- and that fixing it needed either account linking or a single provider. The
  * provider was dropped, so this asserts that outcome rather than the old
@@ -30,7 +30,7 @@ describe('auth providers', () => {
   it('sends the provider account id into the session', () => {
     // Everything keys on this: `ads.userId`, the ad limit's slot index, and the
     // MODERATORS allowlist. It is the provider's opaque account id, not an email
-    // -- there is no email anywhere in the system (§9.5).
+    // -- there is no email anywhere in the system (§7).
     expect(authOptions.callbacks?.session).toBeTypeOf('function');
     expect(authOptions.callbacks?.jwt).toBeTypeOf('function');
   });

@@ -13,7 +13,7 @@ import { utapi } from './storage';
  * so the two row deletes could be collapsed into one -- but the `fileKey`s have
  * to be read before any row goes, and doing that read first is what makes it
  * possible. Deleting the rows first and reading afterwards would find nothing
- * and leave real files in a bucket that bills for them (handoff §2.3).
+ * and leave real files in a bucket that bills for them (handoff §2.2).
  *
  * The row deletes are kept explicit rather than leaning on the cascade so the
  * bucket and the database cannot drift apart if the constraint is ever dropped.

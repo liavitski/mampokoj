@@ -5,7 +5,7 @@ import { adCard, appShell } from './support/app-shell';
 /**
  * The ad detail page, and the intercepting modal that renders the same card.
  *
- * Fourth and fifth on §2.2's priority list, and they share a route for a reason:
+ * Fourth and fifth on §2.1's priority list, and they share a route for a reason:
  * `/ad/[adId]` and `@modal/(.)ad/[adId]` both call `getValidatedAd` and both
  * `notFound()` on a null. A change to that query therefore has to break both, or
  * one of them is silently serving something the other refuses.
@@ -106,7 +106,7 @@ test.describe('ad detail', () => {
     //
     // That is a real defect rather than a quirk of the test -- search engines and
     // uptime monitors will both read these pages as successful -- and it is
-    // recorded in `HANDOFF.md` §9.5. Asserting 404 here would mean asserting a
+    // recorded in `HANDOFF.md` §9.4. Asserting 404 here would mean asserting a
     // fix that has not been made.
     const missing = crypto.randomUUID();
 

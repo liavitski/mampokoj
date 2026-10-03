@@ -6,13 +6,14 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 367 tests
-  across 43 files, `next build` succeeds.
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 419 tests
+  across 48 files, `next build` succeeds. `pnpm test:e2e` adds 24 Playwright
+  specs (§2.1), run by hand and not wired into CI.
 - **Database:** one Neon database (`neondb`) shared by development and
   production (§3). 200 generated ads and 393 images, all seeded. Also holds
   128 KB of abandoned tables from two older projects (§8). The owner holds 0 of
   their 2 ad slots, and the UploadThing bucket is empty and agrees with the
-  database.
+  database — though the seeded **photo URLs** point at files that are gone (§2.2).
 - **Production is live** at `mampokoj.vercel.app`, and the moderation queue works
   there (§9.3). Env vars are set in the Vercel dashboard by hand — see §1, which
   is the item most likely to waste an afternoon.
@@ -23,12 +24,11 @@ current shape, the code says so.
 
 1. **Upstash Redis resolves from this machine and responds** (`PING` → `PONG`),
    as of 2026-10-03. This is the opposite of what earlier sessions recorded
-   (`ENOTFOUND`), and it changed what could be verified: the Lua release script
-   has now executed for real (§2.1), and the upload path works, which is what
-   made the bucket verification possible (§9.3). **Do not assume either from a
-   test** — both are still mocked in the suite, and a mocked Redis proves
-   nothing about a live one. If something Redis-backed looks broken, ping it
-   first; the failure mode is silent rather than loud.
+   (`ENOTFOUND`), and it is what makes uploads work. It has one remaining
+   consumer, `ratelimit.ts`. **Do not assume it from a test** — the suite mocks
+   Redis, and a mocked Redis proves nothing about a live one. If something
+   Redis-backed looks broken, ping it first; the failure mode is silent rather
+   than loud.
 2. **`MODERATORS` lists OAuth account ids, not email addresses.** It is the
    comma-separated allowlist for the moderation queue (§9.3) and is read by
    `src/lib/moderator-guard.ts`. The value is the same id `ads.userId` holds and
@@ -71,49 +71,79 @@ current shape, the code says so.
 
 ## 2. Open work
 
-**The next session should start at §9.5** — the app runs, and §9.1, §9.2 and §9.3
-are closed. §2.1 is closed too, and with it the last stated reason for leaving
-`withUserLock` in place. What remains in §2.2 to §2.3 does not block; the item
-that genuinely needs a decision from you is still §2.2 (E2E), and §9.2's
-`withUserLock` retirement is now a live decision rather than a deferred one.
+**The next session should start at §9.4.** The app runs, §9.1–§9.3 are closed,
+and the two items that needed a decision (§2.1's E2E question, §9.2's
+`withUserLock` retirement) have both been taken. Nothing left is blocking: three
+items in §9.4 and two in §2.2, none of which gate anything.
 
-### 2.1 Resolved: the Lua release script executes correctly
+### 2.1 End-to-end tests: local-only, by hand
 
-`RELEASE_SCRIPT` in `src/server/user-lock.ts` is now **run against a live
-Redis** (2026-10-03), which closed the item this section used to hold open. All
-eight checks passed, against a key the script created and cleaned up itself:
+`@playwright/test` is installed and **`pnpm test:e2e` runs 24 specs**, covering
+browse → region filter → load more → ad detail → intercepting modal →
+not-found. Config is `playwright.config.ts`; specs are in `e2e/`.
 
-- the owner releases, `DEL` runs, and the script returns **1** so `releaseAdLock`
-  can detect a lost lock
-- **a stale holder whose TTL expired returns 0 and leaves the new holder's lock
-  intact** — the whole reason this is Lua and not a bare `DEL`, and the one that
-  a `redis.call` stub would have faked
-- the rightful owner can still release afterwards
-- releasing an already-free key is a no-op returning 0, not an error
+There is no CI wiring and no database provisioning. `webServer` reuses whatever
+`pnpm dev` is already running, or starts one, and the suite runs against whatever
+`DATABASE_URL` points at. `E2E_BASE_URL=http://localhost:3100` points it at a
+production build instead — **do that before a release, not only against dev**,
+because streaming behaves differently and the suite was green on both. Verified
+green 4 consecutive runs against a build and 3 against dev, no skips.
 
-The script was text-pinned by a test and reviewed by eye before this; what was
-missing was a real server, and the `luajit` stub route was correctly rejected
-because it would have encoded the token comparison under test.
+**Every spec is an anonymous read.** That is a constraint, not a convenience: it
+is why they are safe against the shared development database, and it is also why
+there is no E2E coverage of the ad limit, the report predicate or the moderation
+takedown. Those need a signed-in session and a disposable database.
 
-**What is still unverified is the client around it, not the script.** The
-acquire loop's contention behaviour — two callers, one winner, bounded by
-wall-clock — has not been exercised against live Redis either. §9.4.
+The two rejected alternatives, for whoever reopens this: a **Neon branch per run**
+needs an API token as a CI secret plus branch create/drop and teardown-on-failure;
+a **local `postgres` container** needs a driver swap, because
+`@neondatabase/serverless`'s HTTP driver will not talk to local Postgres over TCP —
+a change to the read and write path in order to test the read and write path.
 
-### 2.2 Decide on end-to-end tests (blocked on your decision)
+Three things this suite found that unit tests could not:
 
-Every route is dynamic and reads Postgres, so an E2E run needs a database this
-repo does not provision. Pick one:
+1. **A streamed page holds two copies of itself.** Next emits the resolved content
+   into a bare `<div>` on `document.body` alongside the real page inside
+   `MaxWidthWrapper`, and an inline script moves it into place a moment later.
+   Measured during first paint: `MaxWidthWrapper` with 1 `<main>` and 10 ad links,
+   and a sibling bare `div` with the same 10. A locator read as soon as `goto`
+   resolves therefore sees 20 cards on a page that renders 10 — in development *and*
+   in a production build. This produced a dozen confident-looking failures against
+   a correct app. `e2e/support/app-shell.ts` scopes every query to the layout shell
+   for this reason, and `gridReady` waits for a card inside it, because the shell
+   exists from the first flush of the stream. **Anything else that reads this DOM
+   early — a scraper, a monitoring probe, another test suite — has the same problem.**
 
-- **(a) A Neon branch per CI run.** Most faithful; needs a Neon API token.
-- **(b) A `postgres` service container.** Simplest, but the app's
-  `@neondatabase/serverless` HTTP driver will not talk to a local Postgres over
-  TCP; needs a driver swap behind an env check.
-- **(c) Local-only.** Playwright `webServer`, run by hand before release.
+2. **`notFound()` in a streamed route answers HTTP 200, not 404.** `/ad/[adId]`
+   sits behind `loading.tsx`, so the response head is committed before
+   `getValidatedAd` has run; `notFound()` can only swap the body. Confirmed with
+   `curl` against a production build for both a missing uuid and a malformed one —
+   both 200, with `NEXT_HTTP_ERROR_FALLBACK` in the payload. §9.4.
 
-Then cover, in priority order: browse → region filter → load more → ad detail →
-intercepting modal → 404 for a deleted ad. Anonymous flows only.
+3. **An anonymous visitor's detail page has no `tel:` link at all** — it renders
+   "Log in to see the contact". `BlurredPhone`, the button that reveals the number
+   behind a blur, is the *signed-in* affordance. Worth knowing before writing a
+   check against this page.
 
-### 2.3 Smaller items
+### 2.2 Smaller items
+
+- **Every seeded ad photo is already dead.** Found 2026-10-03 by the E2E suite: all
+  ten cards on the first page request their image through `next/image`, and every
+  one of those requests 404s. `seed-data.ts` hardcodes **11 `ufs.sh` URLs** into
+  `images.url`, and none of those files exist any more.
+
+  **The part that matters: two columns of the same row disagree.** `fileKey` is
+  deliberately synthetic (`seeded-<uuid>`), because a real key would collide on the
+  unique index, and `storage:reconcile` keys off `fileKey`. So reconcile reports
+  **no drift** while every card renders a broken image. The reconciler is not
+  wrong — it answers "does the bucket hold every file we reference", and this row
+  says no — but nothing in the repo checks `url`, so a dead URL is invisible to
+  every tool we have. Either point the seed at files that exist or accept a broken
+  thumbnail on every seeded ad; deciding is the open part.
+
+  This is also why `e2e/browse.spec.ts` filters `Failed to load resource` out of
+  its console-error assertion. Without that note the filter would look like the
+  test being weakened to pass.
 
 - **Run `pnpm storage:reconcile` by hand after any incident involving uploads or
   deletes, and before assuming the bucket is empty.** UploadThing bills a file
@@ -138,23 +168,9 @@ comment would not hold.
 
 **`upload-guard.ts` fails closed.** It awaits `ratelimit.limit()` with no
 `try/catch`, so an unreachable Redis breaks uploads. A quota is not an
-authorization boundary, so the ad lock fails open and logs; but here the
-mechanism *is* the control, so failing open would turn an outage into an abuse
-window. **Do not "fix" this toward consistency with the ad lock.**
-
-**The ad lock is advisory, not authoritative, and no longer carries the
-quota.** The limit is enforced by the slot index (§7), so when Redis is
-down the critical section still runs, unserialized, and logs — and the
-limit holds anyway. An outage can cost a create a lost race for a free
-slot, never an over-limit account.
-
-**Why a lock still exists when the database enforces the limit.** The count it
-used to guard could not be enforced in the database — `db.transaction` throws on
-the neon-http driver, `pg_advisory_xact_lock` cannot help under READ COMMITTED, a
-trigger runs inside the INSERT's snapshot, and a partial unique index can only
-say "at most 1" — all measured, all reasoned in `user-lock.ts`'s docstring. The
-slot index (§7) is a write-time conflict on the key itself, so it reads no
-snapshot and needs none of that. What remains of the lock is serialization.
+authorization boundary, so failing open here would turn an outage into an abuse
+window; the mechanism *is* the control. **Do not "fix" this toward failing open.**
+It is the only Redis dependency left in a write path (§9.2).
 
 **One database for dev and production.** Found, not designed: Vercel's
 `DATABASE_URL` points at the dev database and `.env` is copied to the Vercel
@@ -217,10 +233,9 @@ a hundred generated listings' worth of rows. If the seed key format in
 the same idea in two shapes, and picking the wrong one is a visible regression,
 so `Header.test.tsx` asserts which each control got.
 
-**Not done, on purpose:** no E2E (§2.2), no React Compiler (stable in Next 16,
-not enabled), loading states not revisited (three `loading.tsx` files render a
-bare `Spinner`), no `CONSTRAINTS.md` (the `constraint-driven-development` skill
-would add one).
+**Not done, on purpose:** no React Compiler (stable in Next 16, not enabled),
+loading states not revisited (three `loading.tsx` files render a bare `Spinner`),
+no `CONSTRAINTS.md` (the `constraint-driven-development` skill would add one).
 
 ---
 
@@ -265,9 +280,11 @@ Each of these cost real time.
   module proves nothing about configuration. Set the variables in `vi.hoisted`,
   before the import runs.
 - **The Redis client's `signal` is a factory evaluated per HTTP request**, not
-  per command, so `retries: N` multiplies the effective per-command timeout.
-  That is why `MAX_SET_CALL_MS` is `timeout * (retries + 1)`, and why the acquire
-  loop is bounded by wall-clock rather than by a count of sleeps.
+  per command, so `retries: N` multiplies the effective per-command timeout — a
+  single command can outlive the caller by `timeout * (retries + 1)`. This is why
+  `redis.ts` keeps those three settings private: they exist to bound one call
+  site, and an exported constant nothing imports invites coupling to a tuning
+  decision.
 - **`getTableConfig(table).columns` is an array** on drizzle-orm 0.45, not a
   name-keyed record. `Object.keys()` over it yields `'0'`, `'1'`, … and a test
   built on that asserts nothing while looking correct.
@@ -316,6 +333,12 @@ Each of these cost real time.
   `Wrapper` share it through a `data-modal-box` attribute — set in `Modal.tsx`,
   selected in `AdCardCompact.styles.tsx`. Rename it in one file without the other
   and the dialog draws a card within a card.
+- **An awaited server action with no `catch` disables its button forever.**
+  `useTransition`'s `isPending` is only cleared when the transition *finishes*, so
+  a rejected action that is never caught skips `setIsPending(false)` on every
+  path. The button goes dead and nothing on screen says why — a moderation action
+  that silently stops responding. `try`/`catch`/`finally`, with `finally` doing the
+  reset.
 - **This machine's `~/.npmrc` sets `min-release-age=3` days**, which pnpm
   surfaces as `minimumReleaseAge: 4320` minutes. A **machine** supply-chain guard,
   not a repo setting — do not go looking for it in `pnpm-workspace.yaml`, and do
@@ -327,7 +350,8 @@ Component-test specifics: `AdGrid` and `AdPhotosGallery` need `vi.mock` for
 `next/navigation` and `../ToastProvider` (`useSearchParams` returns null outside
 a router); `RegionSelectBlock` is `display: none` under jsdom, so queries need
 `{ hidden: true }`; Radix `Select` will not open its portal in jsdom while the
-trigger is hidden, so the "pick a region" path wants E2E.
+trigger is hidden, which is why the region filter is covered by
+`e2e/region-filter.spec.ts` and not by a component test.
 
 ---
 
@@ -338,25 +362,19 @@ worse than no test**, because it is read as proof. Every rule below exists
 because its violation shipped; `git log` has the story.
 
 **A live call that succeeds against an empty target is not a verification.** The
-one browser check that mattered most — does `utapi.deleteFiles` actually remove
-a file? — was unprovable, because the bucket held 0 files and every image key
-was a synthetic `seeded-*` one that was never uploaded. The call ran, returned
-no error, and proved nothing: **a wrong key does not error either.** Before
-recording any check as verified, confirm the thing it asserts *could* have
-failed. Measuring the precondition is part of the check, not a detour from it.
+call ran, returned no error, and proved nothing — **a wrong key does not error
+either.** Before recording any check as verified, confirm the thing it asserts
+*could* have failed. Measuring the precondition is part of the check, not a detour
+from it. (§9.3 is the worked example: the first attempt at verifying
+`utapi.deleteFiles` passed against a bucket holding 0 files.)
 
 - **Revert the fix and confirm it fails before believing a test proves
   something.** `expect(mocks.x).toHaveBeenCalled()` proves nothing.
 - **Assert on what the code under test produced, not on what the test produced.**
 - **If a constant cannot influence the assertion, the assertion is decorative.**
-- **A hand-written fake must not model the property under test.** Model the real
-  primitive: without `NX`, `SET` overwrites and returns OK.
 - **Assert authorization against compiled SQL**, via `src/test/drizzle-where.ts`
   (`compileWhere`, `constrainsColumn`). A mock returning "no row" passes even
   when the check is removed.
-- **Assert contention actually happened.** With a single-threaded runtime and an
-  in-process fake, "peak concurrency 1" is also what a version that never called
-  Redis would produce.
 - **Restore a spy only after asserting on it.** `mockRestore()` also resets
   `mock.calls`, so restoring in a `finally` and asserting afterwards reads an
   empty list.
@@ -414,7 +432,16 @@ database would leave `db:migrate` convinced the schema exists.
 reading the 23505 off `error.cause` (§4) and treating it as "this slot is taken"
 rather than as a failure. A user at the limit holds every slot, so every attempt
 conflicts and the cap is Postgres refusing a duplicate pair — with no transaction
-and no Redis, which is what neither of those could ever provide (§3).
+and no Redis.
+
+**Why it took a database constraint and nothing else.** Every alternative was
+measured before this one: `db.transaction` throws on the neon-http driver,
+`pg_advisory_xact_lock` cannot help under READ COMMITTED, a trigger runs inside
+the INSERT's own snapshot, and a partial unique index can only say "at most 1".
+The slot index is a write-time conflict on the key itself, so it reads no snapshot
+and needs none of those. **A lock is a fourth option and it is not needed:** the
+loser of a race gets a 23505, reads it as "slot taken" and moves to the next slot.
+That costs one wasted INSERT and cannot produce an over-limit account.
 
 Invariants a change here must preserve, each asserted somewhere:
 
@@ -430,13 +457,25 @@ Invariants a change here must preserve, each asserted somewhere:
 - Re-seeding is safe because `seed-data.ts` gives every ad a fresh `userId`, so
   each seeded row takes `slot = 0` with nothing to collide against.
 
-`withUserLock` still wraps `createAd` to serialize it — two creates for one user
-cannot race for the same free slot. It is now redundant for the limit itself;
-whether to retire it is an open decision in §9.2.
+The limit is **verified against the real database, not merely asserted**: 20
+simultaneous `insertIntoFreeSlot` calls for one throwaway user id yield exactly 2
+rows, 18 refusals, and a duplicate-pair insert refused with 23505 — 11 consecutive
+runs, always exactly 2. `createAd`'s own doc comment records the reasoning, because
+the next person to hit a lost race will read it as a bug rather than the accepted
+cost. **One loose end, recorded rather than rounded off:** an early run failed with
+a non-23505 driver error that never reproduced in the following 11. `createAd`
+handles that path correctly — rethrow, log the cause, return "Could not create the
+ad" — so nothing followed from it, and it is noted only because it is the single
+unexplained observation from that work.
 
-Known limitation: **closed.** The slot keys on the OAuth provider account id, so
+Known limitation, now closed: the slot keys on the OAuth provider account id, so
 a person signing in with both GitHub and Google used to have two ids and could
-hold 4 ads (§9.5). There is now one provider, so one person has one id.
+hold 4 ads. There is now one provider, so one person has one id, and `authOptions`
+is pinned to length 1 by a test because a second provider would quietly double the
+limit again. **The cost, stated rather than buried:** anyone who only ever signed
+in with GitHub can no longer sign in, and their ads are keyed to an id the site no
+longer recognises. With one real account that is a deliberate trade, not an
+oversight.
 
 ---
 
@@ -521,21 +560,14 @@ how fast it arrives, so a rate limit would throttle nothing a spammer cares
 about. `checkUploadAdmission`'s ratelimit stays, because there the abuse is
 bandwidth rather than row count.
 
-**One decision is left, and it is yours, not an oversight.** `withUserLock` now
-buys only serialization (§7). Retiring it — deleting `user-lock.ts`,
-`user-lock.test.ts` and `redis-client-contract.test.ts`, and closing §2.1 with it
-— would take Redis out of the create path completely.
-
-**This was deferred once, for a reason that has since expired.** It was left in
-place because the Lua release script had never been executed (§2.1), and
-deleting an engineered module on the strength of a text-pinned test is not a
-call to make silently. That script has now run against live Redis and is
-correct, so the blocker is gone. Two things argue for doing it: the lock is
-redundant for the limit itself, and Redis has been an unreached dependency
-through most of this project's history. Two argue against: the acquire loop's
-contention behaviour is the one Redis path still never exercised (§9.4), and
-retiring deletes the question instead of answering it. Worth deciding on its own
-terms rather than as a footnote to a schema change.
+**Redis is now out of the create path entirely.** The advisory `withUserLock` that
+used to wrap `createAd` is deleted, and with it ~800 lines of lock tests;
+`checkUploadAdmission`'s ratelimit is the only Redis dependency left in a write.
+It was deleted because it was **correct** and still not worth its price: with the
+slot index enforcing the limit, the mutex bought the avoidance of a single wasted
+INSERT. `src/server/__tests__/retired-user-lock.test.ts` is the tripwire — a lock
+that works correctly *alongside* the index would pass every behavioural assertion
+there is, which is exactly how it could otherwise come back unnoticed.
 
 ### 9.3 Resolved: reporting, a moderation queue, and a takedown
 
@@ -580,62 +612,57 @@ refuses. A takedown and an owner delete both ran live — rows and image rows
 gone, queue count correct, and `/ad/[adId]` 404s afterwards. The dashboard still
 reports the limit as 2 with the slot index holding.
 
-**The bucket is now verified too, with a real file.** The first attempt could
-not check it — the bucket held 0 files and every image key was synthetic
-(`§3`), so `utapi.deleteFiles` only ever received keys that were never there,
-which does not error and therefore proves nothing. With Redis reachable (§1),
-an upload works, so the check was repeated honestly:
+**`teardownAd` genuinely removes files from the bucket, and the evidence is the run
+that measured its precondition.** The first attempt passed against a bucket
+holding 0 files, which proved nothing (§5). It was repeated after creating an ad
+with a real uploaded PNG and confirming via `utapi.listFiles` that exactly one
+real, non-`seeded-*` file existed: delete, then all four results asserted — bucket
+back to 0, ad row gone, image row gone, `/ad/[adId]` 404s — and `storage:reconcile`
+reporting no drift.
 
-1. created a real ad and uploaded a real PNG through the dashboard
-2. **confirmed the precondition first** — `utapi.listFiles` returned exactly 1
-   file, key `kpgjANcHnEQ7ITMs8vycUzdRP2L5ZTWJYpOVvgmAarQ6Noxf`, matching the
-   image row and *not* a `seeded-*` key
-3. deleted the ad through the owner path (self-report is refused by design, so
-   it could not be routed through the queue)
-4. **asserted all four results**: bucket back to 0 files, ad row gone, image row
-   gone, zero non-seeded orphan rows, and `/ad/[adId]` 404s
-5. `pnpm storage:reconcile` reports no drift
+### 9.4 Worth doing, not blocking
 
-**So `teardownAd` genuinely removes files from the bucket, and this is the
-evidence for it — not the earlier run that returned cleanly against an empty
-target.** The generalisable part is step 2: the first attempt produced a
-*passing* result that meant nothing, and only measuring the precondition
-distinguished it.
+- **`notFound()` returns HTTP 200, not 404, for a missing ad.** Found 2026-10-03
+  by the E2E suite and confirmed with `curl` against a production build:
+  `/ad/<missing-uuid>` and `/ad/not-a-uuid` both answer 200, with
+  `NEXT_HTTP_ERROR_FALLBACK` in the body and the 404 page rendered correctly.
+  `loading.tsx` puts the route behind a Suspense boundary, so the response head is
+  committed before `getValidatedAd` has run and `notFound()` can only swap the
+  body. The visitor sees the right thing; anything reading the status — a search
+  engine, an uptime monitor, a CDN — does not. The fix is to not put this route
+  behind a streaming boundary, or to set the status before the shell flushes.
+  `e2e/ad-detail.spec.ts` asserts the *rendered* 404 and deliberately does not
+  assert a 404 status, because asserting one would be asserting a fix that has not
+  been made.
 
-### 9.4 Then: the ad-create lock's contention is still unverified
+- **Every seeded ad photo 404s.** See §2.2 — a dead `images.url` behind a
+  synthetic `fileKey`, which is why `storage:reconcile` reports no drift anyway.
 
-`RELEASE_SCRIPT` now executes correctly against live Redis (§2.1), and the
-upload rate limit is reachable — but the remaining gap is the **acquire loop's
-contention behaviour**: two concurrent callers, one winner, the other backing
-off and eventually failing, bounded by wall-clock rather than by a sleep count.
-That needs two simultaneous requests against live Redis and has not been run.
-
-It matters less than it did, because the ad limit is the slot index (§7), so a
-lost race costs a free slot, never an over-limit account. Half a day with
-Redis reachable.
-
-### 9.5 Worth doing, not blocking
-
-- **Two providers meant two identities — resolved.** GitHub is dropped; Google
-  only. Everything keys on the provider's account id (`ads.userId`, the slot
-  index, `MODERATORS`), so signing in with both gave one person two ids and four
-  ads instead of two. `authOptions` now has one provider and a test pins it to
-  length 1, because a second provider would quietly double the limit again and
-  would make the `MODERATORS` allowlist ambiguous. **The cost, stated rather than
-  buried:** anyone who only ever signed in with GitHub can no longer sign in, and
-  their ads are keyed to an id the site no longer recognises. With one real
-  account that is a deliberate trade, not an oversight.
 - **No account deletion.** Name, OAuth id and phone are stored with no erasure
   path. `deleteAdById` covers one ad, not the account.
 - **No email contact channel**, which is also the only route to verifying that a
   poster controls the number they published.
+- **A cursor pager for `getAllAds`.** The moderation page's "all ads" list is
+  bounded to `PAGE_SIZE` (10) with no pager, so of 194 seeded rows only 10 are
+  reachable. Flagged, not requested.
 
-### 9.6 Not on this list, deliberately
+### 9.5 Not on this list, deliberately
 
 - **An admin UI** — still excluded, and §9.3 did not quietly add one. The
-  moderation surface is a list and one button; there is no user management, no
-  content editing and no dashboard. `ConfirmDialog` was extracted rather than
-  copied a second time, which is the other way this section gets eroded.
+  moderation surface is a list and a few buttons; there is no user management, no
+  content editing and no dashboard.
+
+  **`ConfirmDialog` is the one dialog, and that is enforced rather than
+  remembered.** `DeleteAdButton` once carried its own copy — `Alert.Root`,
+  `Overlay`, `Content`, `Title`, `Description` and a second set of overlay
+  keyframes, about 50 lines kept in step by hand — which is the drift this bullet
+  describes rather than a hypothetical version of it. It now uses the shared
+  component, with `ConfirmDialog` taking a `trigger` element so the owner's
+  control keeps the design-system `Button` instead of changing appearance as a side
+  effect of the refactor. `DeleteAdButton.test.tsx` reads the source and fails if a
+  second dialog is ever built alongside it — from source, because "there is no
+  duplicated dialog here" is an absence, which no rendered tree can distinguish
+  from a dialog that has not been opened yet.
 - **The dev/prod database split** — §3 explains why it is a deliberate choice, and
   §8 covers the sharing. Real users appearing *is* the trigger to revisit, so it
   belongs on this list in spirit, but it is a database-provisioning task rather

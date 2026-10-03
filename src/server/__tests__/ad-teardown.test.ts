@@ -54,7 +54,7 @@ describe('teardownAd', () => {
     // The order is the whole point of this function. `images.adId` cascades on
     // delete, so the rows could be removed in one statement -- but the fileKeys
     // have to be read first, and a cascade that fires before the read leaves
-    // real files in a bucket that bills for them (handoff §2.3).
+    // real files in a bucket that bills for them (handoff §2.2).
     expect(mocks.order.indexOf('read fileKeys')).toBeLessThan(
       mocks.order.indexOf('delete files')
     );
@@ -102,7 +102,7 @@ describe('teardownAd', () => {
 
     // The caller decides how to report this, so the failure has to propagate.
     // Swallowing it would delete the rows and orphan the files, which is the
-    // exact drift §2.3 exists to catch.
+    // exact drift §2.2 exists to catch.
     await expect(teardownAd(AD_ID)).rejects.toThrow('uploadthing 500');
 
     // And it must not go on to delete the rows that would lose the keys.

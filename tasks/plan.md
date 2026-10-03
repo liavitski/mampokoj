@@ -1,8 +1,8 @@
 # Plan: Ad reporting and moderation triage — COMPLETE
 
-Spec: `SPEC-moderation.md`. Status: **shipped**, with four runtime checks that
-need a browser (§ Remaining work). Baseline: `pnpm verify` green — lint 0
-warnings, `tsc` clean, **361 tests across 42 files**, `next build` succeeds.
+Spec: `SPEC-moderation.md`. Status: **shipped** and verified in a real browser.
+Baseline: `pnpm verify` green — lint 0 warnings, `tsc` clean, **419 tests across
+48 files**, `next build` succeeds.
 
 This file was the forward-looking plan; it is now the record of what was built
 and what deviated. `HANDOFF.md` is the durable source of truth for the project;
@@ -27,8 +27,9 @@ because both slices depend on the column.
 
 1. **First report wins, enforced in the write's predicate.** One
    `UPDATE ... WHERE id = ? AND "reportedAt" IS NULL AND "userId" <> ? RETURNING id`.
-   No transaction (`db.transaction` throws on neon-http, §3), no Redis
-   (unreachable, §1). The slot index's reasoning (§7).
+   No transaction (`db.transaction` throws on neon-http, §3), no Redis — putting
+   Redis in a write path would have made an outage mean "reports silently fail".
+   The slot index's reasoning (§7).
 2. **The bypass lives in one action.** `deleteAdAsModerator`, never a flag on
    `deleteAdById`, whose ownership check is unchanged and unshared.
 3. **Teardown extracted** so the owner and moderator paths cannot drift.
@@ -51,7 +52,9 @@ otherwise assume were planned.
   `DeleteAdButton` both need a confirmation. Copying the dialog a second time
   would duplicate overlay/title/description/action styles — the drift that
   produced the nested-card regression in `AdCardCompact.styles`. `DeleteAdButton`
-  was **not** refactored onto it; that is a possible follow-up.
+  was **not** refactored onto it at the time, and did drift: it grew its own copy
+  of the overlay, title, description and keyframes. Migrated later, with a
+  source-read test to stop a third.
 - **`getReportedAds` narrows `reportedAt` with a type predicate**, not an
   assertion, because the column is nullable in the schema and the `isNotNull`
   predicate is invisible to TypeScript.
@@ -61,7 +64,7 @@ otherwise assume were planned.
   resets on reload.
 - **GitHub removal was not in the plan at all.** Added after the maintainer
   supplied the moderator's email, which made the account-id distinction
-  concrete. It also dissolved the two-identities problem (§9.5) and removed the
+  concrete. It also dissolved the two-identities problem (§7) and removed the
   need for a "signed in but not a moderator" diagnostic.
 
 ## One incident worth keeping
@@ -78,53 +81,44 @@ whole row**, so narrowing it to an explicit column list would convert a loud
 failure into a silently `undefined` field. Verifying a migration is not the same
 as the database having it.
 
-## Remaining work
+## Data state after verification
 
-**The five browser checks were run on 2026-10-03** and four passed; see
-`tasks/todo.md` for the results and the two things they turned up.
+The six reported rows in the shared database were the maintainer's own manual
+tests, and verification consumed two of them plus two ads created and deleted for
+the bucket test. Five reported rows remain, the owner holds 0 of their 2 ad slots,
+and the bucket is back to 0 files. To restore, re-report an ad from its detail
+page. **Never an unscoped delete** (`HANDOFF.md` §5).
 
-1. ~~Restart `pnpm dev`.~~ The server had started at 11:26 against a `.env`
-   written at 12:34, so `MODERATORS` really was missing from the process.
-   Restarted and confirmed.
-2. ~~`/moderation` lists the reported ads.~~ Rendered six rows for a moderator,
-   newest first, each with a `tel:` link and a Take down button. The row order
-   was checked against the database rather than trusted from the page.
-3. **Take one down** — verified, with one exception. `044ef7a4` deleted, image
-   row cascaded, queue 6 → 5, `/ad/044ef7a4` 404s. **But the photos could not
-   be shown leaving the bucket**: the bucket holds 0 files and every image key
-   is a synthetic `seeded-*` one that was never uploaded. `utapi.deleteFiles`
-   ran live and returned cleanly, which is not proof — a wrong key is also
-   silent.
-4. **Delete an owned ad** — same result, same bucket caveat. `227f7b25` deleted
-   via `deleteAdById`, so both callers of the extracted teardown now have run
-   against a real session. That ad had no image rows at all.
-5. ~~Dashboard shows the ad limit as 2.~~ Confirmed, with one ad held.
+## Verification, and what it turned up
 
-**Two new findings, both left unfixed** because these checks were meant to be
-verification rather than development:
+All five browser checks ran on 2026-10-03 and passed, driving Chrome with a real
+Google sign-in: `MODERATORS` loaded, `/moderation` listed six rows newest-first in
+the order `getReportedAds` returns, a takedown and an owner delete each removed
+their row and image rows, and the dashboard still reported the limit as 2.
 
-- **The queue does not refresh after a takedown.** `TakeDownButton` never calls
-  `router.refresh()`, so the deleted ad stays rendered until a manual reload.
-  Found because the page still showed 6 rows immediately after a successful
-  delete — and that is exactly what a broken takedown looks like.
-- **The bucket path is unverifiable with the current data.** Closing it needs
-  one real photo uploaded to a real ad, then that ad deleted.
+Two things came out of it, both fixed:
+
+- **The queue did not refresh after a takedown.** `TakeDownButton` called the
+  action and toasted, but never re-rendered, so the deleted ad stayed on screen
+  until a manual reload — which reads as a takedown that silently did nothing.
+  Fixed with `router.refresh()` on success only.
+- **The bucket path was unverifiable with the current data**, so the first
+  `utapi.deleteFiles` check passed against an empty bucket and proved nothing.
+  It was repeated against a real uploaded file, and the generalisable rule — measure
+  the precondition before recording a check — is in `HANDOFF.md` §5.
 
 ## Deliberately not done
 
 - The signed-in "you are not a moderator" diagnostic. Unnecessary now that
   there is one provider; `MODERATORS`-is-ids-not-emails is documented in
   `HANDOFF.md` §1 instead.
-- `DeleteAdButton` migrated onto `ConfirmDialog`.
 - An un-report or a re-report. A flagged ad stays flagged until deleted.
   `SPEC-moderation.md` §9.1 records this as the one open item in the spec.
 
-## Unresolved, and still the maintainer's call
+## Since this feature shipped
 
-- **§2.2 — the E2E decision.** Untouched by all of this. Every route is dynamic
-  and reads Postgres, so E2E needs a database this repo does not provision.
-- **§9.2 — retiring `withUserLock`.** Now that the slot index enforces the
-  limit, the lock buys only serialization. Deleting it would take Redis out of
-  the create path entirely and close §2.1 and §9.4 with it. Left in place
-  because it deletes a deliberately engineered module whose Lua release script
-  has an open verification item of its own.
+Two things outside it have since been closed, recorded here because this is where
+the reasoning lives: E2E was taken local-only and off the critical path
+(`HANDOFF.md` §2.1), and `withUserLock` was retired once the slot index was shown
+to hold the limit on its own (§9.2). Neither touched anything in this feature.
+Open work is in `tasks/todo.md`.

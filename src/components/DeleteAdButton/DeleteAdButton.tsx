@@ -20,7 +20,7 @@ type DeleteButtonProps = {
  * its own `Alert.Root`, `Overlay`, `Content`, `Title`, `Description` and a second
  * copy of the overlay keyframes -- roughly 50 lines duplicated from
  * `ConfirmDialog`, kept in step by hand and drifting. That is the erosion
- * `HANDOFF.md` §9.6 names as the way the moderation surface grows into an admin
+ * `HANDOFF.md` §9.5 names as the way the moderation surface grows into an admin
  * UI by accident.
  *
  * It keeps `Button` as the trigger rather than taking the dialog's default button,

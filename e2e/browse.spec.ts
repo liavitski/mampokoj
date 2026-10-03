@@ -6,7 +6,7 @@ import { appShell, cardIds, gridReady } from './support/app-shell';
 /**
  * Browsing the grid.
  *
- * The first item on §2.2's priority list, and the one that matters most: `/` is
+ * The first item on §2.1's priority list, and the one that matters most: `/` is
  * the only route every visitor reaches, and it is the only one that runs entirely
  * on the server with no session.
  *
@@ -87,7 +87,7 @@ test.describe('browse', () => {
     // optimizer answers 404 for all ten cards on the first page and Chromium logs
     // one console error per image. Those are orphaned database rows pointing at
     // deleted uploads -- what `pnpm storage:reconcile` exists to find, recorded in
-    // HANDOFF.md §2.3 -- and not a rendering defect.
+    // HANDOFF.md §2.2 -- and not a rendering defect.
     //
     // Asserting zero console errors regardless would have left this suite
     // permanently red for a reason no change to this repository can fix, which is

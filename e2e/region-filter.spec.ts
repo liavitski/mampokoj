@@ -22,7 +22,7 @@ function regionLink(page: Page, code: string): Locator {
 /**
  * The region filter.
  *
- * Second on §2.2's priority list. The filter is a client-side `router.push` into
+ * Second on §2.1's priority list. The filter is a client-side `router.push` into
  * `?region=`, and the region is then re-read on the server -- so a bug here would
  * show ads from the wrong region rather than showing none, which is why the
  * assertions check *membership* and not just that something rendered.

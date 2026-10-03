@@ -8,8 +8,8 @@ export const authOptions: NextAuthOptions = {
    * GitHub was dropped because a person signing in with both providers gets two
    * account ids. Everything keys on that id -- `ads.userId`, the slot index that
    * enforces the ad limit, the MODERATORS allowlist -- so two providers meant
-   * one person could hold four ads instead of two, which is §9.5's first open
-   * item. Fixing it properly means account linking, which is more machinery
+   * one person could hold four ads instead of two, which is the limitation §7
+   * closes. Fixing it properly means account linking, which is more machinery
    * than this site needs; one provider is the smaller correct answer.
    *
    * The cost is real and worth stating: somebody who only ever signed in with

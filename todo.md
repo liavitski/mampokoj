@@ -10,8 +10,8 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1, 2 and 3 shipped 2026-10-03** (commits `6a95abe`, `9d11164`,
-committed and **not pushed**). Each is marked in place. Items 4–11 are open.
+**Status: items 1, 2 and 3 shipped 2026-10-03** (`6a95abe`, `9d11164`, `4568b25`,
+all pushed). Each is marked in place. Items 4–11 are open.
 
 Worth knowing before continuing down the list: item 3 was filed as docs alignment
 and was actually two live defects, including a submit button that had never been

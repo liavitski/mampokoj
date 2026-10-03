@@ -16,8 +16,8 @@ the history of a decision, `git log -S` finds it.
 - **Production is live** at `mampokoj.vercel.app` and the moderation queue works
   there (§9.3). **Env vars are set in the Vercel dashboard by hand** — §1, which is
   the item most likely to waste an afternoon.
-- **Clean tree** on `main` at `9d11164`, two commits ahead of `origin/main` — the
-  two sessions below are committed but **not pushed**.
+- **Clean tree** on `main` at `4568b25`, pushed to `origin/main`. The two sessions
+  below are `6a95abe`, `9d11164` and `4568b25`.
 
 ## Shipped 2026-10-03
 

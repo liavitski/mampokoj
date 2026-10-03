@@ -6,11 +6,12 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 277 tests
-  across 33 files, `next build` succeeds.
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 361 tests
+  across 42 files, `next build` succeeds.
 - **Database:** one Neon database (`neondb`) shared by development and
-  production (§3). 201 generated ads and 394 images, all seeded, no real mampokoj
-  user data. Also holds 128 KB of abandoned tables from two older projects (§8).
+  production (§3). 201 generated ads and 394 images, all seeded, plus one ad
+  posted by the owner while testing. Also holds 128 KB of abandoned tables from
+  two older projects (§8).
 
 ---
 
@@ -19,7 +20,16 @@ current shape, the code says so.
 1. **Upstash Redis does not resolve from this machine** (`ENOTFOUND`). Anything
    touching Redis is mocked in tests and has **never run against a live
    instance**. See §2.1.
-2. **Postgres is reachable and `CREATE DATABASE` is permitted**, which is how the
+2. **`MODERATORS` lists OAuth account ids, not email addresses.** It is the
+   comma-separated allowlist for the moderation queue (§9.3) and is read by
+   `src/lib/moderator-guard.ts`. The value is the same id `ads.userId` holds and
+   the same one in the `/dashboard/<userId>` URL; there is no email anywhere in
+   the system. **An email here never matches, and the allowlist fails closed**,
+   so the symptom is `/moderation` refusing forever with nothing in the logs to
+   explain it — the single most confusing failure this app has. It is set in
+   production too, because `.env` travels to the Vercel host; that is intended,
+   and it is not a secret.
+3. **Postgres is reachable and `CREATE DATABASE` is permitted**, which is how the
    migration work was verified rather than assumed. Two consequences:
    - The connection string uses the **`-pooler` host**. Those sessions outlive
      the process, so a scratch database cannot be dropped until its idle
@@ -35,9 +45,10 @@ current shape, the code says so.
 
 ## 2. Open work
 
-**The next session should start at §9.3** — the app runs, but these are the gaps
-between a portfolio demo and a site with real landlords on it. Everything in §2.1
-to §2.3 is still open and none of it blocks; §9.1 and §9.2 are closed.
+**The next session should start at §9.5** — the app runs, and §9.1, §9.2 and §9.3
+are closed. Everything in §2.1 to §2.3 is still open and none of it blocks; the
+one item that genuinely needs a decision from you is §2.2 (E2E), and §9.2 still
+holds the `withUserLock` retirement question.
 
 ### 2.1 The Lua release script has still never been executed
 
@@ -128,6 +139,22 @@ correct in the SSR HTML instead of rendering a spinner and popping into place on
 every navigation. With no consumer, the provider was deleted rather than left
 wrapping the app. If you add a caller that needs `useSession()`, add the
 provider back with it — `signIn`/`signOut` work without one.
+
+**The moderator allowlist fails closed, and `MODERATORS` is in production.**
+Unset, empty or malformed means nobody moderates. The failure mode of an open
+allowlist is a takedown button anyone can press, so this is the opposite trade
+from `upload-guard.ts` above and deliberate. **Do not "fix" it to default-open.**
+`.env` travels to the Vercel host (§3), so the list is set there too and is
+readable in the deployed environment; it gates the *web* surface and is not a
+secret, because anyone who can run a script with the repo's `.env` is already
+fully privileged.
+
+**`getReportedAds` selects `contactPhone` and `userId`, which every other public
+query withholds.** A scam is recognised by the number, and taking an ad down
+means knowing whose ad it is. Reusing `publicAdColumns` would have produced a
+queue nobody could act on. This is the one place a contact number is rendered
+unblurred, and it sits behind the allowlist check, which runs *before* the query
+— checked after, the data is already read and the refusal is cosmetic.
 
 **Reconciliation deletes orphans but never dangling rows.** `storage:reconcile.tsx`
 reports a row whose file is missing in the bucket and then leaves it alone. That
@@ -361,9 +388,9 @@ Invariants a change here must preserve, each asserted somewhere:
 cannot race for the same free slot. It is now redundant for the limit itself;
 whether to retire it is an open decision in §9.2.
 
-Known limitation: the slot keys on the OAuth provider account id, so a person
-signing in with both GitHub and Google has two ids and can hold 4 ads
-(§9.5). Pre-existing, not introduced here.
+Known limitation: **closed.** The slot keys on the OAuth provider account id, so
+a person signing in with both GitHub and Google used to have two ids and could
+hold 4 ads (§9.5). There is now one provider, so one person has one id.
 
 ---
 
@@ -456,14 +483,47 @@ in place here because it deletes a deliberately engineered module whose Lua
 release script has an open verification item of its own (§2.1), and that is not
 a decision to make silently inside a schema change.
 
-### 9.3 Then: no moderation, no reporting, no admin
+### 9.3 Resolved: reporting, a moderation queue, and a takedown
 
-Anyone can post any phone number. When a scam ad goes up there is no flag to click
-and no query to answer "what do we take down" — the remedy is a hand-written
-`DELETE`.
+`SPEC-moderation.md` is the spec; `tasks/` holds the plan.
 
-A site this size does not need an admin UI. A `reportedAt` column, a report
-button on the public card, and one query covers it.
+A signed-in visitor can flag a listing from its detail page or its intercepting
+modal. `reportAd` marks it, and a moderator sees it at `/moderation` and can take
+it down, photos included.
+
+**§9.3 proposed less than it needed, and the gap was the whole point.** It said
+"a `reportedAt` column, a report button on the public card, and one query covers
+it" — but `deleteAdById` resolves ownership through `findAdOwnedByCurrentUser`
+and refuses a non-owner, so whoever answered that query **could not take an ad
+down through the app**. The remedy stayed a hand-written `DELETE`, which is the
+exact failure the section opens with. A fourth piece was added: a moderator
+takedown that bypasses ownership, behind its own check.
+
+Four decisions in it that read as mistakes and are not:
+
+- **The bypass lives in one action.** `deleteAdAsModerator` is separate from
+  `deleteAdById` rather than a flag on it, so "can someone delete an ad they do
+  not own?" is answered by one file. `deleteAdById`'s ownership check is
+  unchanged and is not shared.
+- **`reportedAt` is in no public payload** — not in `PublicAd`, not in
+  `getValidatedAd`, so not in the RSC payload for `/ad/[adId]`. Omitting the type
+  was not enough: `getValidatedAd` selects the whole row, so an explicit
+  `detailAdColumns` allowlist is what actually keeps it off the wire.
+- **Reported ads stay visible.** Hiding them on report would hand any signed-in
+  account a one-click denial of service against any ad id.
+- **No rate limit on `reportAd`**, on §9.2's reasoning: at most one report per ad
+  already caps the abuse, so a limiter would throttle nothing a spammer cares
+  about, and it would put Redis back in a write path.
+
+Each guard was proved by removing it and watching the right test fail: without
+`isModerator`, 4 tests fail; with the gate moved below the query, the ordering
+test fails; with the teardown order reversed, 2 fail.
+
+**Still unverified at runtime**, and it needs a browser with a real session —
+every test mocks it: that `/moderation` *lists* for a moderator (the refusal path
+is verified), that a takedown empties the bucket, and that deleting an owned ad
+empties the bucket. `utapi.deleteFiles` has never been called live through
+`teardownAd`.
 
 ### 9.4 Then: Redis has never run against a live instance
 
@@ -479,10 +539,15 @@ this. Half a day.
 
 ### 9.5 Worth doing, not blocking
 
-- **Two providers means two identities.** GitHub *and* Google gives two ids, so
-  four ads instead of two (`user-lock.ts:151-155`, and the same `userId` the slot
-  keys on). A real user hits this by accident. Needs account linking, or one
-  provider.
+- **Two providers meant two identities — resolved.** GitHub is dropped; Google
+  only. Everything keys on the provider's account id (`ads.userId`, the slot
+  index, `MODERATORS`), so signing in with both gave one person two ids and four
+  ads instead of two. `authOptions` now has one provider and a test pins it to
+  length 1, because a second provider would quietly double the limit again and
+  would make the `MODERATORS` allowlist ambiguous. **The cost, stated rather than
+  buried:** anyone who only ever signed in with GitHub can no longer sign in, and
+  their ads are keyed to an id the site no longer recognises. With one real
+  account that is a deliberate trade, not an oversight.
 - **No account deletion.** Name, OAuth id and phone are stored with no erasure
   path. `deleteAdById` covers one ad, not the account.
 - **No email contact channel**, which is also the only route to verifying that a
@@ -490,7 +555,10 @@ this. Half a day.
 
 ### 9.6 Not on this list, deliberately
 
-- **An admin UI** — see 9.3; the column and the query are the actual requirement.
+- **An admin UI** — still excluded, and §9.3 did not quietly add one. The
+  moderation surface is a list and one button; there is no user management, no
+  content editing and no dashboard. `ConfirmDialog` was extracted rather than
+  copied a second time, which is the other way this section gets eroded.
 - **The dev/prod database split** — §3 explains why it is a deliberate choice, and
   §8 covers the sharing. Real users appearing *is* the trigger to revisit, so it
   belongs on this list in spirit, but it is a database-provisioning task rather

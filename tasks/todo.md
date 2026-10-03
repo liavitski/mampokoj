@@ -333,14 +333,14 @@ travels to the Vercel host. Leave §9.2 and §2.2 **unchanged** — both are sti
 open and still yours.
 
 **Acceptance criteria:**
-- [ ] §9.3 marked resolved, with the four non-obvious decisions recorded
-- [ ] `MODERATORS` documented in §1 alongside `SEED_ALLOW`, including that it is not a secret
-- [ ] §9.2 and §2.2 are not altered
-- [ ] No claim in the file is unverified — every new statement traces to a passing test or the scratch-DB output
+- [x] §9.3 marked resolved, with the four non-obvious decisions recorded
+- [x] `MODERATORS` documented in §1 alongside `SEED_ALLOW`, including that it is not a secret
+- [x] §9.2 and §2.2 are not altered
+- [x] No claim in the file is unverified — every new statement traces to a passing test or the scratch-DB output
 
 **Verification:**
-- [ ] Manual: read the diff against `HEAD` and confirm every new sentence is backed by a test that fails without the fix
-- [ ] Tests: `pnpm verify`
+- [x] Manual: read the diff against `HEAD` and confirm every new sentence is backed by a test that fails without the fix
+- [x] Tests: `pnpm verify`
 
 **Dependencies:** Tasks 1–10
 **Files:** `HANDOFF.md`
@@ -350,8 +350,8 @@ open and still yours.
 
 ## Checkpoint: Complete
 
-- [ ] All 10 success criteria in `SPEC-moderation.md` §7 hold
-- [ ] `pnpm verify` green
-- [ ] No pre-existing test weakened, deleted, or made unreachable
-- [ ] `git diff --exit-code` after `pnpm db:generate` — CI's migration check passes
-- [ ] Ready for review
+- [x] All 10 success criteria in `SPEC-moderation.md` §7 hold
+- [x] `pnpm verify` green
+- [x] No pre-existing test weakened, deleted, or made unreachable
+- [x] `git diff --exit-code` after `pnpm db:generate` — CI's migration check passes
+- [x] Ready for review

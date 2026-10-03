@@ -7,7 +7,7 @@ import { images } from '@/server/db/schema';
 import { MAX_IMAGES_PER_AD } from '@/constants';
 import { toDateInputValue } from '../date';
 import { formatCZPhone } from '../utils';
-import { buildSeedAds, buildSeedImages } from '../seed-data';
+import { buildSeedAds, buildSeedImages, seededPhotoUrl } from '../seed-data';
 
 /**
  * Enough rows that every branch of the generators runs, while staying fast.
@@ -152,9 +152,8 @@ describe('buildSeedImages', () => {
   });
 
   it('produces fileKeys the unique index on the column will accept', () => {
-    // The column is varchar(255) UNIQUE and there are only 11 photo URLs to
-    // share between every seeded row, so a repeated key would reject the whole
-    // image insert.
+    // The column is varchar(255) UNIQUE, so a repeated key would reject the
+    // whole image insert.
     const keys = rows.map((row) => row.fileKey);
 
     expect(new Set(keys).size).toBe(keys.length);
@@ -162,5 +161,100 @@ describe('buildSeedImages', () => {
 
   it('returns nothing for no ads', () => {
     expect(buildSeedImages([])).toEqual([]);
+  });
+});
+
+describe('seededPhotoUrl', () => {
+  /**
+   * The defect this replaces. All 11 previously-hardcoded `ufs.sh` URLs answer
+   * 404, so 380 rows rendered a broken thumbnail and every seeded ad's share
+   * card pointed at nothing. Measured by GET, not inferred from a HEAD.
+   *
+   * The assertion is on the *shape* rather than on a live fetch: a test that
+   * called picsum would fail on a network blip and pass on a 404 that only
+   * appears in production. The reachability of these URLs was verified by hand
+   * and is recorded in `seed-data.ts`.
+   */
+  it('points at a host that resolves, not at a dead bucket path', () => {
+    expect(seededPhotoUrl('11111111-1111-4111-8111-111111111111', 0)).toBe(
+      'https://picsum.photos/seed/mampokoj-11111111-1111-4111-8111-111111111111-0/800/600'
+    );
+  });
+
+  it('contains no dead UploadThing path', () => {
+    // A regression guard with a name: the URLs this replaces were all of this
+    // form, and putting one back would be invisible in a test that only checked
+    // "looks like a URL".
+    expect(seededPhotoUrl('ad-1', 0)).not.toContain('ufs.sh');
+  });
+
+  it('is deterministic, so a re-seed does not reshuffle an ad\'s photos', () => {
+    expect(seededPhotoUrl('ad-1', 2)).toBe(seededPhotoUrl('ad-1', 2));
+  });
+
+  it('gives the same index on two different ads different photos', () => {
+    // The old seed drew from 11 URLs at random, so every ad looked like one of
+    // 11 rooms. This is what makes a seeded listing read as a listing.
+    expect(seededPhotoUrl('ad-1', 0)).not.toBe(seededPhotoUrl('ad-2', 0));
+  });
+
+  it('gives one ad different photos at different indexes', () => {
+    expect(seededPhotoUrl('ad-1', 0)).not.toBe(seededPhotoUrl('ad-1', 1));
+  });
+
+  /**
+   * The uniqueness that actually matters, asserted over a real generated set
+   * rather than two hand-picked calls. 380 rows previously shared 11 URLs; a
+   * collision rule that held for index 0 and 1 but not at 30 would pass the
+   * cases above.
+   *
+   * Ids are attached here because `buildSeedAds` does not set `id` -- Postgres
+   * fills it in, and `seed.tsx` reads it back from `.returning()`. Passing the
+   * builders' own output straight through is what surfaced the `undefined` hole
+   * below, so the shape is modelled rather than assumed.
+   */
+  it('yields a distinct URL for every row of a realistic seed', () => {
+    const ads = buildSeedAds(SAMPLE).map((ad, index) => ({
+      ...ad,
+      id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    }));
+
+    const urls = buildSeedImages(ads).map((row) => row.url);
+
+    expect(urls.length).toBeGreaterThan(SAMPLE);
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+
+  /**
+   * The hole that test found. An ad with no id produced
+   * `.../seed/mampokoj-undefined-0/800/600` for every listing -- a clean run,
+   * an exit code of 0, and 100 identical cards.
+   */
+  it('refuses an ad with no id rather than silently sharing one photo', () => {
+    expect(() => seededPhotoUrl(undefined as unknown as string, 0)).toThrow(
+      /real ad id/
+    );
+  });
+
+  it('refuses an empty ad id too', () => {
+    expect(() => seededPhotoUrl('', 0)).toThrow(/real ad id/);
+  });
+
+  it('stays within the 512-char limit on the url column', () => {
+    const url = seededPhotoUrl(
+      '00000000-0000-0000-0000-000000000000',
+      9999
+    );
+
+    expect(url.length).toBeLessThanOrEqual(512);
+  });
+
+  it('uses only characters that are safe in a URL path', () => {
+    // The ad id is a uuid, so this holds by construction -- which is worth a
+    // test because it is the assumption that keeps the URL parseable. A city
+    // name or a title here would produce a path needing encoding.
+    expect(seededPhotoUrl(IMAGE_FIXTURE[0]!.id, 0)).toMatch(
+      /^https:\/\/picsum\.photos\/seed\/[A-Za-z0-9_-]+\/800\/600$/
+    );
   });
 });

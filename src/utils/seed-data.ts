@@ -73,44 +73,80 @@ const czechTitles = [
   'Pokoj v bytě ihned volný',
 ];
 
-const photoUrls = [
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7AV5yxCqjh0HeMT1kISRYFiyw7bEWGCZcPgpV',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ73Q7yVHJfdAiEXCa4JRuY79qQlWGDe6ZkPw1m',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ70GhZ2Dfo4TSz5NFkUgCeLRZ2yB8KsnMWxq9f',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ79tf8k8SpUD2m5kinJXFqcGTw6bloRj4ZEeLv',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ76rhbwpifg0Ye7VOGLWqo1DkuElc5bwB4MhTZ',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ78LN8Lft4bKNr9EiIPVmAJFfjDnBatCy3qZv1',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7yzqyuBeQ7wnRC6uEJ8WU90VZqtg1AMF5Ks3H',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7Q1FKMRXUAsJ40TzQ5y6CEnIOoMXw8vprPqYt',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7RIXzfsk4jPa5oHiqts6hQYJc29fzIGmdCxew',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7AOHusiqjh0HeMT1kISRYFiyw7bEWGCZcPgpV',
-  'https://gtiivfj57h.ufs.sh/f/kpgjANcHnEQ7eZkcu7AGLqXa9sEponcvf8tdVzDB0HxQgKir',
-];
+/**
+ * The photo URL for one seeded image.
+ *
+ * **Derived, not drawn from a list of real files.** The seed used to hardcode
+ * 11 `gtiivfj57h.ufs.sh` URLs -- real uploads from this project's own bucket,
+ * since deleted -- and pick one at random. Every one of them 404s, so every
+ * seeded card rendered a broken thumbnail and every seeded ad's share card and
+ * JSON-LD pointed at a dead image. Measured, not assumed: all 11 answered 404
+ * by GET, and the table held 380 rows across those 11 URLs.
+ *
+ * `picsum.photos/seed/<key>` serves a real JPEG chosen deterministically from
+ * the key, so the same ad always gets the same photos -- which is what makes a
+ * seeded listing look like a listing rather than like a lottery, and what lets
+ * `db:seed` be re-run without reshuffling the grid. Verified stable across
+ * repeated fetches of one key, and distinct across keys.
+ *
+ * The hostname is already in `next.config.ts`'s `remotePatterns`, so this needs
+ * no config change; before this it was allowlisted and unused, which is the
+ * kind of thing that looks like a decision and is actually a leftover.
+ *
+ * **It is a third-party fetch at view time**, mitigated by `next/image` caching
+ * the optimised result, and it is the honest trade against the alternative --
+ * there is no set of room photographs in this repository, and a committed
+ * placeholder would be a rectangle pretending to be a room.
+ *
+ * The photo is *not* in UploadThing, which is why `fileKey` below is synthetic
+ * and why `storage:reconcile` reports these rows separately instead of as
+ * drift.
+ */
+export function seededPhotoUrl(adId: string, index: number): string {
+  /**
+   * Throws rather than interpolating whatever it was handed. Without this, an
+   * `undefined` ad id produces
+   * `.../seed/mampokoj-undefined-0/800/600` for every ad in the seed -- a
+   * successful run that gives all 100 listings the same single photograph, with
+   * no error anywhere. Found by the uniqueness test in `seed-data.test.ts`,
+   * which passed a list of ads straight from `buildSeedAds` (whose `id` is
+   * filled in by Postgres, so it is undefined until insert) and got 3 distinct
+   * URLs across 188 rows.
+   *
+   * `seed.tsx` inserts the ads and passes `.returning()`, so real ids are
+   * always present in the one caller that matters. This is here so that if that
+   * ever stops being true, the seed says so instead of quietly producing a grid
+   * of identical cards.
+   */
+  if (!adId) {
+    throw new Error(
+      'seededPhotoUrl needs a real ad id: it is the seed the photo is chosen from, so without it every ad gets the same photo'
+    );
+  }
+
+  return `https://picsum.photos/seed/mampokoj-${adId}-${index}/800/600`;
+}
 
 /**
  * `fileKey` is what `deletePhotoByFileKey` hands to UploadThing, and the column
  * is UNIQUE.
  *
- * It cannot be derived from the photo URL: there are only `photoUrls.length`
- * real files to point at, an ad may hold several photos, and a seed writes far
- * more rows than that -- so a real key would collide on the unique index and
- * take the whole image insert down with it. Nor can the same real key be
- * reused across ads, because deleting one would strip the file out from under
- * all the others.
+ * It cannot be a real key. Nothing seeded is in the bucket -- the photo URL is
+ * a `picsum` address -- so there is no file to name, and a repeated real key
+ * would collide on the unique index and take the whole image insert down with
+ * it. Nor could one real key be reused across rows, because deleting one would
+ * strip the file out from under all the others.
  *
- * So seeded photos get a synthetic key, shaped to pass the
- * `fileKeySchema` check in `deletePhoto.tsx` and prefixed so it is obvious in
- * the database that no such file exists. Deleting one reports "Could not
- * delete the photo" and leaves the row in place, which is the intended
- * outcome: `deletePhotoByFileKey` only removes the row once UploadThing has
- * confirmed the delete.
+ * So seeded photos get a synthetic key, shaped to pass the `fileKeySchema`
+ * check in `deletePhoto.tsx` and prefixed so it is obvious in the database that
+ * no such file exists. Deleting one reports "Could not delete the photo" and
+ * leaves the row in place, which is the intended outcome:
+ * `deletePhotoByFileKey` only removes the row once UploadThing has confirmed
+ * the delete. `storage:reconcile-plan.ts` keys off this same prefix to keep
+ * these rows out of the drift report, so the two must not drift apart.
  */
 function seededFileKey(): string {
   return `seeded-${faker.string.uuid()}`;
-}
-
-function randomPhotoUrl(): string {
-  return photoUrls[Math.floor(Math.random() * photoUrls.length)] as string;
 }
 
 function randomCityInRegion(regionCode: string): string {
@@ -188,9 +224,13 @@ export function buildSeedImages(insertedAds: { id: string }[]): NewImage[] {
   return insertedAds.flatMap((ad) => {
     const imageCount = faker.number.int({ min: 1, max: 3 });
 
-    return Array.from({ length: imageCount }).map(() => ({
+    // `index` rather than a random draw, so an ad's photos are a stable set
+    // keyed to that ad -- see `seededPhotoUrl`. `map`'s index is the only
+    // ordering that both `buildSeedImages` and the repair script below can
+    // agree on, which is why it is not randomised.
+    return Array.from({ length: imageCount }).map((_, index) => ({
       adId: ad.id,
-      url: randomPhotoUrl(),
+      url: seededPhotoUrl(ad.id, index),
       fileKey: seededFileKey(),
     }));
   });

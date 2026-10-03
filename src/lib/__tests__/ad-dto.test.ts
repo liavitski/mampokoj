@@ -30,6 +30,10 @@ const FULL_ROW: AdWithImages = {
   // A real timestamp rather than null, so a leak shows up as a recognisable
   // value in the serialised output below instead of as an absent-looking null.
   reportedAt: new Date('2026-02-02T00:00:00.000Z'),
+  // Also a real timestamp, and also worth watching for: `checkedAt` is what
+  // makes an ad unreportable, so publishing it would hand every client a list of
+  // the ads that moderation has already ruled on.
+  checkedAt: new Date('2026-03-03T00:00:00.000Z'),
   images: [IMAGE_ROW],
 };
 
@@ -57,6 +61,18 @@ describe('toPublicAd', () => {
     expect(toPublicAd(FULL_ROW)).not.toHaveProperty('reportedAt');
     expect(JSON.stringify(toPublicAd(FULL_ROW))).not.toContain(
       '2026-02-02T00:00:00.000Z'
+    );
+  });
+
+  it('drops the checked flag', () => {
+    // The same barrier, twice. `checkedAt` is the column that decides an ad is
+    // solid and therefore unreportable, so a payload carrying it would publish
+    // the exact list of ads nobody can complain about -- which is the map an
+    // abuser wants. Drop `checkedAt` from `PublicAd` and this is the test that
+    // notices.
+    expect(toPublicAd(FULL_ROW)).not.toHaveProperty('checkedAt');
+    expect(JSON.stringify(toPublicAd(FULL_ROW))).not.toContain(
+      '2026-03-03T00:00:00.000Z'
     );
   });
 

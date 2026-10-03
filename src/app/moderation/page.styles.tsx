@@ -12,19 +12,147 @@ import styled from 'styled-components';
 
 import { WEIGHTS, QUERIES } from '@/constants';
 
+/**
+ * The page shell: a CSS grid, two columns wide on a desktop.
+ *
+ * A grid rather than two floated or flexed columns because the two lists have to
+ * sit side by side at one height while still being able to overflow into the
+ * page's own scroll. Nested scroll areas are the alternative and are a trackpad
+ * trap, so `Section` explicitly does not create one.
+ *
+ * The 1200px cap is for the two-column case. It was 800px when the page held a
+ * single list, and two columns inside 800px would be ~390px each -- narrower than
+ * a phone, which is the width this page is explicitly designed to fall back to.
+ * The 800px is kept for the single-column layout rather than replaced, so the
+ * phone layout is unchanged rather than merely still readable.
+ */
 export const Wrapper = styled.section`
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin-inline: auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
   gap: 16px;
+
+  @media ${QUERIES.tabletAndSmaller} {
+    /*
+     * One column. Reported ads first, all ads second -- the order they are
+     * written in the page, because Section drops its placement below this
+     * width. No grid-row juggling needed, and none wanted: DOM order is the
+     * single-column behaviour, which is why the desktop layout is expressed as
+     * explicit placement rather than as source order.
+     */
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 800px;
+  }
 `;
 
+/**
+ * The page title, spanning both columns on the row above them.
+ *
+ * Both halves of that placement are load-bearing, and the row number is the one
+ * that is easy to miss. `1 / -1` alone is not enough: the two `Section`s are
+ * explicitly placed on row 1, so an auto-placed heading that spans the full width
+ * no longer fits there and grid pushes it down to the first row where the full
+ * width is free -- rendering the page title *underneath* both lists, at the very
+ * bottom of a 3000px page. Pinning the heading to row 1 and the sections to row 2
+ * is what makes the order explicit rather than negotiated.
+ */
 export const Heading = styled.h1`
+  grid-column: 1 / -1;
+  grid-row: 1;
   font-size: 1.25rem;
   font-weight: ${WEIGHTS.medium};
   margin-bottom: 8px;
+`;
+
+/**
+ * One list, in one grid cell.
+ *
+ * `$column` places it on the desktop layout; `grid-row: 2` puts both lists on the
+ * same row -- below the heading, which owns row 1 -- so they sit side by side
+ * rather than stacked inside one column. Both are undone below the tablet
+ * breakpoint, and the reset has to live in this same rule *after* the placement --
+ * a one-column grid that still says `grid-column: 2` does not stack, it grows an
+ * implicit second column and leaves the reported list stranded beside an empty
+ * one.
+ *
+ * `min-width: 0` because grid and flex items default to `min-width: auto`: one
+ * long unbroken ad title would push its column wider than its neighbour and the
+ * two lists would end up different widths. Zero lets the text wrap.
+ *
+ * No `overflow` and no `max-height`, deliberately. Letting the columns scroll
+ * independently is the tempting option and the wrong one -- a scroll area inside
+ * the page scroll is a trackpad trap, and it hides the end of a queue behind a
+ * second gesture. The page scrolls as one.
+ */
+export const Section = styled.div<{ $column: 1 | 2 }>`
+  grid-column: ${({ $column }) => $column};
+  grid-row: 2;
+
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  @media ${QUERIES.tabletAndSmaller} {
+    grid-column: auto;
+    grid-row: auto;
+  }
+`;
+
+/**
+ * The per-list heading, one level below `Heading`.
+ *
+ * An `h2` rather than a second `h1` because the page has two lists and a title:
+ * the document outline is "Moderation > Reported ads" and "Moderation > All ads",
+ * which is what a screen reader's heading list will report. Two `h1`s would say
+ * the page has two names.
+ */
+export const SectionHeading = styled.h2`
+  font-size: 1.0625rem;
+  font-weight: ${WEIGHTS.medium};
+  color: var(--color-text);
+  margin-top: 8px;
+`;
+
+/**
+ * Marks a row whose check state differs from the default.
+ *
+ * A visual cue only -- the button in the row is what actually acts on it, and
+ * this text is not a status anyone can rely on programmatically. It exists so a
+ * moderator scanning the list can see at a glance which ads have already been
+ * ruled on, which is otherwise only discoverable by opening each dialog.
+ */
+export const Badge = styled.span`
+  display: inline-block;
+  /*
+   * align-self because QueueItem is a flex column, whose items stretch to
+   * the full width by default. Without this the badge renders edge to edge and
+   * reads as an empty text input rather than a label -- which is exactly how it
+   * looked before this line existed.
+   */
+  align-self: flex-start;
+  font-size: 0.75rem;
+  font-weight: ${WEIGHTS.medium};
+  color: var(--color-text-muted-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0 8px;
+`;
+
+/**
+ * A caveat about what the page is showing rather than about any ad.
+ *
+ * Deliberately muted and never an error: `getAllAds` is bounded on principle and
+ * a moderator who believes they are looking at every ad will draw wrong
+ * conclusions from a list that is only the newest N. Saying so is the difference
+ * between a bounded list and a misleading one.
+ */
+export const Note = styled.p`
+  font-size: 0.875rem;
+  color: var(--color-text-muted-foreground);
 `;
 
 export const Empty = styled.p`
@@ -64,10 +192,40 @@ export const Meta = styled.div`
   color: var(--color-text-muted-foreground);
 `;
 
-export const Title = styled.span`
+/**
+ * An ad's title, which is a link to the ad as a visitor sees it.
+ *
+ * Link-coloured rather than the `Title` body colour it replaces: it navigates, so
+ * it has to look like something that navigates. A title painted as plain text is
+ * a link the eye skips straight over, which defeats the point of adding it.
+ */
+export const AdLink = styled.a`
   font-size: 1.125rem;
   font-weight: ${WEIGHTS.medium};
-  color: var(--color-text);
+  color: var(--color-link);
+
+  &:hover {
+    color: var(--color-link-hover);
+  }
+`;
+
+/**
+ * Text only a screen reader reads.
+ *
+ * A local `span` rather than the shared `VisuallyHidden` component: that one is
+ * `'use client'` with a keydown listener, and using it here would put a client
+ * boundary on a string that never changes -- which would hand this whole Server
+ * Component page a client component for no reason.
+ */
+export const VisuallyHiddenText = styled.span`
+  position: absolute;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  width: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
 `;
 
 export const Phone = styled.a`
@@ -82,4 +240,6 @@ export const Phone = styled.a`
 export const Row = styled.div`
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 `;

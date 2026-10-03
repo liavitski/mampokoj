@@ -96,7 +96,21 @@ describe('getValidatedAd', () => {
     );
   });
 
-  it('selects every ad column except the one deliberately withheld', async () => {
+  it('does not select checkedAt for the public detail view', async () => {
+    mocks.findFirst.mockResolvedValue(ROW);
+
+    await getValidatedAd(AD_ID);
+
+    // Same barrier, second column. `checkedAt` is what marks an ad as one nobody
+    // is allowed to report, so carrying it here would tell every visitor which
+    // ads are already ruled on -- the list an abuser would want.
+    const columns = mocks.findFirst.mock.calls.at(-1)![0].columns;
+    expect(columns, 'checkedAt reaches a public payload').not.toHaveProperty(
+      'checkedAt'
+    );
+  });
+
+  it('selects every ad column except the ones deliberately withheld', async () => {
     mocks.findFirst.mockResolvedValue(ROW);
 
     await getValidatedAd(AD_ID);
@@ -106,11 +120,18 @@ describe('getValidatedAd', () => {
     // this, the allowlist above would quietly narrow: a new column would simply
     // be missing, and the only symptom would be an undefined value somewhere
     // downstream.
+    //
+    // Two columns are withheld, and they are withheld as a pair: `reportedAt` is
+    // the queue's predicate and `checkedAt` is the queue's exemption. Either one
+    // alone would say something about moderation to the public, so neither is
+    // named here in a way that could let one be dropped from this list alone.
     const columns = mocks.findFirst.mock.calls.at(-1)![0].columns;
     const tableColumns = getTableConfig(ads).columns.map((column) => column.name);
 
     expect(Object.keys(columns).sort()).toEqual(
-      tableColumns.filter((name) => name !== 'reportedAt').sort()
+      tableColumns
+        .filter((name) => name !== 'reportedAt' && name !== 'checkedAt')
+        .sort()
     );
   });
 });

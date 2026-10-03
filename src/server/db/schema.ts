@@ -55,6 +55,33 @@ export const ads = createTable(
      * cost the compiled-SQL assertions the authorization tests depend on.
      */
     reportedAt: d.timestamp({ withTimezone: true }),
+    /**
+     * When a moderator looked at this listing and found it legitimate, or null
+     * if nobody has.
+     *
+     * This is the answer to "this ad is solid". A set value means two things at
+     * once, deliberately, because they are the same decision: a moderator has
+     * reviewed the ad, and the ad is no longer reportable. So `reportAd` matches
+     * `"checkedAt" IS NULL` in its own predicate, the same way it matches
+     * `"reportedAt" IS NULL` -- let the write conflict rather than asking first.
+     * An ad nobody has reported cannot become reported once it is checked, and
+     * an ad that *was* reported becomes reportable again if the check is
+     * removed, which is what `setAdChecked` clearing `reportedAt` and
+     * `setAdUnchecked` exist to trade back and forth.
+     *
+     * Nullable with no default, for the same reason `reportedAt` is: a default
+     * of now() would mark every existing ad as reviewed by a moderator who has
+     * never seen it.
+     *
+     * `setAdChecked` also moves `updatedAt`, same accepted trade as reporting
+     * does and for the same reason -- see the `reportedAt` comment above.
+     *
+     * No index of its own, deliberately. The only query that reads it is the
+     * all-ads list, which orders by (createdAt, id) and is served by
+     * `mampokoj_ads_created_id_idx`; a second index here would be written on
+     * every moderation click to serve a predicate nothing scans by.
+     */
+    checkedAt: d.timestamp({ withTimezone: true }),
   }),
   (t) => [
     index('mampokoj_ads_user_idx').on(t.userId),

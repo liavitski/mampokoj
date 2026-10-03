@@ -1,0 +1,1 @@
+ALTER TABLE "mampokoj_ads" ADD COLUMN "checkedAt" timestamp with time zone;

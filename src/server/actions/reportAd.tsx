@@ -25,7 +25,13 @@ export type ReportAdResult = { success: true } | { success: false; error: string
  * and since reported ads are never hidden from the public grid it would also be
  * a way for a poster to mark their own ad for attention and nothing else.
  *
- * Three refusals -- already reported, own ad, no such ad -- return one
+ * So is an ad a moderator has already reviewed. `checkedAt IS NULL` sits beside
+ * `reportedAt IS NULL` for the same reason and with the same guarantee: a
+ * checked ad is not reportable, and because the refusal happens in the write
+ * there is no window in which a report could land between a moderator's decision
+ * and the next one.
+ *
+ * Four refusals -- already reported, checked, own ad, no such ad -- return one
  * undifferentiated message. `src/lib/ads.ts` refuses to distinguish "no such
  * ad" from "not yours" so a caller cannot enumerate ids, and that reasoning is
  * deliberately not copied here: existence is already observable, since
@@ -62,6 +68,12 @@ export async function reportAd(adId: string): Promise<ReportAdResult> {
           eq(ads.id, parsed.data),
           // First report wins: matches nothing once the column is set.
           isNull(ads.reportedAt),
+          // And an ad a moderator has reviewed is not reportable at all. This is
+          // the "solid" promise the moderation page makes, and it is enforced by
+          // the write matching nothing rather than by a read that could be
+          // raced: no visitor, however many of them, can put a checked ad back in
+          // the queue. Same first-writer-wins shape as the line above.
+          isNull(ads.checkedAt),
           // The session id wins over anything a caller supplied. It is never
           // read from an argument, which is what would make the guard above
           // bypassable by naming somebody else's id.

@@ -19,10 +19,10 @@ export type PublicImageRow = Pick<Image, 'id' | 'url' | 'createdAt'>;
  *
  * No `userId`, and photos without their storage key: only the owner's
  * dashboard can delete a photo, and only there is the key needed. No
- * `reportedAt` either -- the detail page is public, so moderation state has no
- * business in its payload.
+ * `reportedAt` or `checkedAt` either -- the detail page is public, so
+ * moderation state has no business in its payload.
  */
-export type AdWithoutUserId = Omit<Ad, 'userId' | 'reportedAt'> & {
+export type AdWithoutUserId = Omit<Ad, 'userId' | 'reportedAt' | 'checkedAt'> & {
   images: PublicImageRow[];
 };
 
@@ -36,11 +36,14 @@ export type AdWithoutUserId = Omit<Ad, 'userId' | 'reportedAt'> & {
  * enforce the per-user limit, and a client has no use for it. `reportedAt` is
  * moderation state: publishing it would both label an ad as reported and, since
  * the queue filters on it, let anyone probe which ad ids are flagged.
+ * `checkedAt` is the same kind of state with the same reason to stay server-side
+ * -- it would label an ad as one nobody is allowed to report, which is exactly
+ * the signal an abuse target would want.
  */
 export type PublicAd = Omit<
   Omit<
     AdWithImages,
-    'userId' | 'contactPhone' | 'slot' | 'reportedAt'
+    'userId' | 'contactPhone' | 'slot' | 'reportedAt' | 'checkedAt'
   >,
   'images'
 > & {

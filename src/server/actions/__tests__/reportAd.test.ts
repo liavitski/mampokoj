@@ -71,6 +71,20 @@ describe('reportAd', () => {
     expect(predicate).toContain('is null');
   });
 
+  it('refuses to let a checked ad be reported again', async () => {
+    await reportAd(AD_ID);
+
+    // The whole point of the `checkedAt` column. A moderator who has reviewed an
+    // ad and called it legitimate is not overruled by a later visitor: the update
+    // matches only a row that is both unreported and unchecked, so it writes
+    // nothing and the queue never sees it. Revert the `isNull(checkedAt)` and
+    // this fails while every other test in this file still passes -- which is
+    // why it is asserted here rather than trusted to the schema.
+    const predicate = compiledPredicate();
+    expect(predicate).toContain('"checkedAt"');
+    expect(predicate).toContain('is null');
+  });
+
   it('refuses to let a poster flag their own ad', async () => {
     mocks.requireUserId.mockResolvedValue('reporter');
 

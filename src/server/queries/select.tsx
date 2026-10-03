@@ -172,6 +172,17 @@ export async function getUserAds(userId: string) {
  * queue nobody can act on.
  *
  * `slot` is absent: the ad-limit machinery has no bearing on moderation.
+ *
+ * Shared by both moderator lists. A moderator deciding to delete an ad nobody
+ * reported needs the number and the poster exactly as much as one triaging a
+ * report, and a second narrower copy of these columns is how one of them would
+ * quietly go missing.
+ *
+ * `checkedAt` is here because the all-ads list is where a moderator sets and
+ * unsets the check, and a row that cannot say whether it is checked cannot offer
+ * the right button. It stays out of `publicAdColumns` and `detailAdColumns` for
+ * the same reason `reportedAt` does: publishing it would hand every visitor the
+ * list of ads nobody is allowed to report.
  */
 const moderatorAdColumns = {
   id: true,
@@ -184,6 +195,7 @@ const moderatorAdColumns = {
   description: true,
   createdAt: true,
   reportedAt: true,
+  checkedAt: true,
 } as const;
 
 /**
@@ -219,6 +231,62 @@ export async function getReportedAds(limit = PAGE_SIZE) {
   return rows.filter(
     (row): row is typeof row & { reportedAt: Date } => row.reportedAt !== null
   );
+}
+
+/**
+ * `moderatorAdColumns` minus `reportedAt`.
+ *
+ * Derived by subtraction rather than re-listed, so the two lists cannot drift,
+ * and minus rather than "a copy I remembered to trim", so the omission is
+ * visible where the columns are defined instead of being a silent difference
+ * someone has to notice to find.
+ *
+ * The reason to trim it: this list is not filtered by reports, so a `reportedAt`
+ * in the payload buys the page nothing it may act on -- and an ad that is both
+ * reported and listed here already appears in the queue above. Carrying it would
+ * only invite a per-row branch in the page, which `moderation-gate.test.ts`
+ * forbids because the rows would already have been read by the time it ran.
+ */
+const allAdsColumns = { ...moderatorAdColumns, reportedAt: false } as const;
+
+/**
+ * Every ad on the site, newest first -- the list a moderator deletes from when
+ * nobody has reported anything.
+ *
+ * Reporting is a safety net, not a prerequisite for moderation: a moderator who
+ * can already see an obvious scam should be able to remove it without waiting for
+ * a visitor to file a report, and `deleteAdAsModerator` has always been able to
+ * delete any ad. This query is what makes that reachable from the UI. It was not
+ * written before because nothing needed it, and `deleteAdAsModerator` deleting
+ * more than its name said was the honest description of the state until now.
+ *
+ * No predicate, deliberately. `reportedAt` is absent from the columns too, so
+ * there is nothing here that could tempt the page into a per-row check -- which
+ * would mean the rows were fetched before the decision, the thing
+ * `moderation-gate.test.ts` forbids. The one piece of state this list does
+ * branch on is `checkedAt`, and it branches only to pick which button to render.
+ *
+ * Backed by `mampokoj_ads_created_id_idx`, which covers `(createdAt, id)`
+ * descending -- the same index and the same ordering `getAds` uses. `id` is in
+ * the order because `createdAt` is not unique: without it, two ads posted in the
+ * same millisecond come back in an arbitrary order that can differ between two
+ * identical queries, and a list that reshuffles under the moderator cannot be
+ * paged through or reasoned about.
+ *
+ * Bounded on principle, and this one matters more than the queue's. The queue is
+ * small because reporting is rare; this list covers every ad ever posted, so an
+ * unbounded read would grow with the whole table. The bound is a page, not a
+ * claim of completeness -- there is no pager yet, and `SPEC-moderation.md`'s
+ * "ask first" list means adding one is a decision rather than a detail.
+ *
+ * No `with: { images }`, for the reason `getReportedAds` gives.
+ */
+export async function getAllAds(limit = PAGE_SIZE) {
+  return db.query.ads.findMany({
+    columns: allAdsColumns,
+    orderBy: (ads, { desc }) => [desc(ads.createdAt), desc(ads.id)],
+    limit,
+  });
 }
 
 // Uploadthing core

@@ -55,8 +55,16 @@ describe('committed migrations', () => {
 
   it('every journal entry has a SQL file on disk', () => {
     for (const entry of journal) {
-      expect(readMigrationSql(entry.tag), `missing ${entry.tag}.sql`).toContain(
-        'CREATE'
+      // Non-empty, rather than `toContain('CREATE')`: the first two migrations
+      // create tables, but 0003 is an ALTER TABLE only, and asserting CREATE
+      // made this test about the *shape* of a migration rather than whether its
+      // file exists. A column addition is a legitimate migration and must not
+      // have to smuggle a CREATE in to pass.
+      const sql = readMigrationSql(entry.tag);
+
+      expect(sql.length, `missing or empty ${entry.tag}.sql`).toBeGreaterThan(0);
+      expect(sql.trimEnd(), `${entry.tag}.sql ends in a statement separator`).toMatch(
+        /;\s*$/
       );
     }
   });
@@ -212,6 +220,44 @@ describe('committed migrations', () => {
     expect(allSql).toContain(
       'WHERE "mampokoj_ads"."reportedAt" IS NOT NULL'
     );
+  });
+
+  it('declares checkedAt in the schema as a nullable column with no default', () => {
+    // Same rule as reportedAt, and for a sharper reason. `checkedAt IS NULL` is
+    // what keeps an ad reportable, so a default of now() would mark every
+    // existing ad as reviewed by a moderator who has never seen it -- and a
+    // NOT NULL would make the column impossible to leave unset, which is the
+    // only state an un-reviewed ad is allowed to be in.
+    const config = getTableConfig(ads);
+    const checkedAt = config.columns.find((column) => column.name === 'checkedAt');
+
+    expect(checkedAt, 'schema has no checkedAt column').toBeDefined();
+    expect(checkedAt!.notNull).toBe(false);
+    expect(checkedAt!.hasDefault).toBe(false);
+  });
+
+  it('adds the checkedAt column in a migration, without a NOT NULL', () => {
+    const allSql = journal.map((e) => readMigrationSql(e.tag)).join('\n');
+
+    // The ADD COLUMN and its nullability, explicitly rather than relying on the
+    // generic "creates every column" check -- that one only proves the word
+    // "checkedAt" appears somewhere.
+    expect(allSql).toContain('ADD COLUMN "checkedAt"');
+    expect(allSql).not.toMatch(/ADD COLUMN "checkedAt"[^;]*NOT NULL/);
+  });
+
+  it('declares no index on checkedAt, because nothing orders by it', () => {
+    // The only query that reads the column is the all-ads list, which orders by
+    // (createdAt, id) and is served by mampokoj_ads_created_id_idx. An index
+    // here would be written on every moderation click to serve a predicate that
+    // no scan filters on -- and adding one is an "ask first" change in
+    // SPEC-moderation.md, so it should have to be argued for, not defaulted into.
+    const config = getTableConfig(ads);
+    const names = config.indexes.map(
+      (index) => (index as unknown as { config: { name: string } }).config.name
+    );
+
+    expect(names).not.toContain('mampokoj_ads_checked_idx');
   });
 
   it('has no migration that drops a table the schema still declares', () => {

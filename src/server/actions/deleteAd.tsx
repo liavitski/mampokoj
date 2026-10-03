@@ -1,12 +1,16 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
-
-import { db } from '../db';
-import { ads, images } from '../db/schema';
 import { findAdOwnedByCurrentUser } from '@/lib/ads';
-import { utapi } from '@/server/storage';
+import { teardownAd } from '@/server/ad-teardown';
 
+/**
+ * The owner removes their own ad.
+ *
+ * The ownership check is the only thing standing between a session and a
+ * deletion, so it is deliberately left as the first statement and is not shared
+ * with the moderator path -- see `deleteAdAsModerator` for why the bypass lives
+ * in a separate action rather than behind a flag here.
+ */
 export async function deleteAdById(adId: string) {
   const owned = await findAdOwnedByCurrentUser(adId);
 
@@ -15,20 +19,7 @@ export async function deleteAdById(adId: string) {
   }
 
   try {
-    const imagesToDelete = await db.query.images.findMany({
-      where: (t, { eq }) => eq(t.adId, adId),
-      columns: { fileKey: true },
-    });
-
-    if (imagesToDelete.length) {
-      await utapi.deleteFiles(imagesToDelete.map((i) => i.fileKey));
-    }
-
-    // Images cascade in the database, but the rows are removed explicitly so
-    // the upload bucket and the database cannot drift apart if the cascade is
-    // ever dropped.
-    await db.delete(images).where(eq(images.adId, adId));
-    await db.delete(ads).where(eq(ads.id, adId));
+    await teardownAd(adId);
 
     return { success: true, userId: owned.userId };
   } catch {

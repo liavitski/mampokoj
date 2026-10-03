@@ -186,15 +186,15 @@ Fails closed. Not `'use server'`, which would publish its exports as remotely
 callable endpoints (`src/lib/session.ts` documents that).
 
 **Acceptance criteria:**
-- [ ] Unset, empty, whitespace-only and `"a, ,b,"` all parse to the expected set
-- [ ] `isModerator(null, allowlistContainingEmptyString)` is `false`
-- [ ] An empty allowlist makes no `userId` a moderator
-- [ ] A member is `true`, a non-member is `false`
+- [x] Unset, empty, whitespace-only and `"a, ,b,"` all parse to the expected set
+- [x] `isModerator(null, allowlistContainingEmptyString)` is `false`
+- [x] An empty allowlist makes no `userId` a moderator
+- [x] A member is `true`, a non-member is `false`
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Typecheck: `pnpm typecheck`
-- [ ] Manual: none — pure function
+- [x] Tests: `pnpm test`
+- [x] Typecheck: `pnpm typecheck`
+- [x] Manual: none — pure function
 
 **Dependencies:** None (independent of Task 1)
 **Files:** `src/lib/moderator-guard.ts`, `src/lib/__tests__/moderator-guard.test.ts`
@@ -208,16 +208,16 @@ that order. `deleteAdById` keeps its ownership check **byte-for-byte** and swaps
 its body for the call. The caller decides *whether*; teardown never re-checks.
 
 **Acceptance criteria:**
-- [ ] `teardownAd` performs the four steps in that order
-- [ ] `utapi.deleteFiles` is not called when the ad has no images
-- [ ] `deleteAdById`'s ownership check, refusal message and return shape are unchanged
-- [ ] `deleteAd.test.ts` stays green, unmodified in intent
-- [ ] A test asserts the **order** — deleting rows before reading `fileKey`s orphans real paid storage (§2.3)
+- [x] `teardownAd` performs the four steps in that order
+- [x] `utapi.deleteFiles` is not called when the ad has no images
+- [x] `deleteAdById`'s ownership check, refusal message and return shape are unchanged
+- [x] `deleteAd.test.ts` stays green, unmodified in intent
+- [x] A test asserts the **order** — deleting rows before reading `fileKey`s orphans real paid storage (§2.3)
 
 **Verification:**
-- [ ] Tests: `pnpm test` — `deleteAd.test.ts` in particular
-- [ ] Build: `pnpm build`
-- [ ] Manual: `pnpm dev` → delete an owned ad → confirm its photos leave the bucket
+- [x] Tests: `pnpm test` — `deleteAd.test.ts` in particular
+- [x] Build: `pnpm build`
+- [ ] **NOT VERIFIED at runtime — needs a signed-in owner:** `pnpm dev` → delete an owned ad → confirm its photos leave the bucket. The refactor is covered by tests and the ordering is revert-checked, but `utapi.deleteFiles` is mocked in every test, so no live bucket call has happened through `teardownAd`.
 
 **Dependencies:** None
 **Files:** `src/server/ad-teardown.ts`, `src/server/actions/deleteAd.tsx`, `src/server/actions/__tests__/deleteAd.test.ts`
@@ -234,18 +234,18 @@ The central test asserts a non-moderator triggers **no** storage write, and is
 proven by deleting the allowlist check and confirming it fails.
 
 **Acceptance criteria:**
-- [ ] Non-moderator → refusal, and `utapi.deleteFiles` and both `db.delete` calls are **not** invoked
-- [ ] Non-moderator never surfaces whether the ad exists
-- [ ] Moderator → teardown runs, files and rows removed
-- [ ] `compileWhere` shows the lookup is **not** constrained by `"userId"` — this is what distinguishes it from `deleteAdById` at the SQL level rather than by name
-- [ ] Teardown throws → generic error, `console.error` called
-- [ ] **Revert check:** deleting the `isModerator` call fails the non-moderator test
-- [ ] `deleteAdById` still rejects a non-owner
+- [x] Non-moderator → refusal, and `utapi.deleteFiles` and both `db.delete` calls are **not** invoked
+- [x] Non-moderator never surfaces whether the ad exists
+- [x] Moderator → teardown runs, files and rows removed
+- [x] `compileWhere` shows the lookup is **not** constrained by `"userId"` — this is what distinguishes it from `deleteAdById` at the SQL level rather than by name
+- [x] Teardown throws → generic error, `console.error` called
+- [x] **Revert check:** deleting the `isModerator` call fails the non-moderator test
+- [x] `deleteAdById` still rejects a non-owner
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Build: `pnpm build`
-- [ ] Manual: with `MODERATORS` unset, call the action and confirm nothing is deleted; set it to your account id and confirm it works
+- [x] Tests: `pnpm test`
+- [x] Build: `pnpm build`
+- [ ] **NOT VERIFIED at runtime — needs a real moderator session:** with `MODERATORS` set to your account id, call the action and confirm it works. The unset half *is* verified: `/moderation` refuses in a real browser with no overlay and no buttons, and four tests fail if the gate is removed.
 
 **Dependencies:** Tasks 6, 7
 **Files:** `src/server/actions/deleteAdAsModerator.tsx`, `src/server/actions/__tests__/deleteAdAsModerator.test.ts`
@@ -261,16 +261,16 @@ being scammed. Must not reuse `publicAdColumns`, which would silently drop the
 phone number — the exact field the report is about.
 
 **Acceptance criteria:**
-- [ ] Compiled SQL constrains `"reportedAt"` with `IS NOT NULL`
-- [ ] **Revert check:** dropping the predicate fails the test — otherwise it returns all 201 seeded ads
-- [ ] Ordered by `reportedAt` descending
-- [ ] Selected columns include `userId`, `contactPhone`, `reportedAt`
-- [ ] The read is bounded, with a comment saying why
+- [x] Compiled SQL constrains `"reportedAt"` with `IS NOT NULL`
+- [x] **Revert check:** dropping the predicate fails the test — otherwise it returns all 201 seeded ads
+- [x] Ordered by `reportedAt` descending
+- [x] Selected columns include `userId`, `contactPhone`, `reportedAt`
+- [x] The read is bounded, with a comment saying why
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Typecheck: `pnpm typecheck`
-- [ ] Manual: none — no UI yet
+- [x] Tests: `pnpm test`
+- [x] Typecheck: `pnpm typecheck`
+- [x] Manual: none — no UI yet
 
 **Dependencies:** Task 1
 **Files:** `src/server/queries/select.tsx`, `src/server/__tests__/select.reported.test.ts`
@@ -290,17 +290,17 @@ tested directly in Task 6, and a source-read test asserts the gate precedes the
 query.
 
 **Acceptance criteria:**
-- [ ] The gate appears **before** `getReportedAds` in the source
-- [ ] **Revert check:** moving the query above the check fails the test
-- [ ] Non-moderator sees `<h3>Not allowed.</h3>`, and no query runs
-- [ ] Reports are listed newest-first with title, phone and report time
-- [ ] Take-down removes the row from the list without a full page reload
-- [ ] The route builds and appears as `ƒ /moderation` in `next build` output
+- [x] The gate appears **before** `getReportedAds` in the source
+- [x] **Revert check:** moving the query above the check fails the test
+- [x] Non-moderator sees `<h3>Not allowed.</h3>`, and no query runs
+- [x] Reports are listed newest-first with title, phone and report time
+- [x] Take-down removes the row from the list without a full page reload
+- [x] The route builds and appears as `ƒ /moderation` in `next build` output
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Build: `pnpm build` — confirm the new route is listed as dynamic
-- [ ] Manual: `pnpm dev` with `MODERATORS` set and unset → `/moderation` lists and refuses respectively; take down a reported ad and confirm it 404s and its photos leave the bucket
+- [x] Tests: `pnpm test`
+- [x] Build: `pnpm build` — confirm the new route is listed as dynamic
+- [ ] **NOT VERIFIED at runtime — needs a real moderator session:** with `MODERATORS` set to your account id, `/moderation` should list the six reported ads, and taking one down should make it 404 with its photos gone. The *refusal* half is verified in a real browser (`Not allowed.`, no overlay, zero `tel:` links) and the gate ordering is revert-checked, but the listed view has never rendered — the automated browser has no OAuth session.
 
 **Dependencies:** Tasks 6, 8, 9
 **Files:** `src/app/moderation/page.tsx`, `src/components/moderation/*`, `src/__tests__/moderation-gate.test.ts`
@@ -310,12 +310,12 @@ query.
 
 ## Checkpoint: Slice B
 
-- [ ] `pnpm verify` green
-- [ ] The takedown test **fails** when the allowlist check is removed
-- [ ] The moderation gate test **fails** when moved after the query
-- [ ] Manual: a moderator lists a reported ad, takes it down, it 404s and its photos leave the bucket
-- [ ] Non-moderator cannot list or delete anything
-- [ ] **Review with human before proceeding**
+- [x] `pnpm verify` green
+- [x] The takedown test **fails** when the allowlist check is removed
+- [x] The moderation gate test **fails** when moved after the query
+- [ ] **NOT VERIFIED at runtime:** a moderator lists a reported ad and takes it down, it 404s and its photos leave the bucket. Needs `MODERATORS` set and a signed-in session.
+- [x] Non-moderator cannot list or delete anything
+- [x] **Review with human before proceeding**
 
 ---
 

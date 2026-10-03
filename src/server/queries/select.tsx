@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '../db';
-import { eq, count } from 'drizzle-orm';
+import { eq, count, isNotNull } from 'drizzle-orm';
 import { ads, images } from '../db/schema';
 import { PAGE_SIZE, MAX_ADS_PER_USER } from '@/constants';
 import { adIdSchema } from '@/lib/validation/ad-schema';
@@ -159,6 +159,66 @@ export async function getUserAds(userId: string) {
   });
 
   return userAds;
+}
+
+/**
+ * Columns for the moderation queue.
+ *
+ * An allowlist, like `publicAdColumns`, but the opposite question. A moderator
+ * is deciding whether to remove a listing, and the basis of that decision is
+ * the contact number -- a scam is recognised by the number -- plus whose ad it
+ * is. So `contactPhone` and `userId` are *required* here, where both are
+ * withheld everywhere else. Reusing `publicAdColumns` would have produced a
+ * queue nobody can act on.
+ *
+ * `slot` is absent: the ad-limit machinery has no bearing on moderation.
+ */
+const moderatorAdColumns = {
+  id: true,
+  userId: true,
+  title: true,
+  price: true,
+  city: true,
+  region: true,
+  contactPhone: true,
+  description: true,
+  createdAt: true,
+  reportedAt: true,
+} as const;
+
+/**
+ * The moderation queue: every ad somebody has reported, newest report first.
+ *
+ * Backed by the partial index `mampokoj_ads_reported_idx`, which covers exactly
+ * this predicate -- and whose backward scan serves the `ORDER BY reportedAt DESC`
+ * for free, which is why ordering by `reportedAt` rather than `createdAt`.
+ *
+ * Bounded on principle, for the reason `getUserAds` gives: MAX_ADS_PER_USER
+ * caps what can be posted, but it is not the only thing that writes here, and an
+ * unbounded read grows with whatever is in it.
+ *
+ * No `with: { images }`. Whether to take an ad down is a decision about its
+ * text and its number; a lateral join per row to fetch photo urls would be
+ * wasted work. The photos are removed by `teardownAd` if the answer is yes.
+ */
+export async function getReportedAds(limit = PAGE_SIZE) {
+  const rows = await db.query.ads.findMany({
+    where: isNotNull(ads.reportedAt),
+    columns: moderatorAdColumns,
+    orderBy: (ads, { desc }) => [desc(ads.reportedAt)],
+    limit,
+  });
+
+  /**
+   * Narrowed once, here, because the column is nullable in the schema and the
+   * `isNotNull` above is not something TypeScript can see. A type predicate
+   * rather than an assertion: on the day the predicate and this filter
+   * disagree, the query returns fewer rows instead of handing a caller a `null`
+   * it would format as a date.
+   */
+  return rows.filter(
+    (row): row is typeof row & { reportedAt: Date } => row.reportedAt !== null
+  );
 }
 
 // Uploadthing core

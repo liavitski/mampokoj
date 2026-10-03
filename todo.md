@@ -10,6 +10,13 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
+**Status: items 1, 2 and 3 shipped 2026-10-03** (commits `6a95abe`, `9d11164`,
+committed and **not pushed**). Each is marked in place. Items 4–11 are open.
+
+Worth knowing before continuing down the list: item 3 was filed as docs alignment
+and was actually two live defects, including a submit button that had never been
+disabled. **Read a component before assuming an entry describes a style problem.**
+
 The order below is value-per-effort, not doc order. Items 1–4 are small and
 independent of each other.
 
@@ -212,6 +219,28 @@ resolves, so a retry would otherwise leave the last refusal on screen for the
 whole request — hence `state.error && !pending`.
 
 **Effort:** S per form, as estimated.
+
+**Progressive enhancement: decided not to pursue.** The `action` prop is now the
+shape that *could* post without JavaScript, but the guarantee is unreachable while
+the form lives in a `Modal` — `curl /dashboard/[userId]` returns zero `<form>`
+elements, because the children render only once a click sets `open`. Getting it
+would mean a server-rendered create/edit route.
+
+Declined, on the reasoning that the site's posture is "read and navigate without
+JavaScript, write with JavaScript" — reasonable for an authenticated page that is
+`noindex` and disallowed in `robots.txt`. The failure being protected against is
+really a *partial* one (a chunk 404s, the bundle hangs), and for that the in-form
+error message above is the real protection, not a no-JS POST path.
+
+Two costs worth knowing if this is ever reopened: a dedicated route trades the
+modal's context (the ad list stays visible while you fill the form) for a narrow
+gain, and **Radix `Select` needs JavaScript to open**, so `region` would have no
+usable control in a no-JS version — a native `<select>` fallback is needed for the
+guarantee to be complete, not just a new route.
+
+Revisit only with evidence about how often JavaScript actually fails for real
+users (a `vite:preloadError` listener, or Next's error telemetry). Absent that,
+this is a documented gap, not work.
 
 ---
 

@@ -6,8 +6,8 @@ Facts only. Anything recoverable from `git log`, the code comments or the README
 not repeated here, and neither is the history of how a bug got fixed — if you want
 the history of a decision, `git log -S` finds it.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **571 tests
-  across 57 files**, `next build` succeeds. `pnpm test:e2e` adds **43 Playwright
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **625 tests
+  across 61 files**, `next build` succeeds. `pnpm test:e2e` adds **43 Playwright
   specs** (§2.1), run by hand and not wired into CI.
 - **Database:** one Neon database (`neondb`) shared by development *and* production
   (§3). **200 generated ads, 398 images**, all seeded, every photo URL resolving.
@@ -16,8 +16,8 @@ the history of a decision, `git log -S` finds it.
 - **Production is live** at `mampokoj.vercel.app` and the moderation queue works
   there (§9.3). **Env vars are set in the Vercel dashboard by hand** — §1, which is
   the item most likely to waste an afternoon.
-- **Uncommitted on `main`** unless the git status says otherwise: the whole of the
-  2026-10-03 session below.
+- **Clean tree** on `main` at `9d11164`, two commits ahead of `origin/main` — the
+  two sessions below are committed but **not pushed**.
 
 ## Shipped 2026-10-03
 
@@ -40,6 +40,27 @@ the dev server, which hides status-code and streaming failures.
 
 The three work files (`tasks/todo.md`, `tasks/plan.md`) were folded into this file
 and deleted. Nothing else reads them.
+
+---
+
+## Also shipped 2026-10-03
+
+`todo.md` items 1–3, in two commits. Each item is marked in `todo.md` with the
+reasoning; what follows is only what belongs here.
+
+1. **Error boundaries.** `src/app/error.tsx` and `src/app/global-error.tsx`, with
+   18 cases in `src/app/__tests__/error-fallbacks.test.tsx`. Two details worth
+   knowing before touching either file: `global-error.tsx` applies theme tokens
+   in a `useLayoutEffect`, **not** an inline `<script>` — the script never runs,
+   because Next serves a shell and renders the boundary client-side, where React
+   does not execute `<script>` at all — and it reads `var(--token)` for its
+   colours rather than literals, which is only correct because of that layout
+   effect. §4.
+2. **Region links open in a new tab.** `RegionNavigation` keeps `router.push` for
+   plain left clicks and declines everything else (§3).
+3. **Both ad forms now use `useActionState`.** This was filed as docs alignment
+   and turned out to be two live defects — the submit button was **never**
+   disabled, so a double submission was a duplicate write. §3, §4.
 
 ---
 
@@ -78,10 +99,24 @@ and deleted. Nothing else reads them.
 the guide it comes from. Cache Components and Instant Navigation are excluded by
 decision, with the reasoning recorded there. Read it before §9.4.
 
-**The next session should start at `todo.md`, then §9.4.** Nothing is blocking: §9.1–§9.3 are
-closed, and the two items that needed a decision (E2E's scope, and retiring
-`withUserLock`) have both been taken. What is left is §9.4, and the two
-deliberate omissions in §2.3.
+**Items 1, 2 and 3 are shipped** (see *Also shipped* above). Item 3 found two live
+defects rather than a docs mismatch, which is the argument for continuing down the
+list rather than stopping: read a component before assuming an entry describes a
+style problem.
+
+**The next session should start at `todo.md` item 4**, then work down the list, then
+§9.4. Item 4 (`useSearchParams()` for a value the server already has) is small and
+independent. Nothing is blocking: §9.1–§9.3 are closed, and the two items that
+needed a decision (E2E's scope, and retiring `withUserLock`) have both been taken.
+What is left is items 4–11, §9.4, and the two deliberate omissions in §2.3.
+
+**One entry on `todo.md` is now known to be bigger than filed.** Item 3's
+progressive enhancement is *not achieved* — the forms live in a modal, so the
+server-rendered HTML contains no `<form>` at all and cannot post without
+JavaScript. Both files say so at the call site. Finishing it needs a
+server-rendered create/edit route, which is a product decision, not a refactor.
+The reasoning for leaving it is recorded in `todo.md`; revisit it only with
+evidence about how often JavaScript actually fails for real users.
 
 ### 2.1 End-to-end tests: local-only, by hand
 
@@ -228,6 +263,35 @@ every navigation. With no consumer it was deleted. If you add a caller that need
 Next emits the tag automatically for a 404; declaring `robots` in the metadata as
 well produced two conflicting tags.
 
+**A client function passed to `<form action>` gets no pending state, so neither ad
+form guards its submit button any other way.** Both forms used to hand-roll
+`useState` and disable the button on it; that never worked, because the handler is
+not run inside a transition, so the update was not flushed until the action
+settled — by which point it had been set back to false. The duplicate write it
+allowed is invisible from the response (`createAd`'s slot loop absorbs it into the
+next free slot and both calls report success), which is why it survived. The
+button is now disabled from `useActionState`'s third return value, which comes
+from React's action queue. **Do not reintroduce a `useState` flag here**, and note
+that disabling the button alone is not sufficient — Enter in a text field is
+implicit submission, which a disabled button does not block.
+
+**A submission failure is rendered in the form, not toasted, and no toast at all
+for a success path that navigates away.** A toast vanishes in seconds while the
+form says nothing, so the visitor's only lasting record of a refusal was one they
+had stopped looking at. The message sits directly above the submit button with
+`role="alert"`, rather than at the top of a scrollable modal where it can be
+off-screen.
+
+**The ad forms are not progressively enhanced, and that is accepted.** `curl` of
+`/dashboard/[userId]` returns zero `<form>` elements, because `Modal` renders its
+children only once a click sets `open` — so no-JS cannot post, whatever the
+`action` prop is. Both components say this at the call site. It was considered and
+declined: the site's posture is "read and navigate without JS, write with JS",
+which suits an authenticated page that is `noindex` and disallowed in `robots.txt`,
+and a dedicated create/edit route would trade the modal's context for a narrow
+gain. **A no-JS version would still be incomplete** — Radix `Select` needs
+JavaScript to open, so `region` would have no usable control.
+
 **The header's controls share one box model because there is only one.**
 `HeaderControl.tsx` owns the styling; `ControlLabel` (desktop) and
 `ControlNameOnly` (never visible) are the same idea in two shapes, and picking the
@@ -320,6 +384,25 @@ Each of these cost real time.
   rejected action that is never caught skips the reset on every path. The button
   goes dead and nothing on screen says why — a moderation action that silently stops
   responding. `try`/`catch`/`finally`, with `finally` doing the reset.
+- **A client function in `<form action>` will not flush a `useState` update made
+  inside it** — the handler is not in a transition, so nothing renders until it
+  settles. A pending flag written that way is inert and reads correctly. See §3.
+- **React resets a form whose `action` is a function** (`recursivelyResetForms` in
+  react-dom), so **every field is cleared after a submission, success or
+  failure**. Both ad forms behaved this way before the `useActionState` change
+  too, so it is not a regression — but "keep what the user typed after a failure"
+  does not hold here, and the update form is where it costs most, because its
+  fields are pre-filled defaults that came from the database and are now gone.
+  Preserving them means making every field controlled.
+- **The reset lands asynchronously**, after the action's promise resolves. A test
+  that refills the form straight after a submit appends to the values that are
+  still there ("A roomA room"), and then fails `maxLength` on the phone field, so
+  the second submission is refused by validation and the action is never called —
+  which reads as "the button does nothing" rather than as a stale fill.
+- **An action left in flight when a test ends resolves during whichever test runs
+  next**, against an unmounted component, and lands its `showToast`/`router.push`
+  calls in the *following* test's mocks. Three tests failed this way while passing
+  alone. Release and await, in a `finally` where possible.
 - **A stale `next start` on :3000 will be reused by the E2E suite**
   (`reuseExistingServer: true`) and will be broken by any `pnpm verify` running a
   rebuild underneath it. This produced 11 convincing failures against correct code.
@@ -371,6 +454,19 @@ from it. (§9.3 is the worked example: the first attempt at verifying
 
 Server-side test files start with `// @vitest-environment node` (the default is
 jsdom). Tests live in `__tests__` folders beside the code.
+
+**jsdom enforces native constraint validation**, so a submit through a button does
+nothing at all while a `required` field is empty — the action is never called, and
+the failure looks like "the button does nothing". `RegionSelect`'s hidden
+`<select>` is *not* `required`, so an unset region does not block a test; the
+server rejects it instead.
+
+**In a component test of a Radix `Modal`, scope queries with
+`within(screen.getByRole('dialog'))`.** Unscoped, `getAllByRole('button', …)`
+matches the trigger *and* the submit, and `findByText` collides with the same
+string printed outside the modal — "Maximum 2 ads per user" is both the create
+button's caption and `createAd`'s refusal message. Both collisions read like bugs
+in the form and are not. The submit button is the **last** match once open.
 
 **jsdom does not evaluate `@media`, so a responsive CSS bug is invisible to a
 component test.** `Header.test.tsx` asserts both halves for that reason: a

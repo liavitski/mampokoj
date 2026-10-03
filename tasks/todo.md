@@ -58,9 +58,14 @@ had no photos at all. All four stale claims are corrected.
 ## If `/moderation` refuses anyway
 
 Almost always `MODERATORS`. It takes **OAuth account ids**, not email addresses
-— `YOUR_OAUTH_ACCOUNT_ID`, the same value as `/dashboard/<userId>`. The
-allowlist fails closed, so a wrong value produces no error anywhere: the page
-simply refuses. See `HANDOFF.md` §1.
+— the same value as `/dashboard/<userId>`, which you can read off any ad you
+own. The allowlist fails closed, so a wrong value produces no error anywhere:
+the page simply refuses. See `HANDOFF.md` §1.
+
+The real value is deliberately not written down here. This repo is public, and
+that id is a stable personal identifier which also lives in production's `.env`;
+recording it in a tracked file only spreads it further for no benefit, since the
+fix is always "copy the id out of your own `/dashboard/<userId>` URL".
 
 ## Still open, and the maintainer's call — not started
 

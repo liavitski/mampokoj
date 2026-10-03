@@ -73,7 +73,12 @@ and deleted. Nothing else reads them.
 
 ## 2. Open work
 
-**The next session should start at §9.4.** Nothing is blocking: §9.1–§9.3 are
+**`todo.md` is the work list**, audited against the Next.js 16.3.6 docs in
+`node_modules/next/dist/docs/` — 11 items in value-per-effort order, each citing
+the guide it comes from. Cache Components and Instant Navigation are excluded by
+decision, with the reasoning recorded there. Read it before §9.4.
+
+**The next session should start at `todo.md`, then §9.4.** Nothing is blocking: §9.1–§9.3 are
 closed, and the two items that needed a decision (E2E's scope, and retiring
 `withUserLock`) have both been taken. What is left is §9.4, and the two
 deliberate omissions in §2.3.

@@ -47,7 +47,41 @@ function RegionNavigation({ currentRegion }: RegionNavigationProps) {
                 $pending={isPending}
                 onMouseEnter={() => setHoveredNavItem(region.code)}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                  if (isPending) return;
+                  /*
+                   * Plain left clicks only.
+                   *
+                   * This handler exists to put the navigation inside a
+                   * transition, so `$pending` can show a `wait` cursor while the
+                   * server answers -- and `router.push` is how that transition
+                   * gets started. Everything else is a gesture the *browser*
+                   * owns: a modified click or a middle click means "open this
+                   * somewhere else", and the one thing it does is follow the
+                   * `href`.
+                   *
+                   * The guard used to be absent, so `preventDefault()` consumed
+                   * those clicks too. The visible effect was that a visitor
+                   * comparing two regions in two tabs could not do it from the
+                   * navigation: cmd-click and middle-click did nothing at all,
+                   * with nothing thrown or logged. A fix that checked only
+                   * `metaKey`/`ctrlKey` would have left middle click broken, and
+                   * both are asserted separately in
+                   * `__tests__/RegionNavigation.test.tsx`.
+                   *
+                   * Left as `router.push` rather than the documented
+                   * `useLinkStatus` alternative, which would drop the handler
+                   * entirely: that hook reports no pending state when the
+                   * destination was prefetched, and it is pending per link
+                   * rather than for the whole list. This navigation is a list of
+                   * fourteen links to one dynamic route, so a prefetched
+                   * destination is the common case and the `wait` cursor would
+                   * mostly never appear. Revisit if the region pages ever get a
+                   * `loading.tsx` worth showing.
+                   */
+                  const isPlainLeftClick =
+                    e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey;
+
+                  if (isPending || !isPlainLeftClick) return;
+
                   e.preventDefault();
                   startTransition(() => {
                     router.push(href);

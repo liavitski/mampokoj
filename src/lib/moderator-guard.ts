@@ -2,10 +2,12 @@
  * Who may moderate.
  *
  * `MODERATORS` is a comma-separated list of OAuth account ids -- the same ids
- * `ads.userId` holds, so a GitHub id and a Google id are both valid entries.
- * There is no role column and no permissions table: adding one for a queue that
- * holds one list would be machinery the site does not need, and the ids are
- * already the identity everything else keys on.
+ * `ads.userId` holds. There is only one sign-in provider, so one person has one
+ * id (see `authOptions`, where GitHub was dropped for that reason); the list is
+ * comma-separated anyway so that a second operator is one edit rather than a
+ * code change. There is no role column and no permissions table: adding one for
+ * a queue that holds one list would be machinery the site does not need, and the
+ * ids are already the identity everything else keys on.
  *
  * Fails closed. An unset, empty or malformed value means nobody moderates,
  * because the failure mode of an open allowlist on a live site is a takedown

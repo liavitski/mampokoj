@@ -14,7 +14,7 @@ rendering — against a real database and real object storage.
 - Browse rental rooms, newest first, with cursor-based pagination
 - Filter by Czech region (14 regions), via sidebar on desktop and a select on mobile
 - Ad detail page, plus an intercepting-route modal that opens over the grid
-- Sign in with GitHub or Google
+- Sign in with Google
 - Dashboard: create, edit and delete your own ads
 - Up to 2 ads per account, enforced on the server
 - Up to 3 photos per ad, enforced before the upload is stored
@@ -28,7 +28,7 @@ rendering — against a real database and real object storage.
 | Framework | Next.js 16.3.6 (App Router, Turbopack, React 19.3) |
 | Language | TypeScript 5 |
 | Database | Postgres (Neon) via Drizzle ORM |
-| Auth | NextAuth v4 — GitHub + Google OAuth |
+| Auth | NextAuth v4 — Google OAuth |
 | File uploads | UploadThing |
 | Rate limiting | Upstash Redis |
 | Styling | styled-components v6 with an SSR registry |
@@ -96,7 +96,6 @@ Read directly in `src/`:
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | yes | Postgres connection string. The app throws on boot without it. |
-| `GITHUB_ID` / `GITHUB_SECRET` | for GitHub sign-in | OAuth app credentials |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | for Google sign-in | OAuth app credentials |
 
 Read by libraries rather than by name in `src/`:

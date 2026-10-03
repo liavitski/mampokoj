@@ -299,6 +299,14 @@ The recurring lesson of this repo's testing history: **a test that cannot fail i
 worse than no test**, because it is read as proof. Every rule below exists
 because its violation shipped; `git log` has the story.
 
+**A live call that succeeds against an empty target is not a verification.** The
+one browser check that mattered most — does `utapi.deleteFiles` actually remove
+a file? — was unprovable, because the bucket held 0 files and every image key
+was a synthetic `seeded-*` one that was never uploaded. The call ran, returned
+no error, and proved nothing: **a wrong key does not error either.** Before
+recording any check as verified, confirm the thing it asserts *could* have
+failed. Measuring the precondition is part of the check, not a detour from it.
+
 - **Revert the fix and confirm it fails before believing a test proves
   something.** `expect(mocks.x).toHaveBeenCalled()` proves nothing.
 - **Assert on what the code under test produced, not on what the test produced.**
@@ -519,11 +527,25 @@ Each guard was proved by removing it and watching the right test fail: without
 `isModerator`, 4 tests fail; with the gate moved below the query, the ordering
 test fails; with the teardown order reversed, 2 fail.
 
-**Still unverified at runtime**, and it needs a browser with a real session —
-every test mocks it: that `/moderation` *lists* for a moderator (the refusal path
-is verified), that a takedown empties the bucket, and that deleting an owned ad
-empties the bucket. `utapi.deleteFiles` has never been called live through
-`teardownAd`.
+**Verified in a real browser** on 2026-10-03, with Playwright driving Chrome
+and a live Google sign-in. A moderator session lists the queue; the row order
+matches `getReportedAds` exactly against the database; the anonymous path still
+refuses. A takedown and an owner delete both ran live — rows and image rows
+gone, queue count correct, and `/ad/[adId]` 404s afterwards. The dashboard still
+reports the limit as 2 with the slot index holding.
+
+**One thing this could not verify: the bucket.** `utapi.listFiles` returns **0
+files** on the live bucket, and all 394 image rows are synthetic `seeded-<uuid>`
+keys that were never uploaded (`§3`). So `utapi.deleteFiles` ran live through
+`teardownAd` on both paths and deleted its rows, but only ever received keys
+that were never in the bucket — which does not error, and so proves little.
+**The file-deletion half of teardown remains unverified until someone uploads
+one real photo and deletes the ad holding it.**
+
+**And the queue does not refresh after a takedown.** `TakeDownButton` never
+calls `router.refresh()`, so the deleted ad stays on screen until a manual
+reload — which reads as "the takedown failed". The database was correct
+immediately; only the render was stale. Open in `tasks/todo.md`.
 
 ### 9.4 Then: Redis has never run against a live instance
 

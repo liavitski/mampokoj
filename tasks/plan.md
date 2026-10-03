@@ -80,19 +80,35 @@ as the database having it.
 
 ## Remaining work
 
-All of it needs a browser with a real session. Every test mocks `requireUserId`,
-and `utapi.deleteFiles` is mocked everywhere, so the bucket path has never run
-live through `teardownAd`.
+**The five browser checks were run on 2026-10-03** and four passed; see
+`tasks/todo.md` for the results and the two things they turned up.
 
-1. Restart `pnpm dev` — `.env` loads at server boot, so the `MODERATORS` value
-   set during implementation is not in the running process.
-2. `/moderation` lists the six reported ads. The refusal path is verified in a
-   real browser; the listed view is not.
-3. Take one down → it 404s and its photos leave the bucket.
-4. Delete an owned ad → its photos leave the bucket.
-5. Confirm the dashboard still shows the ad limit as 2.
+1. ~~Restart `pnpm dev`.~~ The server had started at 11:26 against a `.env`
+   written at 12:34, so `MODERATORS` really was missing from the process.
+   Restarted and confirmed.
+2. ~~`/moderation` lists the reported ads.~~ Rendered six rows for a moderator,
+   newest first, each with a `tel:` link and a Take down button. The row order
+   was checked against the database rather than trusted from the page.
+3. **Take one down** — verified, with one exception. `044ef7a4` deleted, image
+   row cascaded, queue 6 → 5, `/ad/044ef7a4` 404s. **But the photos could not
+   be shown leaving the bucket**: the bucket holds 0 files and every image key
+   is a synthetic `seeded-*` one that was never uploaded. `utapi.deleteFiles`
+   ran live and returned cleanly, which is not proof — a wrong key is also
+   silent.
+4. **Delete an owned ad** — same result, same bucket caveat. `227f7b25` deleted
+   via `deleteAdById`, so both callers of the extracted teardown now have run
+   against a real session. That ad had no image rows at all.
+5. ~~Dashboard shows the ad limit as 2.~~ Confirmed, with one ad held.
 
-`tasks/todo.md` carries these as the open checklist.
+**Two new findings, both left unfixed** because these checks were meant to be
+verification rather than development:
+
+- **The queue does not refresh after a takedown.** `TakeDownButton` never calls
+  `router.refresh()`, so the deleted ad stays rendered until a manual reload.
+  Found because the page still showed 6 rows immediately after a successful
+  delete — and that is exactly what a broken takedown looks like.
+- **The bucket path is unverifiable with the current data.** Closing it needs
+  one real photo uploaded to a real ad, then that ad deleted.
 
 ## Deliberately not done
 

@@ -55,6 +55,40 @@ and has one now.
 generally — `upload-guard.ts` fails closed, which is likely why the owner's ad
 had no photos at all. All four stale claims are corrected.
 
+## The moderation queue is live in production
+
+`/moderation` on `mampokoj.vercel.app` **refused every signed-in moderator for
+days**, because `MODERATORS` was never set in the Vercel dashboard. The local
+`HANDOFF.md` claimed otherwise and was wrong — see below. Fixed on 2026-10-03 by
+adding the variable in Vercel; **no redeploy was needed**, and the queue now
+renders 5 reported ads with phones and Take down buttons, verified signed in.
+
+The cause was never the identity or the code. `moderator-guard.ts` fails closed
+by design, so an unset allowlist produces no error, no log line, and a page that
+simply says "Not allowed." — a symptom that names nothing about the cause.
+
+**What was wrong in the docs, and why it is not repeated:**
+
+- `HANDOFF.md` §1, §3 and §9.3 all asserted `.env` travels to the Vercel host.
+  It does not: `.env` is gitignored, so it cannot travel with a push. That claim
+  was self-contradictory and is what sent the debugging in the wrong direction.
+- Env vars are set **in the Vercel dashboard, per environment**. Production-only
+  leaves Preview deployments refusing identically.
+- `SEED_ALLOW` is the opposite case and was also mis-documented: assume it *is*
+  set in production, since `db:seed` then writes to production. `seed-guard.ts`'s
+  header now says so.
+
+**Added `pnpm env:check`** (`src/utils/env-check.tsx`), which reports the
+variables whose absence is *silent* and exits 1 if any is empty or whitespace.
+It reads this process's environment, so it verifies your machine — **not**
+Vercel, which no script in this repo can see. `MODERATORS=pavel@gmail.com`
+passes it and still refuses, because an email is not an account id. Not wired
+into CI, because CI has no `.env` and would fail for the wrong reason.
+
+**The real production smoke test is a signed-in visit to `/moderation`.** A
+heading with an empty queue means the allowlist matched; "Not allowed." means it
+did not.
+
 ## If `/moderation` refuses anyway
 
 Almost always `MODERATORS`. It takes **OAuth account ids**, not email addresses

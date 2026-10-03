@@ -9,8 +9,14 @@
  *
  * `SEED_ALLOW` names the database that may be seeded. Pinning it to a name
  * rather than a truthy flag means an environment with no `SEED_ALLOW` refuses,
- * which is what CI and a fresh clone look like. It does not protect production:
- * `.env` is copied to the Vercel host, so `SEED_ALLOW` is set there too.
+ * which is what CI and a fresh clone look like.
+ *
+ * It does not protect production. Env vars are set in the Vercel dashboard by
+ * hand, per environment (see HANDOFF §1), so whether `SEED_ALLOW` is present
+ * there is a fact about the dashboard that this file cannot check and an
+ * earlier version of this comment got wrong. **Assume `SEED_ALLOW` is set in
+ * production, because that is the unsafe assumption**, and treat `pnpm db:seed`
+ * as a write to production until the variable is verified absent.
  *
  * Kept free of `server-only` and of any database import so the rule can be
  * tested without a connection.

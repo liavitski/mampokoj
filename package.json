@@ -21,7 +21,8 @@
     "db:push": "drizzle-kit push --config=drizzle.config.tsx",
     "db:seed": "tsx src/utils/seed.tsx",
     "db:studio": "drizzle-kit studio --config=drizzle.config.tsx",
-    "storage:reconcile": "tsx --conditions=react-server src/utils/storage-reconcile.tsx"
+    "storage:reconcile": "tsx --conditions=react-server src/utils/storage-reconcile.tsx",
+    "env:check": "tsx src/utils/env-check.tsx"
   },
   "dependencies": {
     "@faker-js/faker": "^10.4.0",

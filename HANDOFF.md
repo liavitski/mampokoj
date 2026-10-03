@@ -13,6 +13,9 @@ current shape, the code says so.
   128 KB of abandoned tables from two older projects (§8). The owner holds 0 of
   their 2 ad slots, and the UploadThing bucket is empty and agrees with the
   database.
+- **Production is live** at `mampokoj.vercel.app`, and the moderation queue works
+  there (§9.3). Env vars are set in the Vercel dashboard by hand — see §1, which
+  is the item most likely to waste an afternoon.
 
 ---
 
@@ -32,9 +35,26 @@ current shape, the code says so.
    the same one in the `/dashboard/<userId>` URL; there is no email anywhere in
    the system. **An email here never matches, and the allowlist fails closed**,
    so the symptom is `/moderation` refusing forever with nothing in the logs to
-   explain it — the single most confusing failure this app has. It is set in
-   production too, because `.env` travels to the Vercel host; that is intended,
-   and it is not a secret.
+   explain it — the single most confusing failure this app has.
+
+   **It must be set in Vercel by hand, per environment.** An earlier version of
+   this file claimed `.env` travels to the Vercel host; **that was false and
+   self-contradictory**, since `.env` is gitignored and so cannot travel with a
+   push. Production ran for days with `MODERATORS` unset, which is why
+   `/moderation` refused every signed-in moderator until it was added in the
+   dashboard. Three things to know:
+
+   - **Set it per environment.** Vercel scopes env vars, so a Production-only
+     value leaves Preview deployments refusing in exactly the same silent way.
+   - **The value is the account id, never an email.** Read it off your own
+     `/dashboard/<userId>` URL rather than looking for it here — it is
+     deliberately not written down in this repo, which is public.
+   - **No redeploy was needed** when it was fixed (2026-10-03): Vercel applied
+     the new value to the running deployment. Do not assume that is true for
+     every variable, though — build-time variables do need a redeploy.
+
+   The allowlist is not a secret. It gates the *web* surface only, and anyone
+   who can run a script with the repo's `.env` is already fully privileged.
 3. **Postgres is reachable and `CREATE DATABASE` is permitted**, which is how the
    migration work was verified rather than assumed. Two consequences:
    - The connection string uses the **`-pooler` host**. Those sessions outlive
@@ -143,7 +163,8 @@ demonstrating itself. **Do not "create a second database" as a fix.** Real users
 appearing is the trigger to revisit — not the Free plan, which allows 100
 projects and where this database uses under 9 MB of the 1 GB per project, so
 sharing is a choice here rather than a constraint. The `SEED_ALLOW` guard (`src/utils/seed-guard.ts`) covers CI and a
-fresh clone but **not** production, since `.env` travels to the Vercel host; that
+fresh clone but **not** production, since env vars are set in the Vercel
+dashboard by hand (§1) and `SEED_ALLOW` should be assumed present there; that
 limit is stated in the guard's header rather than papered over. The database also
 serves other projects on the account, isolated by table prefix; see §8.
 
@@ -154,14 +175,17 @@ every navigation. With no consumer, the provider was deleted rather than left
 wrapping the app. If you add a caller that needs `useSession()`, add the
 provider back with it — `signIn`/`signOut` work without one.
 
-**The moderator allowlist fails closed, and `MODERATORS` is in production.**
-Unset, empty or malformed means nobody moderates. The failure mode of an open
-allowlist is a takedown button anyone can press, so this is the opposite trade
-from `upload-guard.ts` above and deliberate. **Do not "fix" it to default-open.**
-`.env` travels to the Vercel host (§3), so the list is set there too and is
-readable in the deployed environment; it gates the *web* surface and is not a
-secret, because anyone who can run a script with the repo's `.env` is already
-fully privileged.
+**The moderator allowlist fails closed.** Unset, empty or malformed means nobody
+moderates. The failure mode of an open allowlist is a takedown button anyone can
+press, so this is the opposite trade from `upload-guard.ts` above and
+deliberate. **Do not "fix" it to default-open.** The list is set in the Vercel
+dashboard by hand and is readable in the deployed environment; it gates the *web*
+surface and is not a secret, because anyone who can run a script with the repo's
+`.env` is already fully privileged.
+
+**This is now the second time a silent refusal cost real time**, which is why
+§1 spells out the per-environment dashboard setup. The first cost an afternoon of
+"why does `/moderation` refuse"; the second is why the smoke check below exists.
 
 **`getReportedAds` selects `contactPhone` and `userId`, which every other public
 query withholds.** A scam is recognised by the number, and taking an ad down

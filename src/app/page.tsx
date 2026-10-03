@@ -1,7 +1,10 @@
 import { isRegionCode } from '@/utils/utils';
 import { PAGE_SIZE } from '@/constants';
 import { getAds } from '@/server/queries/select';
+import { homeMeta } from '@/lib/seo';
 import { cursorParamsSchema, toAdsCursor } from '@/lib/validation/cursor';
+
+import type { Metadata } from 'next';
 
 import RegionNavigation from '@/components/RegionNavigation';
 import AdGrid from '@/components/AdGrid';
@@ -22,6 +25,47 @@ type SearchParams = {
 type HomeProps = {
   searchParams: Promise<SearchParams>;
 };
+
+/**
+ * Metadata for the grid, including the region it is filtered to.
+ *
+ * **The cursor parameters are dropped from the canonical URL, and that is the
+ * point of this function.** `cursorCreatedAt`/`cursorId` are the infinite
+ * scroll's position, not a different view: `/?region=PR&cursorCreatedAt=...`
+ * renders the *second page* of the same Prague listing. Self-referencing
+ * canonicals there would tell a crawler that all 20 pages of a region are
+ * distinct documents competing with each other, and the region page would be
+ * whichever page the crawler happened to reach. Pointing every one of them at
+ * `/?region=PR` states the actual relationship.
+ *
+ * An invalid `region` canonicalises to `/` rather than to itself, because the
+ * page renders "No ads found for this region" -- there is nothing there to
+ * index, and a canonical pointing at an empty result invites the URL itself to
+ * be indexed as a thin page.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const { region } = await searchParams;
+  const validRegion = region && isRegionCode(region) ? region : undefined;
+
+  const { title, description } = homeMeta(validRegion);
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: validRegion ? `/?region=${validRegion}` : '/',
+    },
+    openGraph: {
+      title,
+      description,
+      url: validRegion ? `/?region=${validRegion}` : '/',
+    },
+  };
+}
 
 export default async function Home({ searchParams }: HomeProps) {
   const { region, cursorCreatedAt, cursorId } = await searchParams;

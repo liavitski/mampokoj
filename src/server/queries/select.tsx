@@ -145,6 +145,48 @@ export async function getValidatedAd(adId: string) {
 }
 
 // Dashboard page
+/**
+ * Columns for the sitemap.
+ *
+ * The narrowest list in this file, and the only one that exists to answer "does
+ * this URL exist and when did it last change" -- which is all a sitemap entry
+ * can carry. Deliberately *not* `publicAdColumns` with fields left unused: that
+ * would read `description`, `price` and `city` for every ad in the sitemap, and
+ * join the newest photo per row, to throw all of it away. At the 100 rows
+ * `SITEMAP_AD_LIMIT` asks for, that is a real query plan for no output.
+ *
+ * `id` and `updatedAt` only. No `userId`, no `contactPhone`, no moderation
+ * state: none of it reaches a sitemap, and a column that cannot influence the
+ * output is a column that should not be read.
+ */
+const sitemapAdColumns = {
+  id: true,
+  updatedAt: true,
+} as const;
+
+/**
+ * The newest ads, for `sitemap.xml`.
+ *
+ * Bounded on principle, like every other list here, and by the caller rather
+ * than by a default -- the bound is a crawler-budget decision (`SITEMAP_AD_LIMIT`
+ * explains it), not a property of the query.
+ *
+ * No region predicate: a sitemap wants every indexable URL, and the region
+ * pages in it are the 14 `/?region=` URLs, not a filtered subset of the ads.
+ * Filtering by region here would produce a sitemap whose ad entries all point
+ * at the same home page, which is not a sitemap.
+ *
+ * `createdAt, id` descending for the same reason `getAllAds` orders that way:
+ * it is the index that serves it, and `createdAt` alone is not a total order.
+ */
+export async function getIndexableAds(limit: number) {
+  return db.query.ads.findMany({
+    columns: sitemapAdColumns,
+    orderBy: (ads, { desc }) => [desc(ads.createdAt), desc(ads.id)],
+    limit,
+  });
+}
+
 export async function getUserAds(userId: string) {
   const userAds = await db.query.ads.findMany({
     where: eq(ads.userId, userId),

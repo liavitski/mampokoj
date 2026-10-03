@@ -8,6 +8,8 @@ import Image from 'next/image';
 
 import { motion } from 'motion/react';
 
+import { formatPriceCZK } from '@/utils/utils';
+
 type AdCardProps = {
   ad: PublicAd;
 };
@@ -30,11 +32,7 @@ function AdSummaryCard({ ad }: AdCardProps) {
 
   const image = images?.[0]?.url ?? '/globe.svg';
 
-  const formattedPrice = new Intl.NumberFormat('cs-CZ', {
-    style: 'currency',
-    currency: 'CZK',
-    maximumFractionDigits: 0,
-  }).format(Number(price));
+  const formattedPrice = formatPriceCZK(price);
 
   const formattedCreatedAt = new Date(createdAt).toLocaleDateString(
     'en-US',

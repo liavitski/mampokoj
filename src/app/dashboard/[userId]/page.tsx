@@ -15,6 +15,24 @@ import {
 } from './page.styles';
 import UpdateRoomListingForm from '@/components/UpdateRoomListingForm';
 
+import type { Metadata } from 'next';
+
+/**
+ * A private page: one user's own listings, and the form that posts more.
+ *
+ * `noindex` for the reason `moderation/page.tsx` gives -- `robots.ts`
+ * disallows `/dashboard`, and a disallowed URL never gets to read its own
+ * `noindex`, so the tag is the only thing that keeps it out of an index.
+ *
+ * There is no `title` override, so this inherits the site template and renders
+ * as "Mam Pokoj". A dashboard that is never indexed does not need a heading in
+ * the tab bar, and inventing one would put a user's own page title in their
+ * browser history.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 type UserDashboardPageProps = {
   params: Promise<{ userId: string }>;
 };

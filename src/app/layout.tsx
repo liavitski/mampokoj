@@ -10,8 +10,9 @@ import { getCachedSession } from '@/lib/session';
 
 import '@uploadthing/react/styles.css';
 import './globals.css';
-import { APP_TITLE, LIGHT_TOKENS, DARK_TOKENS, COLOR_THEME_COOKIE_NAME } from '@/constants';
+import { LIGHT_TOKENS, DARK_TOKENS, COLOR_THEME_COOKIE_NAME } from '@/constants';
 import StyledComponentsRegistry from '@/lib/registry';
+import { rootMetadata, rootViewport } from './metadata';
 
 import Header from '@/components/Header';
 import MaxWidthWrapper from '@/components/MaxWidthWrapper';
@@ -19,13 +20,17 @@ import Footer from '@/components/Footer';
 
 import ToastProvider from '@/components/ToastProvider';
 
-export const metadata = {
-  title: {
-    template: `%s • ${APP_TITLE}`,
-    default: APP_TITLE,
-  },
-  description: 'An app that helps you rent a room',
-};
+/**
+ * Re-exported from `metadata.ts` rather than declared here.
+ *
+ * Next.js reads `metadata` and `viewport` off the layout, so these have to be
+ * exported from this module -- but they are *defined* one file down, because
+ * `layout.tsx` cannot be imported by a test (it pulls in `next/font/google` and
+ * the UploadThing SSR plugin). The rationale and the reason it is not a second
+ * source of truth are in `metadata.ts`.
+ */
+export const metadata = rootMetadata;
+export const viewport = rootViewport;
 
 type RootLayoutProps = Readonly<{
   children: React.ReactNode;
@@ -52,7 +57,19 @@ async function RootLayout({ children, modal }: RootLayoutProps) {
 
   return (
     <html
-      lang="en"
+      /*
+       * `cs`, not `en`.
+       *
+       * The app's users are in the Czech Republic and its copy is Czech
+       * (`Mam Pokoj`, `Pronájem pokoje`, `Vyberte kraj`), prices are CZK and
+       * dates are `cs-CZ`. `lang="en"` told screen readers to pronounce Czech
+       * text with English phonetics, and told search engines the page was
+       * English, which is the mismatch that costs a Czech query its ranking.
+       *
+       * `translate="no"` stays: it is a deliberate choice not to offer machine
+       * translation of user-posted ads, and it is orthogonal to `lang`.
+       */
+      lang="cs"
       translate="no"
       data-color-theme={theme}
       style={

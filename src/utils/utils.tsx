@@ -29,3 +29,26 @@ export function formatCZPhone(input: string) {
 export function isRegionCode(value: string): value is RegionCode {
   return CZ_REGIONS.some((r) => r.code === value);
 }
+
+/**
+ * A price as the cards render it, and as metadata now quotes it.
+ *
+ * Lives here rather than in each component because it is used in three places
+ * that have to agree: the grid card, the detail card, and the `description` /
+ * `Offer.price` of an ad's metadata. A metadata description reading
+ * "12 000 Kč" next to a card reading "12 000,00 Kč" would be a defect nobody
+ * would notice until a search result disagreed with the page it described.
+ *
+ * Zero fraction digits, matching both cards: rent is quoted in whole koruna,
+ * and the `numeric(10, 2)` column holds a scale the UI has never shown.
+ *
+ * Not server-only, unlike most of `src/lib` -- this is also used by client
+ * components.
+ */
+export function formatPriceCZK(price: string | number): string {
+  return new Intl.NumberFormat('cs-CZ', {
+    style: 'currency',
+    currency: 'CZK',
+    maximumFractionDigits: 0,
+  }).format(Number(price));
+}

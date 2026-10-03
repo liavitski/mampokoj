@@ -97,21 +97,23 @@ test.describe('ad detail', () => {
     // and delete an ad to have something to 404 on -- which is what lets these
     // specs stay read-only against the shared database.
     //
-    // Asserted on the **rendered** 404 rather than on the status code, because the
-    // status is 200. `loading.tsx` puts this route behind a Suspense boundary, so
-    // the response head is committed before `getValidatedAd` has run and
-    // `notFound()` can only swap the body. Measured against a production build:
-    // both a missing uuid and a malformed one answer `200`, with
-    // `NEXT_HTTP_ERROR_FALLBACK` in the payload.
+    // **The status is asserted here, and it used to be 200.** `loading.tsx` sat at
+    // the app root, putting a Suspense boundary above every route: the response
+    // head was committed before `getValidatedAd` ran, so `notFound()` could only
+    // swap the body and the status line had already gone out as 200. The visitor
+    // saw a correct 404 page and every crawler, uptime monitor and CDN saw a
+    // success -- and because a 200 does not get Next.js's automatic `noindex`, a
+    // removed listing stayed indexable on its own merits. Recorded in
+    // `HANDOFF.md` §9.4; fixed by scoping the boundary to the `(browse)` route
+    // group, so `/ad/[adId]` renders without one.
     //
-    // That is a real defect rather than a quirk of the test -- search engines and
-    // uptime monitors will both read these pages as successful -- and it is
-    // recorded in `HANDOFF.md` §9.4. Asserting 404 here would mean asserting a
-    // fix that has not been made.
+    // The rendered assertions are kept alongside the status, not replaced by it: a
+    // server could return 404 and still render the wrong page.
     const missing = crypto.randomUUID();
 
-    await page.goto(`/ad/${missing}`);
+    const response = await page.goto(`/ad/${missing}`);
 
+    expect(response?.status()).toBe(404);
     await expect(
       page.getByRole('heading', { name: /404 - Page Not Found/i })
     ).toBeVisible();
@@ -121,12 +123,39 @@ test.describe('ad detail', () => {
   test('shows the not-found page for an ad id that is not a uuid at all', async ({ page }) => {
     // The malformed case reaches `adIdSchema` rather than the database, and must be
     // refused identically without leaking a validation or driver message.
-    await page.goto('/ad/not-a-uuid');
+    //
+    // The status is asserted for the same reason as above: both paths must answer
+    // 404, and a malformed id that reached the database as a cast would produce a
+    // driver error page instead.
+    const response = await page.goto('/ad/not-a-uuid');
 
+    expect(response?.status()).toBe(404);
     await expect(
       page.getByRole('heading', { name: /404 - Page Not Found/i })
     ).toBeVisible();
     await expect(page.getByText(/invalid uuid|expected/i)).toHaveCount(0);
+  });
+
+  test('answers 404 for a removed ad but 200 for a real one', async ({ page }) => {
+    // The precondition that makes the two assertions above mean anything.
+    //
+    // Every ad in this database answers 200 -- including a real one, which is the
+    // trap: an assertion of `expect(status).toBe(200)` on the *home* page would
+    // pass whether or not the 404 fix worked, because that is simply what this
+    // server answers. Measured in both directions, a status assertion that cannot
+    // distinguish success from failure is decoration.
+    await page.goto('/');
+
+    const href = await appShell(page)
+      .locator('a[href^="/ad/"]')
+      .first()
+      .getAttribute('href');
+
+    const real = await page.goto(href!);
+    expect(real?.status()).toBe(200);
+
+    const missing = await page.goto(`/ad/${crypto.randomUUID()}`);
+    expect(missing?.status()).toBe(404);
   });
 
   test('does not leak the poster id or the moderation columns', async ({ page }) => {

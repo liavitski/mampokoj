@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { formatCZPhone } from '@/utils/utils';
+import { formatCZPhone, formatPriceCZK } from '@/utils/utils';
 
 import type { AdWithoutUserId } from '@/types/db-types';
 
@@ -36,11 +36,7 @@ async function AdCardCompact({ ad }: AdCardProps) {
 
   const currentUser = await getSessionUser();
 
-  const formattedPrice = new Intl.NumberFormat('cs-CZ', {
-    style: 'currency',
-    currency: 'CZK',
-    maximumFractionDigits: 0,
-  }).format(Number(price));
+  const formattedPrice = formatPriceCZK(price);
 
   const formattedPhone = formatCZPhone(contactPhone);
 

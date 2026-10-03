@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from '../db';
-import { eq, count, isNotNull } from 'drizzle-orm';
+import { eq, count, isNotNull, and, or, lt } from 'drizzle-orm';
 import { ads, images } from '../db/schema';
 import { PAGE_SIZE, MAX_ADS_PER_USER } from '@/constants';
 import { adIdSchema } from '@/lib/validation/ad-schema';
@@ -27,26 +27,60 @@ const publicAdColumns = {
   updatedAt: true,
 } as const;
 
+/**
+ * The pagination predicate: rows strictly older than the cursor, under the same
+ * `(createdAt, id)` descending order both lists use.
+ *
+ * One definition for both `getAds` and `getAllAds`. They order identically and
+ * page identically, and a second copy of this clause is a copy that can gain a
+ * `lt` where the other has an `eq` -- at which point one list skips rows or
+ * repeats them and nothing reports it.
+ *
+ * The `id` tiebreak is the reason this is not `createdAt < cursor.createdAt`:
+ * `createdAt` is not unique, and dropping the tiebreak silently drops every ad
+ * posted in the same millisecond as the cursor's row.
+ */
+const olderThan = (cursor: AdsCursor) =>
+  or(
+    lt(ads.createdAt, cursor.createdAt),
+    and(eq(ads.createdAt, cursor.createdAt), lt(ads.id, cursor.id))
+  );
+
+/**
+ * Turns a `limit + 1` read into a page, and reads the extra row as the answer
+ * to "is there another page".
+ *
+ * Shared rather than restated per query, because the arithmetic and the
+ * `nextCursor` it produces are the contract both paginated surfaces depend on,
+ * and an off-by-one in one of them shows up as a duplicate row at a page
+ * boundary rather than as an error.
+ */
+function toPage<TRow extends { id: string; createdAt: Date }>(
+  rows: TRow[],
+  limit: number
+) {
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items[items.length - 1];
+
+  return {
+    items,
+    hasMore,
+    nextCursor:
+      hasMore && last ? { createdAt: last.createdAt, id: last.id } : null,
+  };
+}
+
 export const getAds = async (
   limit = PAGE_SIZE,
   region?: string,
   cursor?: AdsCursor
 ) => {
   const adsPage = await db.query.ads.findMany({
-    where: (ads, { and, eq, lt, or }) => {
+    where: (ads, { and }) => {
       const base = region ? eq(ads.region, region) : undefined;
 
-      const pagination = cursor
-        ? or(
-            lt(ads.createdAt, cursor.createdAt),
-            and(
-              eq(ads.createdAt, cursor.createdAt),
-              lt(ads.id, cursor.id)
-            )
-          )
-        : undefined;
-
-      return and(base, pagination);
+      return and(base, cursor ? olderThan(cursor) : undefined);
     },
 
     columns: publicAdColumns,
@@ -63,29 +97,7 @@ export const getAds = async (
     },
   });
 
-  const hasMore = adsPage.length > limit;
-  const items = hasMore ? adsPage.slice(0, limit) : adsPage;
-
-  if (items.length === 0) {
-    return {
-      items: [],
-      hasMore: false,
-      nextCursor: null as AdsCursor | null,
-    };
-  }
-
-  const last = items[items.length - 1]!;
-
-  return {
-    items,
-    hasMore,
-    nextCursor: hasMore
-      ? {
-          createdAt: last.createdAt,
-          id: last.id,
-        }
-      : null,
-  };
+  return toPage(adsPage, limit);
 };
 
 /**
@@ -145,6 +157,22 @@ export async function getValidatedAd(adId: string) {
 }
 
 // Dashboard page
+export async function getUserAds(userId: string) {
+  const userAds = await db.query.ads.findMany({
+    where: eq(ads.userId, userId),
+    with: {
+      images: true,
+    },
+    orderBy: (ads, { desc }) => [desc(ads.createdAt)],
+    // Bounded on principle. MAX_ADS_PER_USER caps new ads, but the limit is
+    // not the only thing that writes to this table, and an unbounded read
+    // grows with whatever is in it.
+    limit: MAX_ADS_PER_USER * 10,
+  });
+
+  return userAds;
+}
+
 /**
  * Columns for the sitemap.
  *
@@ -185,22 +213,6 @@ export async function getIndexableAds(limit: number) {
     orderBy: (ads, { desc }) => [desc(ads.createdAt), desc(ads.id)],
     limit,
   });
-}
-
-export async function getUserAds(userId: string) {
-  const userAds = await db.query.ads.findMany({
-    where: eq(ads.userId, userId),
-    with: {
-      images: true,
-    },
-    orderBy: (ads, { desc }) => [desc(ads.createdAt)],
-    // Bounded on principle. MAX_ADS_PER_USER caps new ads, but the limit is
-    // not the only thing that writes to this table, and an unbounded read
-    // grows with whatever is in it.
-    limit: MAX_ADS_PER_USER * 10,
-  });
-
-  return userAds;
 }
 
 /**
@@ -302,11 +314,14 @@ const allAdsColumns = { ...moderatorAdColumns, reportedAt: false } as const;
  * written before because nothing needed it, and `deleteAdAsModerator` deleting
  * more than its name said was the honest description of the state until now.
  *
- * No predicate, deliberately. `reportedAt` is absent from the columns too, so
- * there is nothing here that could tempt the page into a per-row check -- which
- * would mean the rows were fetched before the decision, the thing
- * `moderation-gate.test.ts` forbids. The one piece of state this list does
- * branch on is `checkedAt`, and it branches only to pick which button to render.
+ * **No predicate without a cursor, deliberately.** `reportedAt` is absent from
+ * the columns too, so there is nothing here that could tempt the page into a
+ * per-row check -- which would mean the rows were fetched before the decision,
+ * the thing `moderation-gate.test.ts` forbids. The one piece of state this list
+ * does branch on is `checkedAt`, and it branches only to pick which button to
+ * render. A cursor *is* a predicate, so with one this reads as a filtered
+ * subset; that is the pager working, and it is asserted in
+ * `select.allAds.test.ts` rather than left to be rediscovered as a bug.
  *
  * Backed by `mampokoj_ads_created_id_idx`, which covers `(createdAt, id)`
  * descending -- the same index and the same ordering `getAds` uses. `id` is in
@@ -317,18 +332,27 @@ const allAdsColumns = { ...moderatorAdColumns, reportedAt: false } as const;
  *
  * Bounded on principle, and this one matters more than the queue's. The queue is
  * small because reporting is rare; this list covers every ad ever posted, so an
- * unbounded read would grow with the whole table. The bound is a page, not a
- * claim of completeness -- there is no pager yet, and `SPEC-moderation.md`'s
- * "ask first" list means adding one is a decision rather than a detail.
+ * unbounded read would grow with the whole table. The bound is a *page*, paged
+ * through with `cursor` -- keyset rather than an offset, because a moderator
+ * deletes ads off this very list: with `OFFSET`, every row below a deleted one
+ * shifts up and "page 3" quietly skips an ad nobody has looked at yet. A
+ * keyset cursor names a position rather than a distance, so a deletion above it
+ * cannot change what it returns.
+ *
+ * The shape is `getAds`'s, deliberately -- one `{ items, hasMore, nextCursor }`
+ * contract for both paginated surfaces, so the page reads the same either way.
  *
  * No `with: { images }`, for the reason `getReportedAds` gives.
  */
-export async function getAllAds(limit = PAGE_SIZE) {
-  return db.query.ads.findMany({
+export async function getAllAds(limit = PAGE_SIZE, cursor?: AdsCursor) {
+  const rows = await db.query.ads.findMany({
+    where: cursor ? olderThan(cursor) : undefined,
     columns: allAdsColumns,
     orderBy: (ads, { desc }) => [desc(ads.createdAt), desc(ads.id)],
-    limit,
+    limit: limit + 1,
   });
+
+  return toPage(rows, limit);
 }
 
 // Uploadthing core

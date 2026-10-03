@@ -80,6 +80,22 @@ describe('the moderation gate', () => {
     expect(source).not.toMatch(/reportedAt\s*===|!==\s*null/);
   });
 
+  /**
+   * The pager's input is untrusted like any other, and it is validated through
+   * the shared schema rather than a second set of rules.
+   *
+   * Without this, `/moderation?cursorId=not-a-uuid` is the same 500 the home page
+   * used to answer -- on a route whose every row carries a contact phone number,
+   * where an error page is also the wrong answer for a moderator mid-triage.
+   */
+  it('validates the pager cursor with the shared schema', () => {
+    expect(source).toContain('cursorParamsSchema.safeParse');
+    expect(source).toContain('toAdsCursor');
+    // Not a hand-rolled `new Date(...)` in an `if (a && b)`, which is what the
+    // home page had and what this replaced.
+    expect(source).not.toMatch(/new Date\(cursorCreatedAt\)/);
+  });
+
   it('branches on checkedAt, which is a different thing from filtering on reportedAt', () => {
     // The rule above is about *filtering*: deciding whether a row belongs in the
     // list after it has been read. Branching on `checkedAt` decides which control
@@ -117,13 +133,49 @@ describe('the moderation gate', () => {
     expect(source).toContain('No ads yet.');
   });
 
-  it('says when the all ads list is a page rather than the whole table', () => {
-    // `getAllAds` is bounded on principle. A moderator must not be left
-    // believing the list is complete when it is the most recent N -- otherwise
-    // "I cannot find that scam" is a reasonable and entirely wrong conclusion.
-    // Asserted because the honest version of this UI is the one that says so.
-    expect(source).toContain('Showing the most recent');
-    expect(source).toMatch(/allAds\.length >= PAGE_SIZE/);
+  /**
+   * The all ads list is paged, and the pager is the point of the change.
+   *
+   * It used to be the newest ten of two hundred with nothing past them, so a
+   * moderator who could not find a scam there had reached a *correct* conclusion
+   * from a truncated list. Asserted in both directions: a link that exists with
+   * nothing to page to would offer a dead end, and a cursor with no way back to
+   * the newest ads would strand the moderator on page nineteen.
+   */
+  it('pages the all ads list, forwards and back to the newest', () => {
+    expect(source).toContain('Older ads');
+    expect(source).toContain('Newest ads');
+
+    // "Newest ads" drops the cursor rather than walking it backwards: a keyset
+    // cursor names a position and cannot be decremented, so this is the only way
+    // back that exists.
+    expect(source).toMatch(/cursor\s*\?\s*<PagerLink href="\/moderation"/);
+  });
+
+  it('offers "Older ads" only when there is another page', () => {
+    // `hasMore && nextCursor`, not a truthy check on the row list: a page that is
+    // exactly full is the last page, and linking onward from it would offer a
+    // click that returns nothing.
+    expect(source).toMatch(/hasMore\s*&&\s*nextCursor/);
+  });
+
+  /**
+   * Never claims completeness it does not have.
+   *
+   * The wording matters more than the existence of the note. "Showing the most
+   * recent 10 ads" was true and still misleading once a pager existed; a
+   * moderator reading it would keep believing the list was cut off. So the
+   * completeness sentence is now reachable *only* when there is no next page.
+   */
+  it('claims to show everything only when there is no next page', () => {
+    expect(source).toContain('This is every ad on the site.');
+    expect(source).toMatch(/:\s*hasMore\s*\?[\s\S]{0,200}This is every ad/);
+  });
+
+  it('says which way the list runs, rather than leaving the moderator to guess', () => {
+    // "Newest first" is the answer to "why is the ad I remember not here" -- it
+    // was posted before the page they are looking at.
+    expect(source).toContain('Newest first');
   });
 
   it('shows the contact number, which is the basis of every report', () => {

@@ -1,7 +1,29 @@
 import { requireUserId } from '@/lib/session';
 import { isModerator, parseModeratorAllowlist } from '@/lib/moderator-guard';
 import { getAllAds, getReportedAds } from '@/server/queries/select';
+import { cursorParamsSchema, toAdsCursor } from '@/lib/validation/cursor';
 import { PAGE_SIZE } from '@/constants';
+
+import type { Metadata } from 'next';
+
+/**
+ * Never indexed, and never linked.
+ *
+ * `robots.ts` disallows `/moderation`, which stops a compliant crawler
+ * fetching it -- and which is exactly why the `noindex` here is not redundant.
+ * A URL excluded in `robots.txt` cannot have its `noindex` read, so it can sit
+ * in an index as "indexed, though blocked by robots.txt", which is worse than
+ * either state. The tag is what actually removes it, and it is what a scraper
+ * or a link-preview fetcher will honour.
+ *
+ * `follow: false` as well, unlike the 404 page: there is no reason for a
+ * crawler to walk onward from the only page on the site whose rows carry every
+ * ad's contact number.
+ */
+export const metadata: Metadata = {
+  title: 'Moderace',
+  robots: { index: false, follow: false },
+};
 
 import TakeDownButton from '@/components/moderation/TakeDownButton';
 import MarkCheckedButton from '@/components/moderation/MarkCheckedButton';
@@ -22,6 +44,8 @@ import {
   VisuallyHiddenText,
   Phone,
   Row,
+  Pager,
+  PagerLink,
 } from './page.styles';
 
 /**
@@ -86,7 +110,11 @@ function AdTitle({ adId, title }: { adId: string; title: string }) {
  * convention would be its own defect. It is also the more honest answer: the
  * route exists, and pretending otherwise teaches nothing.
  */
-async function ModerationPage() {
+type ModerationPageProps = {
+  searchParams: Promise<{ cursorCreatedAt?: string; cursorId?: string }>;
+};
+
+async function ModerationPage({ searchParams }: ModerationPageProps) {
   const serverUserId = await requireUserId();
 
   if (
@@ -96,15 +124,36 @@ async function ModerationPage() {
   }
 
   /**
+   * Untrusted input, read after the gate purely so the function reads in the
+   * order it happens: refuse first, then look at what was asked for, then query.
+   * Nothing security-relevant turns on that order -- `searchParams` is not the
+   * session, and reading it cannot read a row.
+   *
+   * Parsed by the same schema the home page and `/api/ads` use, because it is the
+   * same cursor -- same `(createdAt, id)` order, same "both or neither" rule. An
+   * unreadable one falls back to the newest page here exactly as it does there,
+   * so `/moderation?cursorId=not-a-uuid` is a working page rather than a 500.
+   */
+  const { cursorCreatedAt, cursorId } = await searchParams;
+  const parsedCursor = cursorParamsSchema.safeParse({ cursorCreatedAt, cursorId });
+  const cursor = parsedCursor.success ? toAdsCursor(parsedCursor.data) : undefined;
+
+  /**
    * Both queries after the gate, and together: they are independent reads on the
    * same table and the moderator needs both on one screen, so there is nothing to
    * sequence. `Promise.all` rather than two awaits so a slow all ads query does
    * not hold the reported queue back behind it.
+   *
+   * Only the all-ads list is paged. The queue is deliberately left whole: a report
+   * is a request for attention, and the moderator's job is to clear all of it, so
+   * a second page of reports is a queue that has quietly outgrown a ten-row cap.
    */
-  const [reportedAds, allAds] = await Promise.all([
+  const [reportedAds, allAdsPage] = await Promise.all([
     getReportedAds(),
-    getAllAds(),
+    getAllAds(PAGE_SIZE, cursor),
   ]);
+
+  const { items: allAds, hasMore, nextCursor } = allAdsPage;
 
   return (
     <Wrapper>
@@ -215,17 +264,53 @@ async function ModerationPage() {
             </Queue>
 
             {/*
-              `getAllAds` is bounded on principle, so this list is the newest N
-              rather than everything. Saying so is load-bearing: a moderator who
-              assumes completeness will conclude that a scam they cannot find here
-              does not exist, and "no pager yet" would be an invisible excuse.
+              Two links and a sentence, which is the whole pager.
+
+              "Older ads" walks forward in time with a keyset cursor, so it cannot
+              skip or repeat a row when a moderator deletes an ad off the list
+              above. "Newest ads" drops the cursor and returns to the first page,
+              which is the only way back: a keyset cursor names a position and
+              cannot be decremented, so there is no "previous page" to link to and
+              pretending otherwise would either lose the moderator's place or
+              reintroduce the offset paging this avoids.
+
+              No page numbers either, for the same reason. "Page 3 of 20" needs an
+              `OFFSET` or a `COUNT` over the whole table, and both make the number
+              move under the moderator -- a number that lies is worse than no
+              number. What is offered instead is the truth: where you are in the
+              ordering, and how to leave.
             */}
-            {allAds.length >= PAGE_SIZE ? (
-              <Note>
-                Showing the most recent {PAGE_SIZE} ads. Older ads are not listed
-                here.
-              </Note>
-            ) : null}
+            <Pager>
+              {cursor ? <PagerLink href="/moderation">Newest ads</PagerLink> : null}
+
+              {hasMore && nextCursor ? (
+                <PagerLink
+                  href={`/moderation?${new URLSearchParams({
+                    cursorCreatedAt: nextCursor.createdAt.toISOString(),
+                    cursorId: nextCursor.id,
+                  }).toString()}`}
+                >
+                  Older ads
+                </PagerLink>
+              ) : null}
+            </Pager>
+
+            {/*
+              Load-bearing, and the reason it is not a generic caption. The list
+              used to be the newest ten of two hundred with no way past them, so
+              "I cannot find that scam" was a reasonable conclusion drawn from a
+              list that was simply cut off. Whatever this says, it must never let
+              a moderator believe they have seen the whole site when they have
+              not -- so the completeness claim appears only when `hasMore` is
+              false, and a truncated list says how to get further.
+            */}
+            <Note>
+              {cursor
+                ? 'Continuing back through the list, oldest last. "Newest ads" starts over.'
+                : hasMore
+                  ? `Newest first, ${PAGE_SIZE} at a time. Older ads are behind "Older ads".`
+                  : 'Newest first. This is every ad on the site.'}
+            </Note>
           </>
         )}
       </Section>

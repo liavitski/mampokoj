@@ -9,6 +9,7 @@
  * back.
  */
 import styled from 'styled-components';
+import Link from 'next/link';
 
 import { WEIGHTS, QUERIES } from '@/constants';
 
@@ -146,13 +147,47 @@ export const Badge = styled.span`
  * A caveat about what the page is showing rather than about any ad.
  *
  * Deliberately muted and never an error: `getAllAds` is bounded on principle and
- * a moderator who believes they are looking at every ad will draw wrong
- * conclusions from a list that is only the newest N. Saying so is the difference
- * between a bounded list and a misleading one.
+ * paged, and a moderator who believes they have seen every ad will draw wrong
+ * conclusions from a list showing the newest ten. Saying where they are is the
+ * difference between a paged list and a misleading one.
  */
 export const Note = styled.p`
   font-size: 0.875rem;
   color: var(--color-text-muted-foreground);
+`;
+
+/**
+ * The two pager links.
+ *
+ * A `nav` region with the links inside it rather than two bare anchors: a
+ * moderator paging with a keyboard or a screen reader should be able to jump
+ * between "Newest ads" and "Older ads" without tabbing past every ad in
+ * between, and only a labelled region offers that. `aria-label` because the
+ * links' own text ("Older ads") says nothing about *which* list they page --
+ * there are two lists on this page and only one of them pages.
+ */
+export const Pager = styled.nav`
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+`;
+
+/**
+ * A pager link.
+ *
+ * `AdLink` rather than the shared `Button`: these navigate, and navigating is
+ * what a link is for. A button-styled control that changes the URL would leave
+ * middle-click and "open in new tab" -- the two ways a moderator gets back to the
+ * ad they just took down -- doing nothing at all.
+ */
+export const PagerLink = styled(Link)`
+  font-size: 0.875rem;
+  font-weight: ${WEIGHTS.medium};
+  color: var(--color-link);
+
+  &:hover {
+    color: var(--color-link-hover);
+  }
 `;
 
 export const Empty = styled.p`

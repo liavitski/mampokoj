@@ -156,7 +156,7 @@ from `PublicAd`, naming what it catches.
 **Verification:**
 - [x] Tests: `pnpm test`
 - [x] Build: `pnpm build`
-- [ ] **NOT VERIFIED — needs a real OAuth session:** sign in → open an ad → report it → confirm the toast and the pending state; open via a grid click to confirm the modal copy. Tests only; `requireUserId` is mocked there.
+- [x] Manual: signed in, real browser — **verified by the maintainer:** report an ad → "Thank you. This ad has been reported."; report it again → refused; the poster's own ad → refused. That is `requireUserId` returning a real session rather than a mock, and it exercises both halves of the write predicate that no test could reach end to end.
 - [x] Manual: `curl` the ad detail page and confirm `"reportedAt"` appears in no `<script>` payload
 
 **Dependencies:** Tasks 3, 4
@@ -169,9 +169,9 @@ from `PublicAd`, naming what it catches.
 
 - [x] `pnpm verify` green
 - [x] Every `reportAd` authorization test **fails** when its predicate is removed
-- [ ] **NOT VERIFIED — needs a real OAuth session:** sign in, report an ad, see the toast; sign out, see no button. The anonymous half was checked by `curl`.
+- [x] **Verified by the maintainer in a signed-in browser:** report an ad → thank-you toast; a second report → refused (first report wins); the poster's own ad → refused (self-report guard). Previously unchecked because `requireUserId` is mocked in every test.
 - [x] `reportedAt` confirmed absent from the public payload and the rendered grid
-- [ ] **Review with human before proceeding** — this slice is independently shippable
+- [x] **Reviewed by human** — slice signed off after the maintainer exercised it
 
 ---
 

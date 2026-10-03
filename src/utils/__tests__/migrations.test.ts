@@ -92,6 +92,55 @@ describe('committed migrations', () => {
     }
   });
 
+  it('declares the ad limit as a unique pair in the schema', () => {
+    // On drizzle-orm 0.45 an index keeps its settings under a
+    // `config` property the public typings do not expose, so the
+    // shape is asserted through the same cast the columns above
+    // warn about.
+    const config = getTableConfig(ads);
+    const slotIndex = config.indexes.find(
+      (index) =>
+        (index as unknown as {
+          config: {
+            name: string;
+            unique: boolean;
+            columns: { name: string }[];
+          };
+        }).config.name === 'mampokoj_ads_user_slot_unique'
+    );
+
+    // The slot index is what enforces MAX_ADS_PER_USER, so the
+    // schema has to declare it as unique over exactly the pair
+    // createAd inserts into. A non-unique or narrower index
+    // here would put the limit back on a count read under a
+    // lock, which is the race the slot exists to close.
+    expect(slotIndex).toBeDefined();
+    const { unique, columns } = (
+      slotIndex as unknown as {
+        config: { unique: boolean; columns: { name: string }[] };
+      }
+    ).config;
+
+    expect(unique).toBe(true);
+    expect(columns.map((column) => column.name)).toEqual([
+      'userId',
+      'slot',
+    ]);
+  });
+
+  it('creates the unique index the ad limit runs on', () => {
+    const allSql = journal.map((e) => readMigrationSql(e.tag)).join('\n');
+
+    // The index name and the pair it covers, so a migration that
+    // creates the column without the constraint -- or covers a
+    // different pair -- fails here rather than in production,
+    // where it would surface as two ads too many.
+    expect(allSql).toContain(
+      'CREATE UNIQUE INDEX "mampokoj_ads_user_slot_unique"'
+    );
+    expect(allSql).toContain('("userId","slot")');
+  });
+
   it('has no migration that drops a table the schema still declares', () => {
     // A DROP in the migration history alongside a live CREATE means the two
     // have diverged, which is exactly the drift this folder exists to prevent.

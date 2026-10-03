@@ -17,6 +17,7 @@ const IMAGE_ROW = {
 const FULL_ROW: AdWithImages = {
   id: '11111111-1111-4111-8111-111111111111',
   userId: 'oauth-account-id-42',
+  slot: 0,
   title: 'Bright room',
   price: '8500.00',
   city: 'Prague',
@@ -36,6 +37,13 @@ describe('toPublicAd', () => {
 
   it('drops the contact phone number', () => {
     expect(toPublicAd(FULL_ROW)).not.toHaveProperty('contactPhone');
+  });
+
+  it('drops the ad slot', () => {
+    // The slot is how the database enforces the per-user
+    // limit. It is server machinery, so it leaves with the
+    // poster id rather than riding along in the payload.
+    expect(toPublicAd(FULL_ROW)).not.toHaveProperty('slot');
   });
 
   it('does not leak the private values anywhere in the output', () => {

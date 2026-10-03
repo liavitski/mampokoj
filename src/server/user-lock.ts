@@ -142,14 +142,16 @@ async function releaseQuietly(
 /**
  * Serializes work per session user across every server instance.
  *
- * `MAX_ADS_PER_USER` is enforced by counting and then inserting, and the two
- * statements are not atomic: concurrent requests all read the same count and
- * all insert. This closes that window.
+ * `MAX_ADS_PER_USER` is enforced by the unique index on
+ * (userId, slot), so the limit holds whether or not this lock
+ * runs. What the lock still buys is serialization: two creates
+ * for one user cannot race for the same free slot, so neither
+ * spends an insert on a conflict it was always going to lose.
  *
  * The key is the session's user id, which is the OAuth provider's account id.
  * Somebody signing in with two different providers has two ids, and so two
- * locks and two counts -- the same limitation the ad limit itself has always
- * had, encoded here rather than fixed.
+ * locks and two sets of slots -- the same limitation the ad limit itself has
+ * always had, encoded here rather than fixed.
  *
  * It is a Redis mutex rather than a database one because the HTTP driver this
  * app uses cannot open a transaction -- `db.transaction` throws "No
@@ -163,10 +165,10 @@ async function releaseQuietly(
  * snapshot.
  *
  * The lock is deliberately advisory rather than authoritative. If Redis is
- * unreachable the critical section still runs, unserialized, because a soft
- * quota should not become a hard availability dependency -- the same way the ad
- * limit already failed open before this existed. That degradation is logged, so
- * it is visible rather than silent.
+ * unreachable the critical section still runs, unserialized, and the slot
+ * index still enforces the same cap -- an outage can cost a create a lost
+ * race for a free slot, never an over-limit account. That degradation is
+ * logged, so it is visible rather than silent.
  */
 export async function withUserLock<T>(
   userId: string,

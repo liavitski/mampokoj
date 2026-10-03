@@ -6,7 +6,7 @@ README is not repeated here, and neither is the history of how a bug got fixed.
 If you want the history of a decision, `git log -S` finds it; if you want its
 current shape, the code says so.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 272 tests
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 277 tests
   across 33 files, `next build` succeeds.
 - **Database:** one Neon database (`neondb`) shared by development and
   production (§3). 201 generated ads and 394 images, all seeded, no real mampokoj
@@ -112,18 +112,24 @@ authorization boundary, so the ad lock fails open and logs; but here the
 mechanism *is* the control, so failing open would turn an outage into an abuse
 window. **Do not "fix" this toward consistency with the ad lock.**
 
-**The ad lock is advisory, not authoritative.** If Redis is down the critical
-section still runs, unserialized, and logs. A soft quota should not become a hard
-availability dependency.
+**The ad lock is advisory, not authoritative, and no longer carries the
+quota.** The limit is enforced by the slot index (§7), so when Redis is
+down the critical section still runs, unserialized, and logs — and the
+limit holds anyway. An outage can cost a create a lost race for a free
+slot, never an over-limit account.
 
-**The database cannot enforce the ad limit, and that was measured.** Do not
-re-derive it: `db.transaction` throws on the neon-http driver; a single-statement
-`pg_advisory_xact_lock` does not help, because under READ COMMITTED a blocked
-caller proceeds with a snapshot from *before* the winner committed and its
-`count(*)` cannot see the new row (eight concurrent inserts breached a limit of
-two in five rounds of six). A **trigger has the same defect**, running inside the
-INSERT's snapshot. A partial unique index can only express "at most 1". Hence
-mutual exclusion outside the database, hence Redis.
+**Why the ad limit needed a lock, and why it no longer does.**
+Measured, not re-derived: `db.transaction` throws on the neon-http
+driver; a single-statement `pg_advisory_xact_lock` does not help,
+because under READ COMMITTED a blocked caller proceeds with a
+snapshot from *before* the winner committed and its `count(*)`
+cannot see the new row (eight concurrent inserts breached a limit
+of two in five rounds of six). A **trigger has the same defect**,
+running inside the INSERT's snapshot. A partial unique index can
+only express "at most 1". Every one of those is about *reading* a
+count. The slot index (§7) is a write-time conflict on the key
+itself, which reads no snapshot — so the limit is enforced in the
+database after all, and the lock's job narrowed to serialization.
 
 **One database for dev and production.** Found, not designed: Vercel's
 `DATABASE_URL` points at the dev database and `.env` is copied to the Vercel
@@ -200,6 +206,11 @@ Each of these cost real time.
   `INSERT INTO $1` or `malformed array literal`. Use
   `sql.query('... VALUES ($1,$2)', [a, b])` when a statement needs both a
   literal table name and bound values.
+- **`client.unsafe()` is a fragment for that template, not a query executor.**
+  Awaited on its own it returns the SQL it was handed, having run nothing — no
+  error, no rows — so `CREATE DATABASE` and the next statement both look fine
+  while the database was never created. Verbatim SQL goes through the template:
+  `` client`${client.unsafe('CREATE DATABASE x')}` ``.
 - **A unique violation does not arrive where you look.** Drizzle wraps driver
   errors, so 23505 reaches you as a `DrizzleQueryError` with `code: undefined`;
   the real `NeonDbError` is on **`.cause`**. Retry logic must read
@@ -303,11 +314,11 @@ reach production without its migration.
 baseline falls out of an empty `drizzle/` offline. No scratch database is needed
 to *write* a migration, only to verify one.
 
-**The shared database is baselined** — `0000_init` is recorded in
-`drizzle.__drizzle_migrations`, so `db:migrate` runs normally and there is no
-`db:baseline` step in any release. An earlier version of this file claimed
-production was not baselined, which cannot be true while it is the same database
-as development (§3).
+**The shared database is baselined** — `0000_init` (and `0001_breezy_warstar`,
+taken with the slot column, §7) are recorded in `drizzle.__drizzle_migrations`,
+so `db:migrate` runs normally and there is no `db:baseline` step in any release.
+An earlier version of this file claimed production was not baselined, which
+cannot be true while it is the same database as development (§3).
 
 That ledger is unprefixed and therefore shared with any future drizzle project
 on this database; a newer row elsewhere would make `db:migrate` skip everything
@@ -320,23 +331,41 @@ database would leave `db:migrate` convinced the schema exists.
 
 ---
 
-## 7. The next schema change, when you take it
+## 7. The slot column: taken 2026-10-03
 
-The ad limit is not a database invariant — it is serialized in application code
-and degrades to unenforced if Redis is down. A hard guarantee is a `slot smallint`
-with `UNIQUE(userId, slot)` and retry-on-conflict, which Postgres can enforce
-without transactions.
+The ad limit is a database invariant. `ads` carries a `slot smallint` with a
+unique index on `(userId, slot)`, and `createAd` inserts into the first free
+slot, reading the 23505 conflict off `error.cause` (§4). Postgres enforces the
+cap without transactions or Redis, so the limit holds when Redis is
+unreachable — which is what §3's advisory lock could never do.
 
-Two things measured against the live database, so they need not be rediscovered:
+What was measured when it was taken, so it need not be rediscovered:
 
-- **Read the error code off `.cause`** — see §4.
-- **The backfill is unobstructed.** 201 ads across 201 distinct users, so no user
-  holds more than one, every row can take `slot = 0`, and nothing in the existing
-  data blocks the index.
+- **The backfill was unobstructed, as predicted.** 201 ads across 201 distinct
+  users; every row took `slot = 0` from the column default and the index created
+  cleanly. Checked first against a scratch database (§1) — backfill onto
+  populated rows, the conflict shape through drizzle, slot reuse after a delete —
+  and only then applied to the shared database with `db:migrate`.
+- **Read the error code off `.cause`** — confirmed against real Postgres rather
+  than trusted: the 23505 arrives on `.cause.code`. The `NeonDbError` also
+  carries `constraint`, which is what would discriminate if a second unique
+  index is ever added to this table and a 23505 stops meaning only "slot
+  taken".
+- **`slot` is not public.** The column rode into `PublicAd` through
+  `InferSelectModel` and broke `tsc` in six files, which is `ad-dto.ts`'s
+  fail-closed design working: a column becomes publishable by a decision, never
+  by being forgotten. It is listed in the `Omit` and asserted by
+  `ad-dto.test.ts`.
 
-Known related limitation: the lock and the count both key on the OAuth provider
-account id, so a person signing in with both GitHub and Google has two ids and
-can hold 4 ads. Pre-existing, now encoded in the lock key rather than fixed.
+`withUserLock` still wraps `createAd`, but its job narrowed to serialization:
+two creates for one user cannot race for the same free slot, so neither spends
+an insert on a conflict it would lose. Its fail-open can no longer admit an
+over-limit account (§3). Retiring it is a decision the next session should take
+deliberately rather than discover as an oversight — see §9.2.
+
+Known related limitation: the slot keys on the OAuth provider account id, so a
+person signing in with both GitHub and Google has two ids and can hold 4 ads.
+Pre-existing, now encoded in the slot's `userId` rather than fixed.
 
 ---
 
@@ -383,8 +412,8 @@ by any other drizzle project on this database would make `db:migrate` skip
 everything here — silently, no error, no tables created.
 
 **That cannot happen today:** measured, there is exactly one migration table in
-the whole database and it holds one row, this repo's `0000_init`. The abandoned
-projects never ran drizzle's migrator. It becomes real only if a *new* project
+the whole database and it holds this repo's two rows, `0000_init` and
+`0001_breezy_warstar`. The abandoned projects never ran drizzle's migrator. It becomes real only if a *new* project
 starts using drizzle against this same database — which is the moment to set
 `migrationsSchema: 'mampokoj_drizzle'` in `drizzle.config.tsx` **and** the
 matching `MIGRATIONS_SCHEMA` in `src/utils/baseline.tsx`, before its first
@@ -411,24 +440,27 @@ intended product rule — the gate is "signed in", not "is the poster"
 against shoulder-surfing, not a security boundary, because the digits
 are in the HTML for every signed-in visitor.
 
-### 9.2 Blocking: the ad limit fails open, and nothing else rate-limits creation
+### 9.2 Resolved: the ad limit is a database invariant
 
-`withUserLock` runs the critical section **unserialized** when Redis is
-unreachable (`user-lock.ts:228-240`). Deliberate — a soft quota should not become
-an availability dependency — and fine while the only adversary is a bored user.
+Taken on 2026-10-03. `ads` carries a `slot smallint` with a unique index on
+`(userId, slot)` (§7), and `createAd` claims a free slot with retry-on-conflict.
+An outage, or anyone who can make Redis unreachable, can no longer mean
+unlimited ads per account: the limit is Postgres refusing a duplicate pair, not
+application code counting and hoping.
 
-Two things make it a real hole now:
+There is still no *rate* limit on `createAd` — and there does not need to be. A
+hard cap of two ads per account already refuses the third create regardless of
+how fast it arrives, so a rate limit would throttle nothing a spammer cares
+about. `checkUploadAdmission`'s ratelimit stays, because there the abuse is
+bandwidth rather than row count.
 
-- **There is no rate limit on `createAd` at all.** `ratelimit` is wired only into
-  `checkUploadAdmission`; the create action has the lock and nothing else.
-- So an outage, or anyone who can make Redis unreachable, means unlimited ads per
-  account. The limit is the only thing standing between a spammer and a thousand
-  listings.
-
-The fix that removes the dependency rather than adding one is §7: a `slot
-smallint` with `UNIQUE(userId, slot)` and retry-on-conflict, which Postgres
-enforces without transactions or Redis. The measured backfill is in §7 and the
-backfill is unobstructed.
+**One decision is left, and it is yours, not an oversight.** `withUserLock` now
+buys only serialization (§7). Retiring it — deleting `user-lock.ts`,
+`user-lock.test.ts` and `redis-client-contract.test.ts`, and closing §2.1 and
+§9.4 with it — would take Redis out of the create path completely. It was left
+in place here because it deletes a deliberately engineered module whose Lua
+release script has an open verification item of its own (§2.1), and that is not
+a decision to make silently inside a schema change.
 
 ### 9.3 Then: no moderation, no reporting, no admin
 
@@ -442,9 +474,11 @@ button on the public card, and one query covers it.
 ### 9.4 Then: Redis has never run against a live instance
 
 `ENOTFOUND` from this machine (§1, item 3). Every rate-limit and lock path is
-mocked; `RELEASE_SCRIPT` has never executed (§2.1). The mechanism meant to be the
-primary abuse defence is **unverified in production**, which is a different and
-weaker claim than "well tested against a fake".
+mocked; `RELEASE_SCRIPT` has never executed (§2.1). What is **unverified in
+production** is now the smaller surface: the upload rate limit and the ad-create
+serialization. That is a weaker claim than "well tested against a fake", but it
+is no longer the primary abuse defence — the ad limit is the slot index, which
+the migration exercised against real rows.
 
 A working `UPSTASH_REDIS_REST_URL`, or a local Redis behind an HTTP shim, closes
 this. Half a day.
@@ -452,8 +486,9 @@ this. Half a day.
 ### 9.5 Worth doing, not blocking
 
 - **Two providers means two identities.** GitHub *and* Google gives two ids, so
-  four ads instead of two (`user-lock.ts:149-152`). A real user hits this by
-  accident. Needs account linking, or one provider.
+  four ads instead of two (`user-lock.ts:151-155`, and the same `userId` the slot
+  keys on). A real user hits this by accident. Needs account linking, or one
+  provider.
 - **No account deletion.** Name, OAuth id and phone are stored with no erasure
   path. `deleteAdById` covers one ad, not the account.
 - **No email contact channel**, which is also the only route to verifying that a
@@ -461,8 +496,6 @@ this. Half a day.
 
 ### 9.6 Not on this list, deliberately
 
-- **A database-enforced ad limit** — that is §7, and it is the fix for 9.2 rather
-  than a separate project.
 - **An admin UI** — see 9.3; the column and the query are the actual requirement.
 - **The dev/prod database split** — §3 explains why it is a deliberate choice, and
   §8 covers the sharing. Real users appearing *is* the trigger to revisit, so it

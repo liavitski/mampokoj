@@ -1,22 +1,11 @@
 'use server';
 
-import { count, eq } from 'drizzle-orm';
-
 import { db } from '../db';
 import { ads } from '../db/schema';
 import { requireUserId } from '@/lib/session';
 import { parseAdFormData, type AdInput } from '@/lib/validation/ad-schema';
 import { LockBusyError, withUserLock } from '@/server/user-lock';
 import { MAX_ADS_PER_USER } from '@/constants';
-
-async function countUserAds(userId: string) {
-  const [row] = await db
-    .select({ value: count(ads.id) })
-    .from(ads)
-    .where(eq(ads.userId, userId));
-
-  return row?.value ?? 0;
-}
 
 /**
  * `success` is a literal discriminant, not a widened boolean: the create form
@@ -28,48 +17,47 @@ export type CreateAdResult =
   | { success: false; error: string };
 
 /**
- * Reads the count and inserts, under a per-user lock.
+ * Inserts into the first ad slot the user does not hold.
  *
- * The two statements are not atomic on their own: concurrent requests all read
- * the same count and all insert, so ten simultaneous submissions would produce
- * ten ads for a user allowed two. `withUserLock` serializes them across every
- * server instance, which is why the count and the insert live inside it rather
- * than being split around it.
+ * MAX_ADS_PER_USER is enforced by the unique index on (userId, slot): an
+ * insert only succeeds into a slot nobody holds, and a user at the limit
+ * holds every one. Postgres is the referee, so the limit holds when Redis
+ * is unreachable -- no count is read first, so none can go stale under a
+ * concurrent create.
+ *
+ * A conflict is read off `error.cause.code`: drizzle wraps the driver
+ * error, so the 23505 arrives one level down (handoff.md §4). The ads
+ * table's only other unique constraint is the random primary key, which
+ * cannot collide in practice, so a 23505 on this insert means this slot
+ * is taken -- by an earlier ad of this user or by a concurrent create --
+ * and the next slot is tried. Any other failure is rethrown rather than
+ * retried, so a real error is not mistaken for a full account.
  */
-async function insertIfUnderLimit(
+async function insertIntoFreeSlot(
   userId: string,
   input: AdInput
 ): Promise<CreateAdResult> {
-  const existing = await countUserAds(userId);
+  for (let slot = 0; slot < MAX_ADS_PER_USER; slot += 1) {
+    try {
+      const [created] = await db
+        .insert(ads)
+        // userId last: the session id must win over anything that came out of
+        // the submitted form.
+        .values({ ...input, userId, slot })
+        .returning({ id: ads.id });
 
-  if (existing >= MAX_ADS_PER_USER) {
-    return {
-      success: false,
-      error: `Maximum ${MAX_ADS_PER_USER} ads per user`,
-    };
+      return { success: true, adId: created.id, userId };
+    } catch (error) {
+      const code = (error as { cause?: { code?: string } })?.cause?.code;
+
+      if (code !== '23505') throw error;
+    }
   }
 
-  try {
-    const [created] = await db
-      .insert(ads)
-      // userId last: the session id must win over anything that came out of
-      // the submitted form.
-      .values({ ...input, userId })
-      .returning({ id: ads.id });
-
-    return { success: true, adId: created.id, userId };
-  } catch (error) {
-    // Unexpected database failures are logged rather than returned: the raw
-    // message can name tables, columns and constraints. Logged with the cause,
-    // and under its own message, so it is distinguishable from a failure that
-    // happened before the insert was even attempted.
-    console.error('Failed to insert ad', error);
-
-    return {
-      success: false,
-      error: 'Could not create the ad',
-    };
-  }
+  return {
+    success: false,
+    error: `Maximum ${MAX_ADS_PER_USER} ads per user`,
+  };
 }
 
 export async function createAd(
@@ -90,7 +78,7 @@ export async function createAd(
   try {
     return await withUserLock(
       userId,
-      () => insertIfUnderLimit(userId, parsed.data),
+      () => insertIntoFreeSlot(userId, parsed.data),
       // Named rather than defaulted, so that this and any future create path
       // either share one lock deliberately or are seen to differ.
       'create-ad'
@@ -102,10 +90,11 @@ export async function createAd(
       return { success: false, error: 'Please try again in a moment' };
     }
 
-    // A failure outside the insert: the count, or the lock itself. Logged with
-    // the cause, since a constraint violation, a serialization failure and pool
+    // A failure outside the slot loop: the lock itself, or an insert that
+    // failed for a reason other than a taken slot. Logged with the cause,
+    // since a constraint violation, a serialization failure and pool
     // exhaustion are indistinguishable without it.
-    console.error('createAd failed before the insert', error);
+    console.error('createAd failed before a slot was claimed', error);
 
     return { success: false, error: 'Could not create the ad' };
   }

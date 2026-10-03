@@ -1,4 +1,4 @@
-import { pgTableCreator, index } from 'drizzle-orm/pg-core';
+import { pgTableCreator, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const createTable = pgTableCreator(
@@ -10,6 +10,17 @@ export const ads = createTable(
   (d) => ({
     id: d.uuid().primaryKey().defaultRandom(),
     userId: d.varchar({ length: 255 }).notNull(),
+    /**
+     * Which of the user's ad slots this row occupies.
+     *
+     * The pair (userId, slot) is unique, so Postgres -- not a
+     * count read under a lock -- is what enforces MAX_ADS_PER_USER:
+     * an insert only succeeds into a slot nobody holds, and a user
+     * at the limit holds every one. createAd tries the slots in
+     * order and treats a conflict as "this one is taken", so the
+     * limit holds even when Redis is unreachable.
+     */
+    slot: d.smallint().notNull().default(0),
     title: d.varchar({ length: 60 }).notNull(),
     price: d.numeric({ precision: 10, scale: 2 }).notNull(),
     city: d.varchar({ length: 80 }).notNull(),
@@ -28,6 +39,7 @@ export const ads = createTable(
   }),
   (t) => [
     index('mampokoj_ads_user_idx').on(t.userId),
+    uniqueIndex('mampokoj_ads_user_slot_unique').on(t.userId, t.slot),
     index('mampokoj_ads_region_created_id_idx').on(
       t.region,
       t.createdAt,

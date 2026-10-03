@@ -29,9 +29,14 @@ export type AdWithoutUserId = Omit<Ad, 'userId'> & {
  *
  * `userId` is the poster's OAuth account id and `contactPhone` is personal
  * contact data, so neither travels in a list of ads. A single ad's contact
- * details are fetched separately and gated on the session.
+ * details are fetched separately and gated on the session. `slot` is which
+ * of the user's ad slots the row occupies -- it exists so the database can
+ * enforce the per-user limit, and a client has no use for it.
  */
-export type PublicAd = Omit<Omit<AdWithImages, 'userId' | 'contactPhone'>, 'images'> & {
+export type PublicAd = Omit<
+  Omit<AdWithImages, 'userId' | 'contactPhone' | 'slot'>,
+  'images'
+> & {
   images: PublicImageRow[];
 };
 

@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { adFormData } from '@/test/ad-form-data';
 import { MAX_ADS_PER_USER } from '@/constants';
@@ -47,7 +49,6 @@ const { mocks, dbMock } = vi.hoisted(() => {
       returning,
       values,
       insert,
-      withUserLock: vi.fn(),
       /** Puts a pair into the state a stored row leaves it in. */
       holdSlot: (userId: string, slot: number) => {
         const slots = held.get(userId) ?? new Set<number>();
@@ -64,46 +65,13 @@ vi.mock('@/server/db', () => ({ db: dbMock }));
 vi.mock('@/lib/session', () => ({
   requireUserId: mocks.requireUserId,
 }));
-vi.mock('@/server/user-lock', async () => {
-  // The real class, so `instanceof` in the action still discriminates.
-  const actual = await vi.importActual<
-    typeof import('@/server/user-lock')
-  >('@/server/user-lock');
-
-  return { ...actual, withUserLock: mocks.withUserLock };
-});
 
 const { createAd } = await import('../createAd');
-const { LockBusyError } = await import('@/server/user-lock');
-
-/**
- * Order of events, so a test can assert that the insert happens
- * between acquiring and releasing the lock rather than merely nearby.
- */
-let order: string[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  order = [];
   mocks.clearHeld();
   mocks.requireUserId.mockResolvedValue('user-a');
-  mocks.insert.mockImplementation(() => {
-    order.push('insert');
-
-    return { values: mocks.values };
-  });
-  // Runs the critical section immediately, as a free lock would.
-  mocks.withUserLock.mockImplementation(
-    async (userId: string, fn: () => Promise<unknown>) => {
-      order.push('lock:acquire');
-
-      try {
-        return await fn();
-      } finally {
-        order.push('lock:release');
-      }
-    }
-  );
 });
 
 describe('createAd validation', () => {
@@ -257,97 +225,77 @@ describe('createAd ad limit', () => {
   });
 });
 
-describe('createAd concurrency', () => {
-  it('inserts inside the lock, not merely next to it', async () => {
-    // The insert is what claims the slot. Serializing it only works
-    // if it happens inside the critical section; holding the lock
-    // around anything else would still let two creates race for the
-    // same free slot.
+/**
+ * The limit with no lock in the path at all.
+ *
+ * `withUserLock` was retired (HANDOFF §9.2), so these replace the eight tests
+ * that asserted the lock was taken, named, held for the right user and released
+ * on every path.
+ *
+ * The fake models the unique index faithfully: a pair already held throws a 23505
+ * for any user, however many rows they have. A lost race is therefore
+ * indistinguishable from "the other create already committed" -- which is exactly
+ * why the index is a sufficient substitute for the mutex, and why these tests can
+ * drive it sequentially and reach the same conclusions the lock used to.
+ */
+describe('createAd without a lock', () => {
+  it('gives a second create for one user the next free slot', async () => {
+    // The state a concurrent create leaves behind: the first has committed, so
+    // the second finds its slot held and moves on rather than failing.
+    await createAd(adFormData());
+    const second = await createAd(adFormData());
+
+    expect(second.success).toBe(true);
+    expect(mocks.values.mock.calls.at(-1)![0].slot).toBe(1);
+  });
+
+  it('refuses the create after every slot is claimed, with no coordination', async () => {
+    // What two racing creates can never achieve between them: a third row. The
+    // refusal comes from exhausting the slots, not from anybody being told to wait.
+    await createAd(adFormData());
     await createAd(adFormData());
 
-    expect(order).toEqual(['lock:acquire', 'insert', 'lock:release']);
-  });
+    const third = await createAd(adFormData());
 
-  it('holds the lock for the session user, not one supplied by the form', async () => {
-    await createAd(adFormData({ userId: 'someone-else' }));
-
-    expect(mocks.withUserLock.mock.calls[0]![0]).toBe('user-a');
-  });
-
-  it('names the lock it takes', async () => {
-    // The operation is part of the Redis key, so a second create path using a
-    // different name would neither contend with this one nor inherit its
-    // guarantee. Naming it at the call site makes that a visible edit.
-    await createAd(adFormData());
-
-    expect(mocks.withUserLock.mock.calls[0]![2]).toBe('create-ad');
-  });
-
-  it('does not take the lock when the submission is invalid', async () => {
-    await createAd(adFormData({ title: '' }));
-
-    // Nothing is written, so there is nothing to serialize.
-    expect(mocks.withUserLock).not.toHaveBeenCalled();
-  });
-
-  it('does not take the lock when nobody is signed in', async () => {
-    mocks.requireUserId.mockResolvedValue(undefined);
-
-    await createAd(adFormData());
-
-    expect(mocks.withUserLock).not.toHaveBeenCalled();
-  });
-
-  it('asks the caller to retry when the lock is held elsewhere', async () => {
-    mocks.withUserLock.mockRejectedValue(new LockBusyError());
-
-    const result = await createAd(adFormData());
-
-    expect(result).toEqual({
-      success: false,
-      error: 'Please try again in a moment',
-    });
-    expect(mocks.insert).not.toHaveBeenCalled();
-  });
-
-  it('does not report a busy lock as a server error', async () => {
-    mocks.withUserLock.mockRejectedValue(new LockBusyError());
-
-    const result = await createAd(adFormData());
-
-    // The user can fix this by waiting; telling them the server broke is wrong.
-    expect(result.success === false && result.error).toMatch(/try again/i);
-  });
-
-  it('does not leak an unexpected failure through the lock', async () => {
-    mocks.withUserLock.mockRejectedValue(
-      new Error('ECONNRESET 10.0.0.5:6379')
-    );
-
-    const result = await createAd(adFormData());
-
-    expect(result.success).toBe(false);
-    expect(result.success === false && result.error).not.toContain('6379');
-  });
-
-  it('reports the limit normally while holding the lock', async () => {
-    for (let slot = 0; slot < MAX_ADS_PER_USER; slot += 1) {
-      mocks.holdSlot('user-a', slot);
-    }
-
-    const result = await createAd(adFormData());
-
-    expect(result).toEqual({
+    expect(third).toEqual({
       success: false,
       error: `Maximum ${MAX_ADS_PER_USER} ads per user`,
     });
-    // Every slot was tried, and the lock is released even though the
-    // section ended in a refusal.
-    expect(order).toEqual([
-      'lock:acquire',
-      'insert',
-      'insert',
-      'lock:release',
-    ]);
+  });
+
+  it('does not let one user over the limit by spending another user\'s slots', async () => {
+    // The index is on the session user's id, so two different users claiming
+    // slot 0 do not collide, and neither user's successes depend on the other's.
+    await createAd(adFormData());
+    mocks.requireUserId.mockResolvedValue('user-b');
+
+    const other = await createAd(adFormData());
+
+    expect(other.success).toBe(true);
+    expect(mocks.values.mock.calls.at(-1)![0]).toMatchObject({
+      userId: 'user-b',
+      slot: 0,
+    });
+  });
+
+  it('never reaches for Redis on the create path', async () => {
+    // The point of the retirement, asserted directly. A lock reintroduced for the
+    // serialization it used to buy would take Redis back out of the create path,
+    // and this is the line that would notice.
+    //
+    // Comments stripped, because the doc comment on `insertIntoFreeSlot` has to
+    // *name* `withUserLock` to explain why it is gone -- and an unstripped
+    // assertion would fail on exactly the explanation that makes the retirement
+    // legible.
+    const source = readFileSync(
+      join(process.cwd(), 'src/server/actions/createAd.tsx'),
+      'utf8'
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+
+    expect(source).not.toContain('user-lock');
+    expect(source).not.toContain('withUserLock');
+    expect(source).not.toContain('LockBusyError');
   });
 });

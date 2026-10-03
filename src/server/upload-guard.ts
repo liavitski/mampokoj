@@ -40,19 +40,21 @@ export async function checkUploadAdmission(
    * Deliberately not wrapped in a try/catch.
    *
    * If Redis is unreachable this throws out of the UploadThing middleware and the
-   * upload is refused. That is intended, and it is deliberately *not* the same
-   * choice `withUserLock` makes for the ad quota:
+   * upload is refused. That is intended:
    *
-   * - A quota is not an authorization boundary, so an unreachable Redis should
-   *   not take ad creation down. That lock fails open and logs.
    * - Here the mechanism *is* the control. Failing open would let the rate
    *   limit be switched off by making Redis unreachable, which turns an outage
    *   into an abuse window. Storing a file nobody may attach is also a real
    *   cost, and UploadThing bills for it before `onUploadComplete` runs.
+   * - The ad quota needs no such argument, because it is not implemented here at
+   *   all: `MAX_ADS_PER_USER` is a unique index on (userId, slot), so an
+   *   unreachable Redis cannot loosen it.
    *
-   * So the asymmetry is the decision, not an oversight. Do not "fix" it toward
-   * consistency with the ad lock: the two paths differ because the guarantees
-   * they carry differ.
+   * This comment used to set that against an advisory Redis mutex which failed
+   * open and logged. That mutex has been retired (HANDOFF §9.2), which leaves
+   * this rate limiter as the only Redis dependency in the write path. Do not
+   * "fix" it toward failing open -- there is no longer a second implementation
+   * to be consistent with.
    */
   const { success: withinRateLimit } = await ratelimit.limit(owned.userId);
 

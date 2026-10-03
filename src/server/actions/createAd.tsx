@@ -4,7 +4,6 @@ import { db } from '../db';
 import { ads } from '../db/schema';
 import { requireUserId } from '@/lib/session';
 import { parseAdFormData, type AdInput } from '@/lib/validation/ad-schema';
-import { LockBusyError, withUserLock } from '@/server/user-lock';
 import { MAX_ADS_PER_USER } from '@/constants';
 
 /**
@@ -21,9 +20,19 @@ export type CreateAdResult =
  *
  * MAX_ADS_PER_USER is enforced by the unique index on (userId, slot): an
  * insert only succeeds into a slot nobody holds, and a user at the limit
- * holds every one. Postgres is the referee, so the limit holds when Redis
- * is unreachable -- no count is read first, so none can go stale under a
- * concurrent create.
+ * holds every one. Postgres is the referee, so the limit holds with no
+ * application-side coordination at all -- no count is read first, so none
+ * can go stale under a concurrent create.
+ *
+ * **This loop is the whole concurrency story, and it is why the ad lock was
+ * retired.** Two simultaneous creates for one user both try slot 0; Postgres
+ * admits exactly one and rejects the other with a 23505, which this loop reads
+ * as "slot taken" and moves to slot 1. The loser spends one insert it did not
+ * need, which is the entire cost -- it can never end up over the limit, because
+ * the index refuses a duplicate pair rather than because anything was
+ * serialized. `withUserLock` bought the avoidance of that one wasted insert and
+ * nothing else, in exchange for a Redis mutex, a Lua release script and roughly
+ * 800 lines of tests. See HANDOFF §9.2.
  *
  * A conflict is read off `error.cause.code`: drizzle wraps the driver
  * error, so the 23505 arrives one level down (handoff.md §4). The ads
@@ -76,25 +85,16 @@ export async function createAd(
   }
 
   try {
-    return await withUserLock(
-      userId,
-      () => insertIntoFreeSlot(userId, parsed.data),
-      // Named rather than defaulted, so that this and any future create path
-      // either share one lock deliberately or are seen to differ.
-      'create-ad'
-    );
+    return await insertIntoFreeSlot(userId, parsed.data);
   } catch (error) {
-    // Validation failures may explain themselves; this one is a retry, and it
-    // deliberately does not say "someone else is creating an ad right now".
-    if (error instanceof LockBusyError) {
-      return { success: false, error: 'Please try again in a moment' };
-    }
-
-    // A failure outside the slot loop: the lock itself, or an insert that
-    // failed for a reason other than a taken slot. Logged with the cause,
-    // since a constraint violation, a serialization failure and pool
-    // exhaustion are indistinguishable without it.
-    console.error('createAd failed before a slot was claimed', error);
+    /**
+     * Only reachable for a failure the slot loop does not treat as a conflict --
+     * a foreign-key violation, a serialization failure, pool exhaustion -- all of
+     * which `insertIntoFreeSlot` rethrows rather than retrying. Logged with the
+     * cause, since those are indistinguishable without it, and deliberately not
+     * returned: the message names tables and constraints.
+     */
+    console.error('createAd failed outside the slot loop', error);
 
     return { success: false, error: 'Could not create the ad' };
   }

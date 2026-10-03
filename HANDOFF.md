@@ -35,14 +35,14 @@ current shape, the code says so.
 
 ## 2. Open work
 
-**The next session should start at §9** — the app runs, but these are the gaps
+**The next session should start at §9.3** — the app runs, but these are the gaps
 between a portfolio demo and a site with real landlords on it. Everything in §2.1
-to §2.3 is still open and none of it blocks.
+to §2.3 is still open and none of it blocks; §9.1 and §9.2 are closed.
 
 ### 2.1 The Lua release script has still never been executed
 
 `RELEASE_SCRIPT` in `src/server/user-lock.ts` is text-pinned by a test and
-reviewed by eye, but never run, because Redis is unreachable (§1, item 3). Its
+reviewed by eye, but never run, because Redis is unreachable (§1, item 1). Its
 assumptions were about the `@upstash/redis` *client*, which can be exercised
 without a server since the library calls the bare global `fetch`;
 `src/server/__tests__/redis-client-contract.test.ts` does that and pins the wire
@@ -70,34 +70,19 @@ intercepting modal → 404 for a deleted ad. Anonymous flows only.
 
 ### 2.3 Smaller items
 
-- **The upload bucket and the database cannot be kept in step, so
-  `pnpm storage:reconcile` exists.** UploadThing stores and bills a file before
-  its row is written; a delete removes the file before the row. Either way an
-  incident — a crash, an outage, a rate limit — leaves one side pointing at
-  nothing, and neither delete flow can see the gap, because both resolve through
-  `images.fileKey`. Dry run by default; `--delete` removes orphans. Not
-  automated and not scheduled: run it by hand after any incident involving
-  uploads or deletes, and before assuming the bucket is empty. It found 0
-  orphans and 0 real dangling rows on the live bucket when it was written.
+- **Run `pnpm storage:reconcile` by hand after any incident involving uploads or
+  deletes, and before assuming the bucket is empty.** UploadThing bills a file
+  before its row is written and removes it before the row, so a crash, an outage
+  or a rate limit leaves one side pointing at nothing. Dry run by default;
+  `--delete` removes orphans. Not automated and not scheduled. §3 explains why it
+  stops at orphans.
 
-- **The palette now clears WCAG AA everywhere; the floor is asserted.** The six measured failures (primary label, link, destructive family, destructive fill on a card, success indicator, field border in both themes) were fixed on 2026-10-03 by moving the tokens, and `src/__tests__/contrast.test.ts` now asserts a floor over every pair, including the ones that used to fail — so a token cannot drift back below AA silently. The one deliberate exception stays: `--color-input-background` against `--color-background` is pinned at 1.2, not 3:1, because no fill that still reads as a field can reach 3:1 against the page; the delineation lives in `--color-border-input`, which is asserted at 3:1 against the field fill.
-
-- **`Modal` is a fixed 800x720 box; the card supplies no surface inside it.**
-  `Content` and `AdCardCompact`'s `Wrapper` split the box via a `data-modal-box`
-  attribute set in `Modal.tsx` and selected in `AdCardCompact.styles.tsx` — rename
-  it in one file without the other and the dialog draws a card within a card.
-
-- **`next-auth` v5** is `5.0.0-beta.32` — beta after three years. The ownership
-  model no longer depends on the version. Revisit only if v5 goes stable.
+- **`next-auth` is on the stable v4 line** (`4.24.14`): `NextAuthOptions`,
+  `getServerSession`, `signIn`/`signOut`, `Session` from `next-auth`. v5 has been
+  beta for years and changes the config shape, so treat a move to it as its own
+  task with the auth surface's tests green either side — not as a version bump.
 - **Deferred upgrades**, one per change with a green suite either side: `motion`
   12→13, `eslint` 9→10, `@types/node` 20→26, `typescript` 5→7.
-- **This machine's `~/.npmrc` sets `min-release-age=3` days**, which pnpm
-  surfaces as `minimumReleaseAge: 4320` minutes. A **machine** supply-chain
-  guard, not a repo setting — do not go looking for it in
-  `pnpm-workspace.yaml`, and do not disable it. The effect is that `next` lags
-  npm by up to three days, so a version being installable is not evidence it is
-  the newest. Check `npm view next time` rather than assuming the pinned version
-  is current.
 
 ---
 
@@ -118,26 +103,21 @@ down the critical section still runs, unserialized, and logs — and the
 limit holds anyway. An outage can cost a create a lost race for a free
 slot, never an over-limit account.
 
-**Why the ad limit needed a lock, and why it no longer does.**
-Measured, not re-derived: `db.transaction` throws on the neon-http
-driver; a single-statement `pg_advisory_xact_lock` does not help,
-because under READ COMMITTED a blocked caller proceeds with a
-snapshot from *before* the winner committed and its `count(*)`
-cannot see the new row (eight concurrent inserts breached a limit
-of two in five rounds of six). A **trigger has the same defect**,
-running inside the INSERT's snapshot. A partial unique index can
-only express "at most 1". Every one of those is about *reading* a
-count. The slot index (§7) is a write-time conflict on the key
-itself, which reads no snapshot — so the limit is enforced in the
-database after all, and the lock's job narrowed to serialization.
+**Why a lock still exists when the database enforces the limit.** The count it
+used to guard could not be enforced in the database — `db.transaction` throws on
+the neon-http driver, `pg_advisory_xact_lock` cannot help under READ COMMITTED, a
+trigger runs inside the INSERT's snapshot, and a partial unique index can only
+say "at most 1" — all measured, all reasoned in `user-lock.ts`'s docstring. The
+slot index (§7) is a write-time conflict on the key itself, so it reads no
+snapshot and needs none of that. What remains of the lock is serialization.
 
 **One database for dev and production.** Found, not designed: Vercel's
 `DATABASE_URL` points at the dev database and `.env` is copied to the Vercel
 host. Kept, because for a portfolio project with no real users production keeps
 demonstrating itself. **Do not "create a second database" as a fix.** Real users
 appearing is the trigger to revisit — not the Free plan, which allows 100
-projects and this database is 8.4 MB, so sharing is a choice here rather than a
-constraint. The `SEED_ALLOW` guard (`src/utils/seed-guard.ts`) covers CI and a
+projects and where this database uses under 9 MB of the 1 GB per project, so
+sharing is a choice here rather than a constraint. The `SEED_ALLOW` guard (`src/utils/seed-guard.ts`) covers CI and a
 fresh clone but **not** production, since `.env` travels to the Vercel host; that
 limit is stated in the guard's header rather than papered over. The database also
 serves other projects on the account, isolated by table prefix; see §8.
@@ -252,6 +232,16 @@ Each of these cost real time.
   builder set a column that does not exist and `tsc` was silent; the insert
   succeeded anyway. That is why the seed tests compare against
   `getTableColumns` and derive the required set from `hasDefault`.
+- **`Modal` is one box split across two files.** `Content` and `AdCardCompact`'s
+  `Wrapper` share it through a `data-modal-box` attribute — set in `Modal.tsx`,
+  selected in `AdCardCompact.styles.tsx`. Rename it in one file without the other
+  and the dialog draws a card within a card.
+- **This machine's `~/.npmrc` sets `min-release-age=3` days**, which pnpm
+  surfaces as `minimumReleaseAge: 4320` minutes. A **machine** supply-chain guard,
+  not a repo setting — do not go looking for it in `pnpm-workspace.yaml`, and do
+  not disable it. The effect is that `next` lags npm by up to three days, so a
+  version being installable is not evidence it is the newest. Check
+  `npm view next time` rather than assuming the pinned version is current.
 
 Component-test specifics: `AdGrid` and `AdPhotosGallery` need `vi.mock` for
 `next/navigation` and `../ToastProvider` (`useSearchParams` returns null outside
@@ -314,11 +304,9 @@ reach production without its migration.
 baseline falls out of an empty `drizzle/` offline. No scratch database is needed
 to *write* a migration, only to verify one.
 
-**The shared database is baselined** — `0000_init` (and `0001_breezy_warstar`,
-taken with the slot column, §7) are recorded in `drizzle.__drizzle_migrations`,
-so `db:migrate` runs normally and there is no `db:baseline` step in any release.
-An earlier version of this file claimed production was not baselined, which
-cannot be true while it is the same database as development (§3).
+**The shared database is baselined** — `0000_init` and `0001_breezy_warstar` are
+recorded in `drizzle.__drizzle_migrations`, so `db:migrate` runs normally and
+there is no `db:baseline` step in any release.
 
 That ledger is unprefixed and therefore shared with any future drizzle project
 on this database; a newer row elsewhere would make `db:migrate` skip everything
@@ -331,41 +319,36 @@ database would leave `db:migrate` convinced the schema exists.
 
 ---
 
-## 7. The slot column: taken 2026-10-03
+## 7. The ad limit is a database invariant
 
-The ad limit is a database invariant. `ads` carries a `slot smallint` with a
-unique index on `(userId, slot)`, and `createAd` inserts into the first free
-slot, reading the 23505 conflict off `error.cause` (§4). Postgres enforces the
-cap without transactions or Redis, so the limit holds when Redis is
-unreachable — which is what §3's advisory lock could never do.
+`ads` carries a `slot smallint` with a unique index on `(userId, slot)`.
+`createAd` walks the slots from 0 and inserts into the first one nobody holds,
+reading the 23505 off `error.cause` (§4) and treating it as "this slot is taken"
+rather than as a failure. A user at the limit holds every slot, so every attempt
+conflicts and the cap is Postgres refusing a duplicate pair — with no transaction
+and no Redis, which is what neither of those could ever provide (§3).
 
-What was measured when it was taken, so it need not be rediscovered:
+Invariants a change here must preserve, each asserted somewhere:
 
-- **The backfill was unobstructed, as predicted.** 201 ads across 201 distinct
-  users; every row took `slot = 0` from the column default and the index created
-  cleanly. Checked first against a scratch database (§1) — backfill onto
-  populated rows, the conflict shape through drizzle, slot reuse after a delete —
-  and only then applied to the shared database with `db:migrate`.
-- **Read the error code off `.cause`** — confirmed against real Postgres rather
-  than trusted: the 23505 arrives on `.cause.code`. The `NeonDbError` also
-  carries `constraint`, which is what would discriminate if a second unique
-  index is ever added to this table and a 23505 stops meaning only "slot
-  taken".
-- **`slot` is not public.** The column rode into `PublicAd` through
-  `InferSelectModel` and broke `tsc` in six files, which is `ad-dto.ts`'s
-  fail-closed design working: a column becomes publishable by a decision, never
-  by being forgotten. It is listed in the `Omit` and asserted by
-  `ad-dto.test.ts`.
+- The unique pair must stay **unique and over exactly `(userId, slot)`**.
+  `migrations.test.ts` asserts it in the schema and in the migration SQL, because
+  a non-unique or narrower index puts the limit back on a count.
+- A 23505 on this insert means "slot taken". The `ads` table's only other unique
+  constraint is the random primary key. If a second unique index is ever added,
+  discriminate on `error.cause.constraint` rather than the code alone.
+- `slot` is **not public**. It is listed in `PublicAd`'s `Omit` and asserted by
+  `ad-dto.test.ts`; a new column arrives there through `InferSelectModel` and
+  breaks `tsc` until someone decides otherwise (`ad-dto.ts`'s fail-closed design).
+- Re-seeding is safe because `seed-data.ts` gives every ad a fresh `userId`, so
+  each seeded row takes `slot = 0` with nothing to collide against.
 
-`withUserLock` still wraps `createAd`, but its job narrowed to serialization:
-two creates for one user cannot race for the same free slot, so neither spends
-an insert on a conflict it would lose. Its fail-open can no longer admit an
-over-limit account (§3). Retiring it is a decision the next session should take
-deliberately rather than discover as an oversight — see §9.2.
+`withUserLock` still wraps `createAd` to serialize it — two creates for one user
+cannot race for the same free slot. It is now redundant for the limit itself;
+whether to retire it is an open decision in §9.2.
 
-Known related limitation: the slot keys on the OAuth provider account id, so a
-person signing in with both GitHub and Google has two ids and can hold 4 ads.
-Pre-existing, now encoded in the slot's `userId` rather than fixed.
+Known limitation: the slot keys on the OAuth provider account id, so a person
+signing in with both GitHub and Google has two ids and can hold 4 ads
+(§9.5). Pre-existing, not introduced here.
 
 ---
 
@@ -398,10 +381,8 @@ renames every table to `mampokoj_*`, and `drizzle.config.tsx` sets
 introspects the live database, so unprefixed tables are never read and cannot
 appear in a diff.
 
-**`pnpm db:push` is therefore safe here.** An earlier version of this file claimed
-it would drop `users`, `customers`, `invoices` and `revenue`, and the README
-repeated it. That was wrong — it assumed `push` diffs the entire database, and
-the filter stops it well before that.
+**`pnpm db:push` is therefore safe here.** The filter stops it well before the
+unprefixed tables.
 
 The prefix does **not** cover one thing: `drizzle.__drizzle_migrations` is a
 single unprefixed table, named by library default (`migrationsTable ??
@@ -411,13 +392,13 @@ single unprefixed table, named by library default (`migrationsTable ??
 by any other drizzle project on this database would make `db:migrate` skip
 everything here — silently, no error, no tables created.
 
-**That cannot happen today:** measured, there is exactly one migration table in
-the whole database and it holds this repo's two rows, `0000_init` and
-`0001_breezy_warstar`. The abandoned projects never ran drizzle's migrator. It becomes real only if a *new* project
-starts using drizzle against this same database — which is the moment to set
-`migrationsSchema: 'mampokoj_drizzle'` in `drizzle.config.tsx` **and** the
-matching `MIGRATIONS_SCHEMA` in `src/utils/baseline.tsx`, before its first
-migration.
+**That cannot happen today:** measured today, the whole database has exactly one
+migration table and it holds this repo's two rows, `0000_init` and
+`0001_breezy_warstar` — the abandoned projects never ran drizzle's migrator. The
+gap becomes real only if a *new* project starts using drizzle against this same
+database, which is the moment to set `migrationsSchema: 'mampokoj_drizzle'` in
+`drizzle.config.tsx` **and** the matching `MIGRATIONS_SCHEMA` in
+`src/utils/baseline.tsx`, before its first migration.
 
 ---
 
@@ -442,11 +423,9 @@ are in the HTML for every signed-in visitor.
 
 ### 9.2 Resolved: the ad limit is a database invariant
 
-Taken on 2026-10-03. `ads` carries a `slot smallint` with a unique index on
-`(userId, slot)` (§7), and `createAd` claims a free slot with retry-on-conflict.
-An outage, or anyone who can make Redis unreachable, can no longer mean
-unlimited ads per account: the limit is Postgres refusing a duplicate pair, not
-application code counting and hoping.
+Closed by the slot index (§7). An outage, or anyone who can make Redis
+unreachable, can no longer mean unlimited ads per account: the limit is Postgres
+refusing a duplicate pair, not application code counting and hoping.
 
 There is still no *rate* limit on `createAd` — and there does not need to be. A
 hard cap of two ads per account already refuses the third create regardless of
@@ -473,7 +452,7 @@ button on the public card, and one query covers it.
 
 ### 9.4 Then: Redis has never run against a live instance
 
-`ENOTFOUND` from this machine (§1, item 3). Every rate-limit and lock path is
+`ENOTFOUND` from this machine (§1, item 1). Every rate-limit and lock path is
 mocked; `RELEASE_SCRIPT` has never executed (§2.1). What is **unverified in
 production** is now the smaller surface: the upload rate limit and the ad-create
 serialization. That is a weaker claim than "well tested against a fake", but it

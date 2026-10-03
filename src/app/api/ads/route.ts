@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { getAds } from '@/server/queries/select';
 import { toPublicAd } from '@/lib/ad-dto';
+import { cursorParamsSchema, toAdsCursor } from '@/lib/validation/cursor';
 import { PAGE_SIZE } from '@/constants';
 import { isRegionCode } from '@/utils/utils';
 import type { AdsApiResponse } from '@/types/db-types';
@@ -14,25 +15,23 @@ import type { AdsApiResponse } from '@/types/db-types';
  */
 const MAX_LIMIT = 50;
 
-const querySchema = z
-  .object({
-    region: z.string().refine(isRegionCode, 'Unknown region code').optional(),
+/**
+ * `cursorCreatedAt`/`cursorId` come from `cursorParamsSchema` rather than being
+ * restated, so this route and the home page agree on what a cursor is. They
+ * answer differently on purpose -- this one can answer 400, a page cannot -- but
+ * a 500 from the same input on the other surface would be a bug in the shared
+ * rules, not in the call site.
+ */
+const querySchema = cursorParamsSchema.extend({
+  region: z.string().refine(isRegionCode, 'Unknown region code').optional(),
 
-    limit: z.coerce
-      .number()
-      .int('Limit must be a whole number')
-      .min(1, 'Limit must be at least 1')
-      .transform((limit) => Math.min(limit, MAX_LIMIT))
-      .default(PAGE_SIZE),
-
-    cursorCreatedAt: z.iso.datetime('Invalid cursor timestamp').optional(),
-    cursorId: z.uuid('Invalid cursor id').optional(),
-  })
-  .refine(
-    ({ cursorCreatedAt, cursorId }) =>
-      (cursorCreatedAt === undefined) === (cursorId === undefined),
-    { message: 'cursorCreatedAt and cursorId must be sent together' }
-  );
+  limit: z.coerce
+    .number()
+    .int('Limit must be a whole number')
+    .min(1, 'Limit must be at least 1')
+    .transform((limit) => Math.min(limit, MAX_LIMIT))
+    .default(PAGE_SIZE),
+});
 
 export async function GET(request: Request) {
   try {
@@ -49,14 +48,12 @@ export async function GET(request: Request) {
       );
     }
 
-    const { region, limit, cursorCreatedAt, cursorId } = parsed.data;
+    const { region, limit } = parsed.data;
 
     const { items, hasMore, nextCursor } = await getAds(
       limit,
       region,
-      cursorCreatedAt && cursorId
-        ? { createdAt: new Date(cursorCreatedAt), id: cursorId }
-        : undefined
+      toAdsCursor(parsed.data)
     );
 
     const response: AdsApiResponse = {

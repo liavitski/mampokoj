@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { PAGE_SIZE } from '@/constants';
 import { getAds } from '@/server/queries/select';
+import { cursorParamsSchema, toAdsCursor } from '@/lib/validation/cursor';
 
 import AdGrid from '../AdGrid';
 import { Wrapper } from './MainColumn.styles';
@@ -20,13 +21,11 @@ async function MainColumn({
 }: MainColumnProps) {
   const gridKey = `${region ?? 'all'}:${cursorId ?? 'start'}`;
 
-  const cursor =
-    cursorCreatedAt && cursorId
-      ? {
-          createdAt: new Date(cursorCreatedAt),
-          id: cursorId,
-        }
-      : undefined;
+  // Same reading of an unreadable cursor as `app/page.tsx` -- no cursor, first
+  // page -- and the same schema, so wiring this component up later does not
+  // resurrect the 500 that `new Date('not-a-date')` and a non-uuid id caused.
+  const parsedCursor = cursorParamsSchema.safeParse({ cursorCreatedAt, cursorId });
+  const cursor = parsedCursor.success ? toAdsCursor(parsedCursor.data) : undefined;
 
   const { items, hasMore, nextCursor } = await getAds(
     PAGE_SIZE,

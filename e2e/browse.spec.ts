@@ -62,6 +62,46 @@ test.describe('browse', () => {
     expect(fromPage).toEqual(fromApi);
   });
 
+  /**
+   * A URL is enough to reach the database, and the database answers a bad
+   * cursor by throwing rather than by returning.
+   *
+   * `page.tsx` used to hand `cursorCreatedAt`/`cursorId` to `getAds` as they
+   * arrived, so `?cursorId=not-a-uuid` became `invalid input syntax for type
+   * uuid` and `?cursorCreatedAt=not-a-date` became `RangeError: Invalid time
+   * value` -- an unhandled throw in a server component, i.e. a 500 on the only
+   * route every visitor reaches. Verified against a production build, since the
+   * dev overlay hides it.
+   *
+   * The expected answer is 200 *with the first page*, not 404 and not 500: the
+   * cursor is a position in a list, an unreadable position means the start, and
+   * a Next page has no 400 to give. The card ids are compared to `/` rather than
+   * merely counted, because "some grid rendered" would also be true of the
+   * empty-state branch.
+   */
+  test('renders the first page, not a 500, when the cursor is not a cursor', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const firstPage = await cardIds(page);
+
+    const junk = [
+      'cursorId=not-a-uuid&cursorCreatedAt=2026-01-15T10:00:00.000Z',
+      'cursorCreatedAt=not-a-date&cursorId=11111111-1111-4111-8111-111111111111',
+      // A half cursor, which is the third way to reach the query.
+      'cursorId=11111111-1111-4111-8111-111111111111',
+      'cursorCreatedAt=2026-01-15T10:00:00.000Z',
+    ];
+
+    for (const query of junk) {
+      const response = await page.goto(`/?${query}`);
+
+      expect(response?.status(), `status for /?${query}`).toBe(200);
+      await gridReady(page);
+      expect(await cardIds(page), `grid for /?${query}`).toEqual(firstPage);
+    }
+  });
+
   test('gives every card a heading with the ad title', async ({ page }) => {
     // `AdSummaryCard` renders its title as an `h2` inside the link, which is what
     // makes the grid navigable by heading. Asserted because a card that lost its
@@ -82,12 +122,14 @@ test.describe('browse', () => {
     // means the client and the server disagreed, or a component threw, and
     // neither shows up in the DOM assertions -- the page still renders.
     //
-    // What it deliberately is not: "no failed requests". Every seeded ad photo
-    // points at a ufs.sh host and every one of those files is gone, so the image
-    // optimizer answers 404 for all ten cards on the first page and Chromium logs
-    // one console error per image. Those are orphaned database rows pointing at
-    // deleted uploads -- what `pnpm storage:reconcile` exists to find, recorded in
-    // HANDOFF.md §2.2 -- and not a rendering defect.
+    // What it deliberately is not: "no failed requests". A failed image request
+    // answers 404 and Chromium logs one console error per image, and a card
+    // still renders correctly either way -- a broken thumbnail is not a
+    // JavaScript fault, and whether the images themselves resolve is asserted
+    // where it is the point, not here. (The seeded photos used to be dead
+    // `ufs.sh` files, which is what this filter was originally written for;
+    // they resolve again as of HANDOFF.md §2.2, and the filter stays because
+    // the general case has not gone away.)
     //
     // Asserting zero console errors regardless would have left this suite
     // permanently red for a reason no change to this repository can fix, which is

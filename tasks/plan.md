@@ -1,136 +1,114 @@
-# Implementation Plan: Ad reporting and moderation triage
+# Plan: Ad reporting and moderation triage — COMPLETE
 
-Implements `SPEC-moderation.md`, which closes HANDOFF.md §9.3 and adds the
-takedown path §9.3 implies but does not name.
+Spec: `SPEC-moderation.md`. Status: **shipped**, with four runtime checks that
+need a browser (§ Remaining work). Baseline: `pnpm verify` green — lint 0
+warnings, `tsc` clean, **361 tests across 42 files**, `next build` succeeds.
 
-**Out of scope, deliberately:** §9.2 (`withUserLock` retirement) and §2.2 (the E2E
-decision) are untouched. §9.3 touches neither the ad lock, the slot index, nor the
-route topology E2E would cover, so it lands without either decision.
-
-**Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, 277 tests across
-33 files, `next build` succeeds. Confirmed, not assumed.
+This file was the forward-looking plan; it is now the record of what was built
+and what deviated. `HANDOFF.md` is the durable source of truth for the project;
+this is the work log for this feature.
 
 ---
 
-## Overview
+## What shipped
 
-A signed-in visitor can flag a listing from its detail page. A moderator — named
-in a `MODERATORS` env allowlist — can list what has been flagged and take it down,
-including its photos. Four pieces: a nullable `reportedAt` on `ads`, one atomic
-report write, a moderator-only queue, and a takedown action that bypasses
-ownership behind its own check.
+| Commit | Piece |
+|---|---|
+| `4beb424` | `reportedAt` column + partial index, withheld from every public payload |
+| `ac75ad3` | `reportAd` action, `ReportButton`, wiring into `AdCardCompact` |
+| `6b261b5` | `moderator-guard`, `ad-teardown`, `deleteAdAsModerator`, `getReportedAds`, `/moderation` |
+| `3dd9358` | One sign-in provider (GitHub dropped) |
+| `dbd093e` | `HANDOFF.md` — §9.3 closed, new traps recorded |
 
-## Architecture Decisions
+Nothing from the original 11-task plan was cut. The order held: schema first,
+because both slices depend on the column.
 
-1. **First report wins, enforced in the write's own predicate.**
+## Architecture decisions, as built
+
+1. **First report wins, enforced in the write's predicate.** One
    `UPDATE ... WHERE id = ? AND "reportedAt" IS NULL AND "userId" <> ? RETURNING id`.
-   No transaction, no Redis, no read-then-write. This is the slot-index trick from
-   §7 applied to a flag, so it needs none of the mechanisms §3 records as
-   unavailable on neon-http (`db.transaction` throws; a trigger runs inside the
-   INSERT's snapshot).
+   No transaction (`db.transaction` throws on neon-http, §3), no Redis
+   (unreachable, §1). The slot index's reasoning (§7).
+2. **The bypass lives in one action.** `deleteAdAsModerator`, never a flag on
+   `deleteAdById`, whose ownership check is unchanged and unshared.
+3. **Teardown extracted** so the owner and moderator paths cannot drift.
+4. **`reportedAt` private**, excluded at the query rather than the type.
+5. **Allowlist fails closed**; `MODERATORS` is account ids, not emails.
+6. **No rate limit on `reportAd`** (§9.2's reasoning).
+7. **Reported ads stay visible** — hiding them is a one-click DoS.
 
-2. **The moderator bypass is a separate action, never a parameter.**
-   `deleteAdById` keeps its ownership check byte-for-byte. Making the bypass a
-   flag on the existing action would mean the answer to "can someone delete an ad
-   they do not own?" is spread across two files.
-k
-3. **Teardown is extracted so the two delete paths cannot drift.**
-   Files → image rows → ad row, in that order, because the `fileKey`s must be
-   read before any row goes. Duplicating that sequence is how a paid file gets
-   orphaned in the bucket (§2.3).
+## Deviations from the plan, and why
 
-4. **`reportedAt` is private.** Omitted from `PublicAd`, absent from
-   `toPublicAd`. It is moderation state, and a public flag is an oracle for
-   probing which ad ids are flagged.
+Recorded because the plan is now history and these are the parts a reader would
+otherwise assume were planned.
 
-5. **The moderator allowlist fails closed and is pure.**
-   `src/lib/moderator-guard.ts` has no `server-only` and no database import, so
-   the rule is testable without a connection — mirroring `src/utils/seed-guard.ts`.
+- **`detailAdColumns` added in Task 1, unplanned.** Omitting `reportedAt` from
+  `PublicAd` was not enough: `getValidatedAd` selects the whole row, so the
+  column still crossed the wire inside the RSC payload for `/ad/[adId]`. Caught
+  while implementing; the type omission had said "safe" while the payload said
+  otherwise.
+- **`ConfirmDialog` extracted (Task 10).** `TakeDownButton` and
+  `DeleteAdButton` both need a confirmation. Copying the dialog a second time
+  would duplicate overlay/title/description/action styles — the drift that
+  produced the nested-card regression in `AdCardCompact.styles`. `DeleteAdButton`
+  was **not** refactored onto it; that is a possible follow-up.
+- **`getReportedAds` narrows `reportedAt` with a type predicate**, not an
+  assertion, because the column is nullable in the schema and the `isNotNull`
+  predicate is invisible to TypeScript.
+- **`ReportButton` gained a disabled "Reported" state** after success. Not in
+  the spec. `reportedAt` is withheld from every public payload, so the server
+  cannot tell the component the ad is flagged — this is session-local truth and
+  resets on reload.
+- **GitHub removal was not in the plan at all.** Added after the maintainer
+  supplied the moderator's email, which made the account-id distinction
+  concrete. It also dissolved the two-identities problem (§9.5) and removed the
+  need for a "signed in but not a moderator" diagnostic.
 
-6. **No rate limit on `reportAd`.** §9.2's reasoning: "at most one report per ad"
-   already bounds the abuse, so a limiter would throttle nothing a spammer cares
-   about, while putting Redis back in a write path that does not need it.
+## One incident worth keeping
 
-7. **Reported ads stay visible.** Auto-hiding would hand any signed-in account a
-   one-click denial of service against any ad id.
+Phase 1 verified migration `0002` on a scratch database and deliberately did not
+apply it to the shared one. That broke development immediately:
+`getUserAds` selects the whole row, so a column the schema declared and the
+database lacked made the dashboard throw, and every report failed behind a
+generic toast. Fixed with `pnpm db:migrate`.
 
-## Task List
+Recorded in `HANDOFF.md` §4 as a trap. The lesson is narrow and does not
+generalise away: **`getUserAds` is the canary precisely because it selects the
+whole row**, so narrowing it to an explicit column list would convert a loud
+failure into a silently `undefined` field. Verifying a migration is not the same
+as the database having it.
 
-Sliced vertically, in two shippable phases. Phase 1 is the shared data
-foundation both slices depend on; Phases 2 and 3 are each independently useful.
+## Remaining work
 
-### Phase 1: Data foundation
+All of it needs a browser with a real session. Every test mocks `requireUserId`,
+and `utapi.deleteFiles` is mocked everywhere, so the bucket path has never run
+live through `teardownAd`.
 
-- [ ] **Task 1: Add `reportedAt` and its partial index**
-- [ ] **Task 2: Verify the migration against a real scratch database**
+1. Restart `pnpm dev` — `.env` loads at server boot, so the `MODERATORS` value
+   set during implementation is not in the running process.
+2. `/moderation` lists the six reported ads. The refusal path is verified in a
+   real browser; the listed view is not.
+3. Take one down → it 404s and its photos leave the bucket.
+4. Delete an owned ad → its photos leave the bucket.
+5. Confirm the dashboard still shows the ad limit as 2.
 
-### Checkpoint: Foundation
-- [ ] `pnpm verify` green
-- [ ] Migration applied to a scratch DB, column and partial index confirmed present
-- [ ] Shared dev/prod database untouched
+`tasks/todo.md` carries these as the open checklist.
 
-### Phase 2: Slice A — a signed-in visitor can report an ad
+## Deliberately not done
 
-- [ ] **Task 3: `reportAd` server action**
-- [ ] **Task 4: `ReportButton` client component**
-- [ ] **Task 5: Wire the button into `AdCardCompact`**
+- The signed-in "you are not a moderator" diagnostic. Unnecessary now that
+  there is one provider; `MODERATORS`-is-ids-not-emails is documented in
+  `HANDOFF.md` §1 instead.
+- `DeleteAdButton` migrated onto `ConfirmDialog`.
+- An un-report or a re-report. A flagged ad stays flagged until deleted.
+  `SPEC-moderation.md` §9.1 records this as the one open item in the spec.
 
-### Checkpoint: Slice A
-- [ ] `pnpm verify` green
-- [ ] Every `reportAd` authorization test fails when its predicate is removed
-- [ ] Manual: sign in, report an ad, see the toast; sign out, see no button
+## Unresolved, and still the maintainer's call
 
-### Phase 3: Slice B — a moderator can triage and take down
-
-- [ ] **Task 6: `moderator-guard`**
-- [ ] **Task 7: Extract `ad-teardown`, refactor `deleteAd`**
-- [ ] **Task 8: `deleteAdAsModerator`**
-- [ ] **Task 9: `getReportedAds`**
-- [ ] **Task 10: `/moderation` page**
-
-### Checkpoint: Slice B
-- [ ] `pnpm verify` green
-- [ ] The takedown test fails when the allowlist check is removed
-- [ ] Manual: moderator lists a reported ad, takes it down, it 404s and its photos leave the bucket
-
-### Phase 4: Close out
-
-- [ ] **Task 11: Update `HANDOFF.md`**
-
-### Checkpoint: Complete
-- [ ] All 10 success criteria in `SPEC-moderation.md` §7 hold
-- [ ] `pnpm verify` green, no pre-existing test weakened or deleted
-- [ ] Ready for review
-
----
-
-## Risks and Mitigations
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| `db:migrate` touches the shared dev/**prod** database (§3) | High — adds a column to production holding real data | Verify on a **scratch** database only (§1 confirms `CREATE DATABASE` is permitted). A nullable `ADD COLUMN` changes no rows, but the migration is still not run against the shared DB as part of this work. |
-| Scratch DB cannot be dropped afterwards | Low | §1: the `-pooler` host keeps sessions alive; terminate them first with the `pg_terminate_backend` query in §1. |
-| Drizzle `.where()` on an index unsupported | Medium | **Already resolved** — `pg-core/indexes.d.ts:67` declares `where(condition: SQL)` on drizzle-orm 0.45.2. Task 1 verifies it by generating, not by reading types alone. |
-| `.returning()` unsupported over neon-http | Medium | Task 1 proves it in the scratch database before Task 3 depends on it. If unsupported, the fallback is a read-back existence check, which costs the atomicity guarantee and would reopen the design. |
-| A test passes because it tests the mock | High | HANDOFF §5 governs. Every authorization assertion is against compiled SQL via `src/test/drizzle-where.ts`, and each is verified by **removing the predicate and confirming the test fails** before being believed. |
-| Moderator bypass becomes a general delete hole | High | The bypass lives in exactly one action, `deleteAdAsModerator`, gated by a pure allowlist. Task 8's central test asserts *no* storage write occurs for a non-moderator, and fails when the allowlist check is deleted. |
-| `PublicAd` accidentally gains `reportedAt` | Medium | Task 5 adds an explicit assertion that it is absent, naming what it catches. The existing exact-key-set test at `ad-dto.test.ts:111` already fails closed on the `Omit` side. |
-| Reported ads get hidden from the grid | Medium | An explicit non-goal in the spec's "Never" list. Nothing in this plan touches `getAds`. |
-
-## Parallelization Opportunities
-
-**Must be sequential:** Task 1 → everything (the column is the shared foundation).
-Task 7 → Task 8 (the takedown consumes the extracted teardown).
-
-**Safe to parallelize once Phase 1 lands:** Tasks 4 (`ReportButton`) and 6
-(`moderator-guard`) are independent leaves — a client component and a pure
-function, touching no shared file. Task 9 (`getReportedAds`) depends only on
-Task 1.
-
-**Not parallelizable:** Task 5 touches `AdCardCompact` and the DTO types, which
-Task 4's wiring depends on. Task 10 depends on 6, 8 and 9.
-
-## Open Questions
-
-- (None blocking. `SPEC-moderation.md` §9.1 records the one non-blocking item: no
-  re-report and no un-report, so a flagged ad stays flagged until deleted.)
+- **§2.2 — the E2E decision.** Untouched by all of this. Every route is dynamic
+  and reads Postgres, so E2E needs a database this repo does not provision.
+- **§9.2 — retiring `withUserLock`.** Now that the slot index enforces the
+  limit, the lock buys only serialization. Deleting it would take Redis out of
+  the create path entirely and close §2.1 and §9.4 with it. Left in place
+  because it deletes a deliberately engineered module whose Lua release script
+  has an open verification item of its own.

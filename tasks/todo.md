@@ -95,19 +95,19 @@ Tests assert against **compiled SQL** via `src/test/drizzle-where.ts`, and each 
 proven by removing the predicate and confirming the failure.
 
 **Acceptance criteria:**
-- [ ] Signed out → `{ success: false, error: 'Unauthorized' }` and **no update issued at all**
-- [ ] One row written → `{ success: true }`
-- [ ] Zero rows → `{ success: false }`, no throw, single undifferentiated message
-- [ ] The predicate compiles to SQL constraining `"reportedAt"` with `IS NULL`
-- [ ] The predicate compiles to SQL constraining `"userId"`, excluding the reporter
-- [ ] A thrown driver error returns a generic message; the raw message is not in it; `console.error` was called
-- [ ] **Revert check:** removing `isNull` fails the first SQL test; removing `ne` fails the second
-- [ ] A test pins that this write bumps `updatedAt` (`SPEC-moderation.md` §8.1), so it stays a recorded decision
+- [x] Signed out → `{ success: false, error: 'Unauthorized' }` and **no update issued at all**
+- [x] One row written → `{ success: true }`
+- [x] Zero rows → `{ success: false }`, no throw, single undifferentiated message
+- [x] The predicate compiles to SQL constraining `"reportedAt"` with `IS NULL`
+- [x] The predicate compiles to SQL constraining `"userId"`, excluding the reporter
+- [x] A thrown driver error returns a generic message; the raw message is not in it; `console.error` was called
+- [x] **Revert check:** removing `isNull` fails the first SQL test; removing `ne` fails the second
+- [x] A test pins that this write bumps `updatedAt` (`SPEC-moderation.md` §8.1), so it stays a recorded decision
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Build: `pnpm build`
-- [ ] Manual: none yet — the button does not exist until Task 5. Confirm by calling the action from a temporary route only if the test suite cannot prove it.
+- [x] Tests: `pnpm test`
+- [x] Build: `pnpm build`
+- [x] Manual: none yet — the button does not exist until Task 5. Confirm by calling the action from a temporary route only if the test suite cannot prove it.
 
 **Dependencies:** Task 1 (proves `.returning()`), Task 2
 **Files:** `src/server/actions/reportAd.tsx`, `src/server/actions/__tests__/reportAd.test.ts`
@@ -122,16 +122,16 @@ it). Renders a real `<button>` with an accessible name, calls the action with
 the ad id, disables while pending.
 
 **Acceptance criteria:**
-- [ ] Renders a `button` with an accessible name, found by role+name query
-- [ ] One click calls `reportAd` with the ad id exactly once
-- [ ] Disabled while pending, so a double click cannot file two reports
-- [ ] Success and failure each surface a toast
-- [ ] `'use client'` at the top — no `styled.*` or handlers outside it (§4 trap)
+- [x] Renders a `button` with an accessible name, found by role+name query
+- [x] One click calls `reportAd` with the ad id exactly once
+- [x] Disabled while pending, so a double click cannot file two reports
+- [x] Success and failure each surface a toast
+- [x] `'use client'` at the top — no `styled.*` or handlers outside it (§4 trap)
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Build: `pnpm build`
-- [ ] Manual: covered by Task 5's checkpoint
+- [x] Tests: `pnpm test`
+- [x] Build: `pnpm build`
+- [x] Manual: covered by Task 5's checkpoint
 
 **Dependencies:** Task 3
 **Files:** `src/components/ReportButton/ReportButton.tsx`, `src/components/ReportButton/__tests__/ReportButton.test.tsx`
@@ -147,17 +147,17 @@ element ten times per page. Add an explicit assertion that `reportedAt` is absen
 from `PublicAd`, naming what it catches.
 
 **Acceptance criteria:**
-- [ ] The button renders for a signed-in visitor on the detail page and in the intercepting modal
-- [ ] No button renders for an anonymous visitor
-- [ ] `getComputedStyle` check confirms the button sits inside the modal box and is not clipped
-- [ ] `ad-dto.test.ts` asserts `reportedAt` is **absent** from `Object.keys(toPublicAd(FULL_ROW))`
-- [ ] `toPublicAd` itself is unmodified
+- [x] The button renders for a signed-in visitor on the detail page and in the intercepting modal
+- [x] No button renders for an anonymous visitor
+- [x] `getComputedStyle` check confirms the button sits inside the modal box and is not clipped
+- [x] `ad-dto.test.ts` asserts `reportedAt` is **absent** from `Object.keys(toPublicAd(FULL_ROW))`
+- [x] `toPublicAd` itself is unmodified
 
 **Verification:**
-- [ ] Tests: `pnpm test`
-- [ ] Build: `pnpm build`
-- [ ] Manual: `pnpm dev` → sign in → open an ad → report it → confirm the toast and the button's pending state; open it via a grid click to confirm the modal copy; sign out → confirm no button
-- [ ] Manual: `curl` the ad detail page and confirm `"reportedAt"` appears in no `<script>` payload
+- [x] Tests: `pnpm test`
+- [x] Build: `pnpm build`
+- [ ] **NOT VERIFIED — needs a real OAuth session:** sign in → open an ad → report it → confirm the toast and the pending state; open via a grid click to confirm the modal copy. Tests only; `requireUserId` is mocked there.
+- [x] Manual: `curl` the ad detail page and confirm `"reportedAt"` appears in no `<script>` payload
 
 **Dependencies:** Tasks 3, 4
 **Files:** `src/components/AdCard/AdCardCompact.tsx`, `src/lib/__tests__/ad-dto.test.ts`
@@ -167,10 +167,10 @@ from `PublicAd`, naming what it catches.
 
 ## Checkpoint: Slice A
 
-- [ ] `pnpm verify` green
-- [ ] Every `reportAd` authorization test **fails** when its predicate is removed
-- [ ] Manual: sign in, report an ad, see the toast; sign out, see no button
-- [ ] `reportedAt` confirmed absent from the public payload and the rendered grid
+- [x] `pnpm verify` green
+- [x] Every `reportAd` authorization test **fails** when its predicate is removed
+- [ ] **NOT VERIFIED — needs a real OAuth session:** sign in, report an ad, see the toast; sign out, see no button. The anonymous half was checked by `curl`.
+- [x] `reportedAt` confirmed absent from the public payload and the rendered grid
 - [ ] **Review with human before proceeding** — this slice is independently shippable
 
 ---

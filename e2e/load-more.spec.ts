@@ -209,7 +209,8 @@ test.describe('load more', () => {
   });
 
   test('keeps the region applied while paging', async ({ page, request }) => {
-    // `AdGrid` carries `region` from `useSearchParams` into the cursor request. If
+    // `AdGrid` carries `region` from the page's `searchParams` prop
+    // into the cursor request. If
     // it did not, "Load more" on a filtered view would append unfiltered ads --
     // mixing regions on a page whose whole point is that it is filtered, and
     // producing a grid that disagrees with both the URL and the API.

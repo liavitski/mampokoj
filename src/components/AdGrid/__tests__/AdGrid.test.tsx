@@ -2,11 +2,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-// AdGrid reads the active region from the URL. Outside a router there is none.
-vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
-}));
-
 // AdGrid reports failures through the toast system.
 vi.mock('../../ToastProvider', () => ({
   useToast: () => ({ showToast: vi.fn() }),
@@ -111,6 +106,48 @@ describe('AdGrid load more', () => {
     await waitFor(() => {
       expect(screen.getByText('Room number 1')).toBeInTheDocument();
     });
+  });
+
+  it('requests the next page of the region it was given', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      json: async () => ({
+        items: [makeAd(3)],
+        hasMore: false,
+        nextCursor: null,
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AdGrid adsData={FIRST_PAGE} region="PR" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /load more/i }));
+
+    // The region now arrives as a prop from the page, and the
+    // load-more request has to keep filtering by it.
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('region=PR')
+    );
+  });
+
+  it('omits the region parameter when no region is given', async () => {
+    const fetchMock = mockFetchOnce({
+      ok: true,
+      json: async () => ({
+        items: [makeAd(3)],
+        hasMore: false,
+        nextCursor: null,
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<AdGrid adsData={FIRST_PAGE} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /load more/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.not.stringContaining('region=')
+    );
   });
 
   it('hides the load more button when there is no next page', () => {

@@ -3,7 +3,6 @@
 import * as React from 'react';
 import styled from 'styled-components';
 import type { AdsApiResponse, PublicAd } from '@/types/db-types';
-import { useSearchParams } from 'next/navigation';
 
 import { isAdsApiResponse } from '@/lib/ad-dto';
 import { useToast } from '../ToastProvider';
@@ -12,9 +11,16 @@ import AdSummaryCard from '../AdSummaryCard';
 
 type AdGridProps = {
   adsData: AdsApiResponse;
+  /**
+   * The region the page was rendered for, re-applied to the
+   * load-more request. Passed down from the page's `searchParams`
+   * prop rather than read here with `useSearchParams`, so this
+   * component reads no request-time state of its own.
+   */
+  region?: string;
 };
 
-function AdGrid({ adsData }: AdGridProps) {
+function AdGrid({ adsData, region }: AdGridProps) {
   const { showToast } = useToast();
   const [adsList, setAdsList] = React.useState<PublicAd[]>(
     adsData.items
@@ -25,8 +31,6 @@ function AdGrid({ adsData }: AdGridProps) {
   );
 
   const [loading, setLoading] = React.useState(false);
-  const searchParams = useSearchParams();
-  const region = searchParams.get('region');
 
   // Soved this by passing unique key from parent. Key will trigger re-reder
   // so not needed effect.

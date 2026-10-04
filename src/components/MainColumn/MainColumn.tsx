@@ -37,6 +37,7 @@ async function MainColumn({
     <Wrapper>
       <AdGrid
         key={gridKey}
+        region={region}
         adsData={{
           items,
           hasMore,

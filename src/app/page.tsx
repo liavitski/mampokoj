@@ -128,6 +128,7 @@ export default async function Home({ searchParams }: HomeProps) {
       <MainColumn>
         <AdGrid
           key={gridKey}
+          region={region}
           adsData={{
             items,
             hasMore,

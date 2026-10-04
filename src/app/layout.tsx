@@ -5,7 +5,7 @@ import type { Theme } from '@/types/theme';
 import { NextSSRPlugin } from '@uploadthing/react/next-ssr-plugin';
 import { extractRouterConfig } from 'uploadthing/server';
 import { ourFileRouter } from '@/app/api/uploadthing/core';
-import { MotionConfig } from 'motion/react';
+
 import { getCachedSession } from '@/lib/session';
 
 import '@uploadthing/react/styles.css';
@@ -90,21 +90,17 @@ async function RootLayout({ children, modal }: LayoutProps<'/'>) {
       className={`${plusJakartaSans.variable} notranslate`}
     >
       <body>
-        <MotionConfig reducedMotion="user">
-          <StyledComponentsRegistry>
-            <MaxWidthWrapper>
-              <ToastProvider>
-                <Header initialTheme={theme} session={session} />
-                {children}
-                {modal}
-                <Footer />
-              </ToastProvider>
-            </MaxWidthWrapper>
-            <NextSSRPlugin
-              routerConfig={extractRouterConfig(ourFileRouter)}
-            />
-          </StyledComponentsRegistry>
-        </MotionConfig>
+        <StyledComponentsRegistry>
+          <MaxWidthWrapper>
+            <ToastProvider>
+              <Header initialTheme={theme} session={session} />
+              {children}
+              {modal}
+              <Footer />
+            </ToastProvider>
+          </MaxWidthWrapper>
+          <NextSSRPlugin routerConfig={extractRouterConfig(ourFileRouter)} />
+        </StyledComponentsRegistry>
       </body>
     </html>
   );

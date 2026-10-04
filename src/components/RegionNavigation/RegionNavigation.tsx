@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { motion } from 'motion/react';
 import styled from 'styled-components';
 import { CZ_REGIONS, WEIGHTS } from '@/constants';
 import Link from 'next/link';
@@ -18,7 +17,6 @@ type RegionNavigationProps = {
 
 function RegionNavigation({ currentRegion }: RegionNavigationProps) {
   const router = useRouter();
-  const id = React.useId();
 
   const [isPending, startTransition] = useTransition();
   const [hoveredNavItem, setHoveredNavItem] =
@@ -45,16 +43,7 @@ function RegionNavigation({ currentRegion }: RegionNavigationProps) {
 
           return (
             <LinkWrapper key={region.code}>
-              {hoveredNavItem === region.code && (
-                <LinkBackground
-                  layoutId={id}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 350,
-                    damping: 30,
-                  }}
-                />
-              )}
+              {hoveredNavItem === region.code && <LinkBackground />}
               <RegionLink
                 href={href}
                 $active={currentRegion === region.code}
@@ -125,7 +114,22 @@ const LinkWrapper = styled.li`
   position: relative;
 `;
 
-const LinkBackground = styled(motion.div)`
+/**
+ * The 4px bar marking the hovered region.
+ *
+ * A plain `div`, and that is the whole change. This was `styled(motion.div)` with
+ * a `layoutId`, which made the bar *slide* from the previously hovered region to
+ * the current one. That was `motion-dom` -- 41 KB of projection engine, and the
+ * single largest reason `motion` was in the client bundle at all (HANDOFF.md §7).
+ * The slide was polish and it has been removed rather than reimplemented:
+ * the bar still appears under the hovered region, it just arrives instead of
+ * travelling.
+ *
+ * Nothing was lost but the motion. The region you are on is carried by
+ * `$active` on the link itself, and the hover is carried by this bar, so the
+ * indicator never needed to be animated to be legible.
+ */
+const LinkBackground = styled.div`
   background-color: var(--color-secondary);
   position: absolute;
   left: 0;

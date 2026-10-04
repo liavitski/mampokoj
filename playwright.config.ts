@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * End-to-end tests: option (c) from HANDOFF §2.2, decided 2026-10-03.
+ * End-to-end tests: option (c) from HANDOFF §2.1, decided 2026-10-03.
  *
  * **Local-only and run by hand.** There is no CI wiring here and there is no
  * database provisioning: `webServer` reuses whatever `pnpm dev` is already

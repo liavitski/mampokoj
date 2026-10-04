@@ -4,7 +4,8 @@ State of the repository and what to do next, for a reader with no memory of the 
 
 Facts only. Anything recoverable from `git log`, the code comments or the README is
 not repeated here, and neither is the history of how a bug got fixed — if you want
-the history of a decision, `git log -S` finds it.
+the history of a decision, `git log -S` finds it. Shipped `todo.md` items are
+marked in place there; this file carries only what a future session cannot re-derive.
 
 - **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **627 tests
   across 61 files**, `next build` succeeds. `pnpm test:e2e` adds **44 Playwright
@@ -16,62 +17,19 @@ the history of a decision, `git log -S` finds it.
 - **Production is live** at `mampokoj.vercel.app` and the moderation queue works
   there (§9.3). **Env vars are set in the Vercel dashboard by hand** — §1, which is
   the item most likely to waste an afternoon.
-- **Clean tree** on `main` at `4568b25`, pushed to `origin/main`. The two sessions
-  below are `6a95abe`, `9d11164` and `4568b25`.
-
-## Shipped 2026-10-03
-
-Four pieces of work, all verified against a production build rather than against
-the dev server, which hides status-code and streaming failures.
-
-1. **SEO.** Ad pages are indexable: per-ad Open Graph cards and JSON-LD,
-   `sitemap.xml`, `robots.txt`, Czech metadata and `lang="cs"`, and a real HTTP
-   **404** for a removed ad (previously 200 — §9.4). Region pages are canonicalised
-   in place with the pagination cursor stripped; **no `/region/[code]` routes**, on
-   purpose (§3).
-2. **Seeded photos.** The 11 hardcoded `ufs.sh` URLs in `seed-data.ts` were all
-   dead; `seededPhotoUrl(adId, index)` now emits deterministic
-   `picsum.photos/seed/…` URLs and the table was re-seeded. §2.2.
-3. **Unvalidated `cursorId` 500'd the home page.** Now
-   `src/lib/validation/cursor.ts`, shared by `page.tsx`, `/api/ads` and
-   `/moderation`. §9.4.
-4. **A cursor pager for the moderation "all ads" list**, which was capped at 10 of
-   200 rows. §9.4.
-
-The three work files (`tasks/todo.md`, `tasks/plan.md`) were folded into this file
-and deleted. Nothing else reads them.
-
----
-
-## Also shipped 2026-10-03
-
-`todo.md` items 1–3, in two commits. Each item is marked in `todo.md` with the
-reasoning; what follows is only what belongs here.
-
-1. **Error boundaries.** `src/app/error.tsx` and `src/app/global-error.tsx`, with
-   18 cases in `src/app/__tests__/error-fallbacks.test.tsx`. Two details worth
-   knowing before touching either file: `global-error.tsx` applies theme tokens
-   in a `useLayoutEffect`, **not** an inline `<script>` — the script never runs,
-   because Next serves a shell and renders the boundary client-side, where React
-   does not execute `<script>` at all — and it reads `var(--token)` for its
-   colours rather than literals, which is only correct because of that layout
-   effect. §4.
-2. **Region links open in a new tab.** `RegionNavigation` keeps `router.push` for
-   plain left clicks and declines everything else (§3).
-3. **Both ad forms now use `useActionState`.** This was filed as docs alignment
-   and turned out to be two live defects — the submit button was **never**
-   disabled, so a double submission was a duplicate write. §3, §4.
+- **Git:** clean tree on `main`, **ahead of `origin/main` by `todo.md` items 4 and
+  5** (local, unpushed). Everything before those is pushed. A handoff file does not
+  name its own commit hash for that reason — `git log` does.
 
 ---
 
 ## 1. Environment facts that will otherwise waste your time
 
 1. **Upstash Redis resolves from this machine and responds** (`PING` → `PONG`).
-   This is the opposite of what earlier sessions recorded (`ENOTFOUND`), and it is
-   what makes uploads work. It has one remaining consumer, `ratelimit.ts`.
-   **Do not assume it from a test** — the suite mocks Redis, and a mocked Redis
-   proves nothing about a live one. If something Redis-backed looks broken, ping it
-   first; the failure mode is silent rather than loud.
+   It has one remaining consumer, `ratelimit.ts`. **Do not assume it from a test** —
+   the suite mocks Redis, and a mocked Redis proves nothing about a live one. If
+   something Redis-backed looks broken, ping it first; the failure mode is silent
+   rather than loud.
 2. **`MODERATORS` lists OAuth account ids, not email addresses.** Read by
    `src/lib/moderator-guard.ts`; the value is the id in your own
    `/dashboard/<userId>` URL and the one `ads.userId` holds. **An email here never
@@ -94,29 +52,22 @@ reasoning; what follows is only what belongs here.
 
 ## 2. Open work
 
-**`todo.md` is the work list**, audited against the Next.js 16.3.6 docs in
-`node_modules/next/dist/docs/` — 11 items in value-per-effort order, each citing
+**`todo.md` is the work list** — 11 items in value-per-effort order, audited
+against the Next.js 16.3.6 docs in `node_modules/next/dist/docs/`, each citing
 the guide it comes from. Cache Components and Instant Navigation are excluded by
 decision, with the reasoning recorded there. Read it before §9.4.
 
-**Items 1–5 are shipped** (1–3 in *Also shipped* above; 4 and 5 recorded
-in `todo.md`). Item 3 found two live defects rather than a docs mismatch,
-which is the argument for continuing down the list rather than stopping:
-read a component before assuming an entry describes a style problem.
+**Items 1–5 are shipped**, each marked in place in `todo.md` with its reasoning.
+Item 3 found two live defects rather than a docs mismatch — read a component
+before assuming an entry describes a style problem. Its progressive-enhancement
+goal is *not achieved* and was declined: the forms live in a modal, so the
+server-rendered HTML holds no `<form>` at all; the full reasoning and the
+revisit-trigger are in `todo.md`.
 
-**The next session should start at `todo.md` item 6**, then work down the
-list, then §9.4. Nothing is blocking: §9.1–§9.3 are closed, and the two
-items that needed a decision (E2E's scope, and retiring `withUserLock`)
-have both been taken. What is left is items 6–11, §9.4, and the two
-deliberate omissions in §2.3.
-
-**One entry on `todo.md` is now known to be bigger than filed.** Item 3's
-progressive enhancement is *not achieved* — the forms live in a modal, so the
-server-rendered HTML contains no `<form>` at all and cannot post without
-JavaScript. Both files say so at the call site. Finishing it needs a
-server-rendered create/edit route, which is a product decision, not a refactor.
-The reasoning for leaving it is recorded in `todo.md`; revisit it only with
-evidence about how often JavaScript actually fails for real users.
+**The next session starts at `todo.md` item 6**, then works down the list, then
+§9.4. Nothing is blocking: §9.1–§9.3 are closed, and the two items that needed a
+decision (E2E's scope, retiring `withUserLock`) are taken. What is left is items
+6–11, §9.4, and the deliberate omissions in §2.3.
 
 ### 2.1 End-to-end tests: local-only, by hand
 
@@ -149,7 +100,9 @@ Three things this suite found that unit tests could not:
    app-shell.ts` scopes every query to the layout shell for this reason.
    **Anything else that reads this DOM early — a scraper, a monitoring probe,
    another suite — has the same problem.**
-2. **`notFound()` in a streamed route answers HTTP 200, not 404** (§9.4).
+2. **`notFound()` in a streamed route answers HTTP 200, not 404**, if a Suspense
+   boundary sits above it (§9.4) — fixed, and the reason no root `loading.tsx`
+   exists.
 3. **An anonymous visitor's detail page has no `tel:` link at all** — it renders
    "Log in to see the contact". `BlurredPhone` is the *signed-in* affordance.
 
@@ -179,8 +132,8 @@ Three things this suite found that unit tests could not:
   image per region is the natural follow-up.
 - **No image sitemaps — and this one needs re-deciding, not inheriting.** They were
   declined *because* `images.url` pointed at files that no longer exist and
-  advertising 200 dead URLs to Google is worse than none. Those URLs resolve again
-  (§9.4), so the objection is gone and this is an open option.
+  advertising 200 dead URLs to Google is worse than none. Those URLs resolve
+  again, so the objection is gone and this is an open option.
 - **No `hreflang`.** One language. Revisit if a second is ever added.
 - **No React Compiler** (stable in Next 16, not enabled), **loading states not
   revisited** (three `loading.tsx` files render a bare `Spinner`), **no
@@ -213,27 +166,26 @@ The `SEED_ALLOW` guard (`src/utils/seed-guard.ts`) covers CI and a fresh clone b
 that limit is stated in the guard's header rather than papered over.
 
 **The home page stays at `src/app/page.tsx`, and its `loading.tsx` lives in a
-`(browse)` group rather than beside it.** This looks like a mistake twice over — the
-group has exactly one file that does not need to be there, and the obvious
-arrangement is `page.tsx` next to `loading.tsx`. Moving it was long believed
-to **break the intercepting modal**, because `@modal/(.)ad/[adId]` resolves
-`(.)` by **route-segment level** and a route group was thought to count
-toward that level even though it adds no URL segment. Measured against
-Next.js 16.3.6 (todo.md item 5): **it does not** — the modal intercepts
-with the home page inside `(browse)` (dev and a production build) and
-with everything at root, group deleted. What the `(browse)` move does
-break is `tsc`: the generated route types and `home-cursor.test.ts` /
-`home-metadata.test.ts` import `@/app/page` by path, so `pnpm verify`
-refuses the rearrangement before it can ship — the type-checker, not an
-e2e test, is the guard. The reason the group exists at all is the 404
-status (§9.4), re-verified while measuring: `loading.tsx` at root
-answers 200 for a missing ad. `noindex-private-routes.test.ts` asserts
-the no-root-`loading.tsx` half, because the failure mode in both
-directions is a test that still passes.
+`(browse)` group rather than beside it.** The obvious arrangement — `page.tsx`
+next to `loading.tsx` — was long believed to break the intercepting modal,
+because `@modal/(.)ad/[adId]` resolves `(.)` by route-segment level and a route
+group was thought to count toward that level. Measured against Next.js 16.3.6
+(todo.md item 5): **it does not** — the modal intercepts with the home page
+inside `(browse)` (dev and a production build) and with everything at root, group
+deleted. What the move does break is `tsc`: the generated route types and
+`home-cursor.test.ts` / `home-metadata.test.ts` import `@/app/page` by path, so
+`pnpm verify` refuses the rearrangement — the type-checker, not an e2e test, is
+the guard. The group exists for the 404 status (§9.4), re-verified while
+measuring: `loading.tsx` at root answers 200 for a missing ad.
+`noindex-private-routes.test.ts` pins the no-root-`loading.tsx` half.
 
-**No `/region/[code]` routes.** Region filtering is `?region=`. A new path segment
-changes the level at which `@modal/(.)ad/[adId]` intercepts, which silently stops
-the ad modal opening on region pages.
+**No `/region/[code]` routes.** Region filtering is `?region=`, and the region
+pages are canonicalised in place — one URL per region set, not a parallel path
+hierarchy. The interception rationale once given for this (that a new path segment
+stops the ad modal opening on region pages) was measured and is **false**: with a
+`region/[code]/page.tsx` in place rendering ad links, the modal intercepts from it
+and the grid stays mounted behind the dialog. Measured in dev against
+Next.js 16.3.6.
 
 **`getReportedAds` and `getAllAds` select `contactPhone` and `userId`, which every
 public query withholds.** A scam is recognised by the number, and taking an ad down
@@ -600,125 +552,81 @@ documented in `BlurredPhone`'s tests rather than fixed: the blur is a courtesy
 against shoulder-surfing, not a security boundary, because the digits are in the
 HTML for every signed-in visitor.
 
-### 9.2 Resolved: the ad limit is a database invariant
+### 9.2 Resolved: the ad limit, and Redis's exit from the create path
 
-Closed by the slot index (§7). An outage, or anyone who can make Redis unreachable,
-can no longer mean unlimited ads per account.
-
-There is still no *rate* limit on `createAd` — and there does not need to be. A hard
-cap of two ads per account already refuses the third create however fast it arrives.
-`checkUploadAdmission`'s ratelimit stays, because there the abuse is bandwidth
-rather than row count.
+Closed by the slot index (§7) — an outage, or anyone who can make Redis unreachable,
+can no longer mean unlimited ads per account. There is still no *rate* limit on
+`createAd`, and there does not need to be: a hard cap of two already refuses the third
+however fast it arrives. `checkUploadAdmission`'s ratelimit stays, because there the
+abuse is bandwidth rather than row count.
 
 **Redis is out of the create path entirely.** The advisory `withUserLock` that used
-to wrap `createAd` is deleted, and with it ~800 lines of lock tests. It was deleted
-because it was **correct** and still not worth its price: with the slot index
-enforcing the limit, the mutex bought the avoidance of a single wasted INSERT.
-`src/server/__tests__/retired-user-lock.test.ts` is the tripwire — a lock that works
+to wrap `createAd` is deleted, with ~800 lines of lock tests: it was **correct** and
+still not worth its price, since the slot index already enforces the limit and the
+mutex bought only the avoidance of a single wasted INSERT.
+`src/server/__tests__/retired-user-lock.test.ts` is the tripwire — a lock working
 correctly *alongside* the index would pass every behavioural assertion there is,
-which is exactly how it could otherwise come back unnoticed.
+which is exactly how it could otherwise return unnoticed.
 
 ### 9.3 Resolved: reporting, a moderation queue, and a takedown
 
-`SPEC-moderation.md` is the spec and still the authoritative description of this
-feature; the work log it referenced has been folded into this file.
+`SPEC-moderation.md` is the spec and still the authoritative description. A
+signed-in visitor can flag a listing from its detail page or its intercepting modal;
+`reportAd` marks it, a moderator sees the queue at `/moderation` and can take it down,
+photos included. Verified in a real browser with a live Google sign-in: the queue
+lists, row order matches `getReportedAds` against the database, the anonymous path
+refuses, and a takedown and an owner delete each leave `/ad/[adId]` answering 404.
+`teardownAd` genuinely removes files from the bucket — the evidence is the run that
+measured its precondition (a real uploaded PNG, `utapi.listFiles` confirming exactly
+one real non-`seeded-*` file, then delete with all four results asserted, §5).
 
-A signed-in visitor can flag a listing from its detail page or its intercepting
-modal. `reportAd` marks it, and a moderator sees it at `/moderation` and can take it
-down, photos included.
+Four decisions in it that read as mistakes and are not: **the bypass lives in its own
+action** (`deleteAdAsModerator`, never a flag on `deleteAdById`, whose ownership
+check stays unchanged and unshared); **`reportedAt` is in no public payload**, which
+needed an explicit `detailAdColumns` allowlist because `getValidatedAd` selects the
+whole row and a type omission does not keep a column off the wire; **reported ads
+stay visible**, since hiding them hands any signed-in account a one-click DoS against
+any ad id; and **no rate limit on `reportAd`**, on §9.2's reasoning.
 
-**§9.3 originally proposed less than it needed, and the gap was the whole point.**
-It said "a `reportedAt` column, a report button, and one query covers it" — but
-`deleteAdById` resolves ownership through `findAdOwnedByCurrentUser` and refuses a
-non-owner, so whoever answered that query **could not take an ad down through the
-app**. The remedy stayed a hand-written `DELETE`, the exact failure the section
-opens with. A fourth piece was added: a moderator takedown that bypasses ownership,
-behind its own check.
-
-Four decisions in it that read as mistakes and are not: **the bypass lives in its
-own action** (`deleteAdAsModerator`, never a flag on `deleteAdById`, whose ownership
-check stays unchanged and unshared); **`reportedAt` is in no public payload**,
-which needed an explicit `detailAdColumns` allowlist because `getValidatedAd`
-selects the whole row and a type omission does not keep a column off the wire;
-**reported ads stay visible**, since hiding them hands any signed-in account a
-one-click DoS against any ad id; and **no rate limit on `reportAd`**, on §9.2's
-reasoning.
-
-Each guard was proved by removing it and watching the right test fail: without
-`isModerator`, 4 tests fail; with the gate moved below the query, the ordering test
-fails; with the teardown order reversed, 2 fail.
-
-**Verified in a real browser**, with Playwright driving Chrome and a live Google
-sign-in: a moderator session lists the queue, the row order matches
-`getReportedAds` exactly against the database, the anonymous path still refuses, a
-takedown and an owner delete each removed rows and image rows and left
-`/ad/[adId]` answering 404, and the dashboard still reported the limit as 2.
-
-**`teardownAd` genuinely removes files from the bucket, and the evidence is the run
-that measured its precondition** — repeated after creating an ad with a real
-uploaded PNG and confirming via `utapi.listFiles` that exactly one real,
-non-`seeded-*` file existed: delete, then all four results asserted (§5).
-
-Two deviations worth keeping, since the plan is gone: `ReportButton` has a disabled
-"Reported" state that is **session-local truth** and resets on reload — the server
-cannot tell the component the ad is flagged, because `reportedAt` is withheld from
-every public payload. And GitHub sign-in was removed entirely once the maintainer's
-account id was known, which dissolved the two-identities problem in §7.
+Two deviations worth keeping: `ReportButton`'s disabled "Reported" state is
+**session-local truth** that resets on reload — the server cannot tell the component
+the ad is flagged, because `reportedAt` is withheld from every public payload. And
+GitHub sign-in was removed once the maintainer's account id was known, dissolving
+§7's two-identities problem.
 
 ### 9.4 Worth doing, not blocking
 
-- **`notFound()` returned HTTP 200, not 404, for a missing ad. Fixed 2026-10-03.**
-  `loading.tsx` sat at the app root, putting a Suspense boundary above every route:
-  the response head was committed before `getValidatedAd` had run, so `notFound()`
-  could only swap the body and the status line had already gone out as 200, with
-  `NEXT_HTTP_ERROR_FALLBACK` in the payload. The visitor saw a correct 404 page and
-  every crawler, uptime monitor and CDN saw a success.
-
-  The fix moved that boundary into a `(browse)` route group, which adds no URL
-  segment, so `/` is unchanged and `/ad/[adId]` renders without a boundary above it.
-  Both cases now answer 404, measured with `curl` against a production build.
-  **The cost of the obvious alternative is in §3** — it breaks the modal. And the
-  404 *status* is now the only thing producing `noindex` on that page, so if the
-  streaming boundary ever comes back the page silently becomes 200 *and* indexable.
+- **A missing ad must answer 404, and it does.** `notFound()` in a route with a
+  Suspense boundary above it answers 200 instead — the response head is committed
+  before the page's data runs. The boundary therefore lives in a `(browse)` route
+  group (no URL segment), so `/` is unchanged and `/ad/[adId]` renders without one.
+  Both answer 404, measured against a production build. The 404 *status* is now the
+  only thing producing `noindex` on that page, so if the boundary ever comes back to
+  the root the page silently becomes 200 *and* indexable —
   `noindex-private-routes.test.ts` asserts no root `loading.tsx` exists for exactly
   this reason.
-- **An unvalidated `cursorId` 500'd the home page. Fixed 2026-10-03.** There were
+- **An unreadable cursor renders the first page, and never 500s.** There were
   **two** bugs, not one: `?cursorId=not-a-uuid` was `invalid input syntax for type
   uuid`, and `?cursorCreatedAt=not-a-date` was a separate `RangeError: Invalid time
   value`, because `new Date('nope')` is an Invalid Date and drizzle sends it anyway.
-  Fixing the id alone would have left the timestamp 500ing. Neither shows up under
-  the dev overlay; both were reproduced with `curl` against a production build.
-
   `src/lib/validation/cursor.ts` holds the contract, and `page.tsx`, `GET /api/ads`
-  and `/moderation` all parse through it. **An unreadable cursor reads as no
-  cursor, so the page renders its first page** — not a 404 (the URL is a valid
-  listing carrying two junk parameters) and not a 500 (a Next page has no 400 to
-  give). The cursor is a *position*, not a filter, and an unreadable position is the
-  start. Only `AdGrid` writes those parameters, so this is a crawler or a
-  hand-edited URL, not a visitor stranded mid-list.
-
-  `components/MainColumn/MainColumn.tsx` carried an identical copy of the bug and is
-  **not imported anywhere**. It was wired to the shared schema rather than deleted,
-  so that wiring it up later does not resurrect the 500.
-- **The moderation "all ads" list was capped at `PAGE_SIZE` with no pager, so of 200
-  rows only 10 were reachable. Fixed 2026-10-03.** A moderator who could not find a
-  scam had reached a *correct* conclusion from a truncated list, which is the worst
-  kind of wrong. `getAllAds` now takes a cursor and returns `getAds`'s
-  `{ items, hasMore, nextCursor }` shape; the two queries share one `olderThan`
-  clause and one `toPage` helper rather than restating the pagination arithmetic.
-
-  **Keyset, not `OFFSET`, deliberately:** a moderator deletes ads off this very
-  list, and with an offset every row below a deleted one shifts up, so "page 3"
-  quietly skips an ad nobody has looked at. A cursor names a position rather than a
-  distance. The cost is that a keyset cursor cannot be decremented, so there is no
+  and `/moderation` all parse through it. An unreadable cursor reads as no cursor —
+  not a 404 (the URL is a valid listing carrying two junk parameters) and not a 500
+  (a Next page has no 400 to give). The cursor is a *position*, not a filter. Only
+  `AdGrid` writes those parameters, so this is a crawler or a hand-edited URL, not a
+  visitor stranded mid-list. `components/MainColumn/MainColumn.tsx` carried an
+  identical copy of the bug and is **not imported anywhere**; it was wired to the
+  shared schema rather than deleted, so wiring it up later does not resurrect the 500.
+- **The moderation "all ads" list reaches all 200 rows.** `getAllAds` takes a cursor
+  and returns `getAds`'s `{ items, hasMore, nextCursor }` shape; the two queries
+  share one `olderThan` clause and one `toPage` helper. **Keyset, not `OFFSET`,
+  deliberately:** a moderator deletes ads off this very list, and with an offset every
+  row below a deleted one shifts up, so "page 3" quietly skips an ad nobody has
+  looked at. The cost is that a keyset cursor cannot be decremented, so there is no
   "previous page" link — "Newest ads" returns to the start instead — and there are
-  no page numbers, because "page 3 of 20" needs an offset or a `COUNT` and both
-  make the number move under the moderator. Verified against the real table: the
-  walk reaches all 200 ads exactly once across 20 pages.
-
-  The page states where the moderator is, and claims completeness **only** when
-  `hasMore` is false. An earlier honest-but-stale "Showing the most recent 10 ads"
-  would still have read as "cut off" once a pager existed.
+  no page numbers. Verified against the real table: the walk reaches all 200 ads
+  exactly once across 20 pages. The page states where the moderator is, and claims
+  completeness **only** when `hasMore` is false.
 - **No account deletion.** Name, OAuth id and phone are stored with no erasure path.
   `deleteAdById` covers one ad, not the account.
 - **No email contact channel**, which is also the only route to verifying that a

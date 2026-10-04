@@ -10,18 +10,20 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1, 2, 3, 4, 5 and 6 shipped** (1–3 on 2026-10-03: `6a95abe`,
+**Status: items 1, 2, 3, 4, 5, 6 and 7 shipped** (1–3 on 2026-10-03: `6a95abe`,
 `9d11164`, `4568b25`, all pushed; 4 on 2026-10-04: `f12ce61`, local;
 5 on 2026-10-04: `46cd4db`, local; 6 on 2026-10-04, local, spec in
-`SPEC-og-images.md`).
-Each is marked in place. Items 7–11 are open.
+`SPEC-og-images.md`; 7 on 2026-10-04, local, spec in `SPEC-csp.md`).
+Each is marked in place. Items 8–11 are open.
 
 Worth knowing before continuing down the list: item 3 was filed as docs alignment
 and was actually two live defects, including a submit button that had never been
 disabled. **Read a component before assuming an entry describes a style problem.**
 Item 6 is the same in a different way: it was measured against `pnpm dev` first and
 that measurement came out **wrong**, because the docs' precedence rule holds of a
-production build and not of the dev server.
+production build and not of the dev server. Item 7 is the same a third time and
+inverted: it was filed as "start report-only and tighten from the console", and
+measuring first removed three of its four planned origins.
 
 The order below is value-per-effort, not doc order. Items 1–5 are small and
 independent of each other.
@@ -421,20 +423,104 @@ wrong for this route shape and is corrected there.
 **Docs:** [`production-checklist.md:107`](node_modules/next/dist/docs/01-app/02-guides/production-checklist.md)
 — "consider adding a Content Security Policy".
 
-**Now:** `next.config.ts` configures only `compiler.styledComponents` and
-`images.remotePatterns`. No `headers()`.
+**Now (as filed):** `next.config.ts` configures only
+`compiler.styledComponents` and `images.remotePatterns`. No `headers()`, no
+`proxy.ts`. The concrete exposure was clickjacking first — `/moderation`
+performs destructive takedowns on a click and nothing stopped it being framed.
 
-**Fix:** start with a report-only CSP and tighten from the console output. Expect
-to allow: `'self'`, `blob:`/`data:` for images and styled-components,
-`https://picsum.photos`, `https://avatars.githubusercontent.com`,
-`https://lh3.googleusercontent.com`, plus `frame-ancestors` and
-`form-action 'self'`. UploadThing and Google sign-in will need their own origins —
-check what `next-auth` actually redirects to rather than assuming
-`accounts.google.com`. Add `Referrer-Policy`, `X-Content-Type-Options` and
-`Referrer-Policy` alongside it.
+**Shipped 2026-10-04.** `src/lib/csp.ts` (the policy, pure, zero imports),
+`src/proxy.ts` (the nonce), `headers()` in `next.config.ts` for the five
+non-CSP headers. The spec is `SPEC-csp.md`. 25 cases in
+`src/lib/__tests__/csp.test.ts`, 11 specs in
+`e2e/security-headers.spec.ts`. Verified in Chrome against a production build
+and the full suite passes in both environments (59/59 each).
 
-**Effort:** M, and it needs a real browser pass to get right — do not ship it
-verified only by `pnpm build`.
+**Three of this item's own assumptions were wrong, and measuring beat
+re-reading.** The file above is kept as filed; the corrections are:
+
+- **"Expect to allow `https://picsum.photos`, `https://avatars.githubusercontent.com`,
+  `https://lh3.googleusercontent.com`" in `img-src` — none of them are needed.**
+  Every `<Image>` uses the default `next/image` loader, so the browser only
+  requests `/_next/image?url=…` on our own origin and the optimizer fetches the
+  remote bytes server-side. `images.remotePatterns` is the *optimizer's*
+  allowlist, not a CSP one, and conflating the two widens the policy by four
+  origins for nothing. `avatars.githubusercontent.com` is vestigial besides: the
+  GitHub provider was dropped.
+- **"UploadThing and Google sign-in will need their own origins — check what
+  `next-auth` actually redirects to rather than assuming `accounts.google.com`."**
+  It redirects to `<baseUrl>/signin`, i.e. **our own** `/api/auth/signin`, which
+  next-auth renders as a standalone document with inline CSS, no scripts, and a
+  provider logo pulled from `authjs.dev`. No Google host belongs in the policy:
+  `accounts.google.com` is a top-level navigation that no shipped CSP directive
+  gates, and `oauth2.googleapis.com` is fetched by the Node process.
+- **The item's advice to "start with a report-only CSP and tighten from the
+  console output" was right in principle and wrong here**, and worth keeping as a
+  general instinct. Report-only is for an *unknown* surface; this one turned out
+  to be fully derivable from source, and report-only would have reported the
+  UploadThing violation and then permitted it anyway — so the one thing most
+  worth proving before it starts blocking would never have been proven.
+
+**A nonce-based policy costs this app nothing, which is why it was possible.**
+The doc's central warning is that nonces force dynamic rendering and kill static
+optimisation, ISR and CDN caching. Every HTML route was *already* `ƒ` —
+`cookies()` in the root layout — confirmed against a build: ten `ƒ`, three `○`,
+and none of the three static routes is a document. The cost the docs describe
+had already been paid. Measured before designing, not after.
+
+**The two un-noncible inline scripts, and why one is a hash.** next-auth v4's
+sign-in page has no nonce support anywhere in the package, and
+`@uploadthing/react`'s SSR plugin renders `globalThis.__UPLOADTHING = <routerConfig>`
+via `dangerouslySetInnerHTML` with no `nonce` prop, on **every page**. The
+plugin's content is a pure function of `src/app/api/uploadthing/core.ts`, so it
+is pinned by a `sha256-` hash — and `__tests__/csp.test.ts` recomputes it from
+the real router, so changing `maxFileSize` or adding a route fails the suite
+instead of silently costing every upload its client-side config. `'strict-dynamic'`
+does not interfere: hash and nonce sources are not host-based.
+
+**`style-src` keeps `'unsafe-inline'` and `src/lib/registry.tsx` was left
+alone.** Three independent blockers: next-auth's own inline CSS,
+`global-error.tsx`'s inline `style` objects (item 1's design), and
+styled-components' client re-injection. Since `'unsafe-inline'` is present a
+style nonce would be ignored anyway, so plumbing one in would add code and buy
+nothing.
+
+**No `upgrade-insecure-requests`, though every example in the docs includes it.**
+It upgrades *subresource* requests, so on any `http://` deployment — including
+the `next start` on `http://localhost:3000` that `E2E_BASE_URL` targets — every
+same-origin script and stylesheet would be requested over https and fail.
+Gating on `NODE_ENV` is item 6's trap all over again: a production build served
+over http breaks while the check reports fine. HSTS covers production and is
+ignored over http. **Do not add it back without a protocol check.**
+
+**`/api` is deliberately *not* excluded from the proxy matcher**, unlike the
+docs' example. `/api/auth/signin` is the one place next-auth renders an HTML
+document, and skipping `api` would leave it with no policy at all.
+
+**Two tests here were nearly unfalsifiable, and both were found by mutating
+rather than by reading.** The first asserted `globalThis.__UPLOADTHING` was
+defined as proof the hash matched — but the plugin assigns that global during
+render too, so it passes against a deliberately corrupted hash; the load-bearing
+assertion is the *absence* of a `script-src`/`inline` violation. The second
+injected a script via `page.evaluate`, which Chrome exempts from CSP as a
+DevTools-created script — it reported success while testing nothing, and the
+script has to go into the markup instead. Both are now verified to fail.
+
+**Not verified: an actual photo upload.** `connect-src` is proven enforced (a
+`fetch` to `picsum.photos` is refused) and `https://*.ingest.uploadthing.com` is
+proven reachable, so the policy admits the host — but the upload itself needs a
+session, and every e2e spec is anonymous by design (§2.1). The host was derived
+rather than guessed: `uploadthing`'s `ParsedToken` defaults `ingestHost` to
+`ingest.uploadthing.com`, and this app's token decodes to `regions: ["sea1"]`
+with no override.
+
+**Still open, deliberately:** no reporting service exists in this project at all,
+so `report-to`/`report-uri` has nothing to report to and adding it would be a
+header that looks like monitoring and is not. The CSP therefore fails closed on
+violations with no one told — which is the right default and worth revisiting if
+Sentry or similar ever lands.
+
+**Effort:** M as estimated, and the browser pass it warned about was the part
+that mattered.
 
 ---
 
@@ -567,3 +653,11 @@ pkill -f "next start"; lsof -ti:3000 | xargs kill -9
 
 `pnpm commit` sweeps the whole index, not just what you staged. Check
 `git status` before committing.
+
+**Killing the server is not optional before an e2e run that follows a source
+change.** `reuseExistingServer: true` reuses whatever is on :3000 without
+checking it matches the working tree, so a stale build makes a changed header
+assert green. This cost real time while writing item 7: `next build` type-checks
+`e2e/`, so a type error in a spec fails the build, and a `pnpm build && pkill`
+chain that only kills on success leaves the old server up serving the old policy.
+Two mutations passed before that was spotted. `HANDOFF.md` §1 has the commands.

@@ -47,6 +47,17 @@ marked in place there; this file carries only what a future session cannot re-de
    (`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '<db>'
    AND pid <> pg_backend_pid()`); and `tsx` scripts importing `dotenv/config` must
    live **inside the repo** — from `/tmp` the module does not resolve.
+4. **Kill :3000 before any e2e run that follows a source change**, because
+   `reuseExistingServer: true` reuses whatever is there without checking that it
+   matches your working tree (§4):
+
+   ```
+   lsof -ti:3000 | xargs kill -9
+   pnpm build && pnpm start     # or: pnpm dev
+   E2E_BASE_URL=http://localhost:3000 pnpm test:e2e
+   ```
+
+   `pnpm verify` also rebuilds `.next`, which corrupts a running `next start`.
 
 ---
 
@@ -57,7 +68,7 @@ against the Next.js 16.3.6 docs in `node_modules/next/dist/docs/`, each citing
 the guide it comes from. Cache Components and Instant Navigation are excluded by
 decision, with the reasoning recorded there. Read it before §9.4.
 
-**Items 1–6 are shipped**, each marked in place in `todo.md` with its reasoning.
+**Items 1–7 are shipped**, each marked in place in `todo.md` with its reasoning.
 Item 3 found two live defects rather than a docs mismatch — read a component
 before assuming an entry describes a style problem. Its progressive-enhancement
 goal is *not achieved* and was declined: the forms live in a modal, so the
@@ -70,16 +81,21 @@ measurement is a trap — see §4.** The first version of it was built against t
 `generateMetadata`, which is true of a production build and false in `pnpm dev`.
 Measured on both sides before believing either.
 
-**The next session starts at `todo.md` item 7**, then works down the list, then
+**Item 7 (CSP and security headers) is specced in `SPEC-csp.md`, and it corrects
+three assumptions the original entry was written on** — chiefly that a
+nonce-based policy costs static rendering, which it does not here, because every
+HTML route was already `ƒ`. Two further traps are in §3 and §4.
+
+**The next session starts at `todo.md` item 8**, then works down the list, then
 §9.4. Nothing is blocking: §9.1–§9.3 are closed, and the two items that needed a
 decision (E2E's scope, retiring `withUserLock`) are taken. What is left is items
-6–11, §9.4, and the deliberate omissions in §2.3.
+8–11, §9.4, and the deliberate omissions in §2.3.
 
 ### 2.1 End-to-end tests: local-only, by hand
 
-`pnpm test:e2e` runs 44 specs covering browse → region filter → load more → ad
-detail → intercepting modal → not-found → moderation-adjacent SEO. Config is
-`playwright.config.ts`, specs in `e2e/`.
+`pnpm test:e2e` runs 59 specs covering browse → region filter → load more → ad
+detail → intercepting modal → not-found → moderation-adjacent SEO → security
+headers. Config is `playwright.config.ts`, specs in `e2e/`.
 
 No CI wiring and no database provisioning. `webServer` reuses whatever `pnpm dev`
 is already running, or starts one, and the suite runs against whatever
@@ -156,6 +172,27 @@ Three things this suite found that unit tests could not:
 
 Each is deliberate, reasoned in the file named, and pinned by a test where a
 comment would not hold.
+
+**The CSP omits `upgrade-insecure-requests`, which every example in the Next.js
+docs includes.** It upgrades *subresource* requests, so on any `http://`
+deployment — including `next start` on `http://localhost:3000`, which is exactly
+what `E2E_BASE_URL` points the suite at — every same-origin script and stylesheet
+would be requested over `https` and fail. Gating it on `NODE_ENV` is the same
+class of mistake as the §4 OG-image trap: a production build served over http
+breaks while the check says it is fine. HSTS covers the production case, and
+browsers ignore an HSTS header received over http, so it is safe to send
+unconditionally. **Do not add it back without a protocol check.** Full reasoning
+in `SPEC-csp.md`.
+
+**`style-src` keeps `'unsafe-inline'` while `script-src` does not, and
+`src/lib/registry.tsx` was left unplumbed.** The asymmetry is forced by three
+independent things, any one of them fatal: next-auth v4's own sign-in page emits
+inline CSS and supports no nonce anywhere; `global-error.tsx` uses inline `style`
+objects by design (todo.md item 1, on a document where styled-components is not
+mounted); and styled-components re-injects on the client. Because
+`'unsafe-inline'` is present, a `style-src` nonce would be *ignored* anyway — so
+threading one into the registry would add code and buy nothing. `ServerStyleSheet`
+does accept `{ nonce }` and `StyleSheetManager` does too, if that ever changes.
 
 **`upload-guard.ts` fails closed.** It awaits `ratelimit.limit()` with no
 `try/catch`, so an unreachable Redis breaks uploads. A quota is not an
@@ -272,6 +309,29 @@ wrong one is a visible regression, so `Header.test.tsx` asserts which each got.
 
 Each of these cost real time.
 
+- **`pnpm test:e2e` silently tests a stale build.** `playwright.config.ts` sets
+  `reuseExistingServer: true`, so if anything is already on :3000 the suite
+  reuses it **without checking that it matches the working tree**. Mutate
+  `next.config.ts`, `src/proxy.ts` or `src/lib/csp.ts`, re-run the suite, and it
+  will cheerfully assert against the previous build's behaviour — which reads as
+  a passing test and is the opposite. `next build` type-checks `e2e/`, so a type
+  error in a spec makes the build fail; combined with a `pnpm build && pnpm kill`
+  chain that only kills on success, the old server survives and the false green
+  is very hard to see. **Kill :3000 and rebuild before trusting any e2e run that
+  follows a source change** (§1 has the commands).
+- **A `securitypolicyviolation` is the only evidence that a hash-based CSP entry
+  works**, and the obvious assertion for it cannot fail: `@uploadthing/react`'s
+  SSR plugin assigns `globalThis.__UPLOADTHING` *during render* as well as
+  through its inline `<script>`, so the value is defined whether or not
+  `script-src` admitted the script. The load-bearing assertion is the **absence**
+  of a `script-src` / `inline` violation. This was found by mutating the hash,
+  rebuilding, and watching a green test stay green — see
+  `e2e/security-headers.spec.ts`.
+- **A script injected through the DevTools protocol bypasses CSP entirely.**
+  Chrome treats CDP-`Runtime.evaluate` and `addScriptTag` as trusted script
+  creators, so `page.evaluate(() => { const s = document.createElement('script');
+  … })` reports success while testing nothing. To test that an injection is
+  blocked, put the script in the *markup* by intercepting the response.
 - **Any module calling `styled.*` or `createGlobalStyle` needs `'use client'`.** A
   styled component in a Server Component generates its rule during the RSC pass,
   where it lands in the flight payload and is never emitted — and nothing recovers

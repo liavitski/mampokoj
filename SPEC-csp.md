@@ -323,6 +323,14 @@ assets, which is where `nosniff` matters most, and it needs no nonce:
   the docs' `origin-when-cross-origin` example. `todo.md` item 7 lists
   `Referrer-Policy` twice; it is one header.
 
+Not a header but the same decision: `poweredByHeader: false` drops
+`X-Powered-By: Next.js`. Nothing reads it, and it is free reconnaissance — it
+names the framework to a scanner before the scanner has read a byte of the app.
+Added after the first pass: a `curl` of the production response during
+verification showed the header still going out. The e2e assertion for it is
+falsifiable by that measurement, not by assumption — the same `curl` had it
+present one commit earlier.
+
 `todo.md` item 7's own advice was "start with a report-only CSP and tighten from
 the console output". That is the right instinct for an app with a large unknown
 surface, and it is **not** what ships here, because the surface turned out not

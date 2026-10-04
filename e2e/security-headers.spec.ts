@@ -66,6 +66,7 @@ test.describe('security headers on every document', () => {
     const { status, headers } = await cspFor(request, '/');
 
     expect(status).toBe(200);
+    expect(headers['x-powered-by']).toBeUndefined();
     expect(headers['x-content-type-options']).toBe('nosniff');
     expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
     expect(headers['x-frame-options']).toBe('DENY');

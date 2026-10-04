@@ -42,6 +42,14 @@ const nextConfig: NextConfig = {
   compiler: {
     styledComponents: true,
   },
+  /**
+   * Drops `X-Powered-By: Next.js`. Nothing reads it, and it is free
+   * reconnaissance: it tells a scanner which framework to try its published
+   * paths against, before it has looked at a single byte of the app. Not a
+   * vulnerability on its own, which is why it is a line and not a section in
+   * SPEC-csp.md.
+   */
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       {

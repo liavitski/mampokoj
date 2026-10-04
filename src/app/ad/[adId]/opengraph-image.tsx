@@ -24,7 +24,7 @@ import { getValidatedAd } from '@/server/queries/select';
  * image won silently. `page.tsx` therefore declares no images; see the comment
  * there before putting one back.
  *
- * Deliberately uncached. `todo.md` records why for a marketplace where a
+ * Deliberately uncached. `HANDOFF.md` §2 records why for a marketplace where a
  * takedown must disappear at once, and a card is that same failure one step
  * removed: a cached one keeps a removed ad's title, price and photo readable
  * from a stable URL long after `deleteAdAsModerator` has taken the ad down. The

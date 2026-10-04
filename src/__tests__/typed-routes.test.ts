@@ -13,7 +13,7 @@
  *
  * So the assertions are on the declarations themselves, and each one is paired
  * with a note on what fails when it is not true. The mutation checks are the
- * important half and they are recorded in `todo.md` item 9: every case below was
+ * important half and they are recorded in `HANDOFF.md` §5: every case below was
  * verified to fail against a deliberately broken variant rather than being
  * written and assumed load-bearing.
  *

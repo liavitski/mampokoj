@@ -93,7 +93,7 @@ a second database rather than relying on that.
 is why every table here is prefixed `mampokoj_` and `drizzle.config.tsx` filters
 on that prefix — so migrations and `db:push` cannot see anyone else's tables.
 Four unprefixed tables remain from abandoned projects; this app neither reads nor
-writes them, and they are left alone. See [HANDOFF.md](HANDOFF.md) §8.
+writes them, and they are left alone. See [HANDOFF.md](HANDOFF.md) §6.
 
 Read directly in `src/`:
 
@@ -166,12 +166,12 @@ Two conventions are worth knowing before adding tests:
   the SQL text and bound parameters. See `src/lib/__tests__/ads.test.ts`.
 
 **There is an end-to-end suite, and it is run by hand rather than in CI.**
-`pnpm test:e2e` runs 43 Playwright specs in `e2e/` covering browse → region filter
+`pnpm test:e2e` runs 59 Playwright specs in `e2e/` covering browse → region filter
 → load more → ad detail → intercepting modal → not-found → SEO. Every spec is an
 anonymous read, so it is safe against the shared development database, and that
 same constraint is why the ad limit, the report predicate and the moderation
 takedown have no E2E coverage — they need a signed-in session and a disposable
-database. See [HANDOFF.md](HANDOFF.md) §2.1.
+database. See [HANDOFF.md](HANDOFF.md) §5.
 
 ## Project Structure
 

@@ -251,7 +251,7 @@ describe('committed migrations', () => {
     // (createdAt, id) and is served by mampokoj_ads_created_id_idx. An index
     // here would be written on every moderation click to serve a predicate that
     // no scan filters on -- and adding one is an "ask first" change in
-    // SPEC-moderation.md, so it should have to be argued for, not defaulted into.
+    // HANDOFF.md §6, so it should have to be argued for, not defaulted into.
     const config = getTableConfig(ads);
     const names = config.indexes.map(
       (index) => (index as unknown as { config: { name: string } }).config.name

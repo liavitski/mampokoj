@@ -9,7 +9,7 @@
  * that recomputes it from the real router:
  * `src/lib/__tests__/csp.test.ts`.
  *
- * The spec, and the measurements behind every entry, are in `SPEC-csp.md`.
+ * The spec, and the measurements behind every entry, are in `HANDOFF.md` §3.
  */
 
 /**
@@ -136,7 +136,7 @@ export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }) {
     // `next start` on http://localhost:3000, which is what E2E_BASE_URL points
     // the Playwright suite at -- every same-origin script and stylesheet would
     // be requested over https and fail. HSTS covers production and is ignored
-    // by browsers when received over http. See SPEC-csp.md before "fixing".
+    // by browsers when received over http. See HANDOFF.md §3 before "fixing".
   ].join('; ');
 }
 

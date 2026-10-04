@@ -6,7 +6,7 @@ import type { NextConfig } from 'next';
  * static assets included, which is exactly where `nosniff` matters most.
  *
  * The CSP is deliberately *not* here. It needs a fresh nonce per request, which
- * is what `proxy.ts` is for. One authority each -- see SPEC-csp.md.
+ * is what `proxy.ts` is for. One authority each -- see HANDOFF.md §3.
  *
  * `Strict-Transport-Security` is sent unconditionally, including on
  * http://localhost. That is safe: browsers ignore an HSTS header received over
@@ -57,7 +57,7 @@ const nextConfig: NextConfig = {
    * That file is why the type-checker refuses a *route rearrangement* --
    * `home-cursor.test.ts` imports `@/app/page` by path, so moving the home page
    * into the `(browse)` group breaks `tsc` before an e2e test can notice
-   * (todo.md item 5).
+   * (HANDOFF.md §3).
    */
   typedRoutes: true,
   /**
@@ -65,7 +65,7 @@ const nextConfig: NextConfig = {
    * reconnaissance: it tells a scanner which framework to try its published
    * paths against, before it has looked at a single byte of the app. Not a
    * vulnerability on its own, which is why it is a line and not a section in
-   * SPEC-csp.md.
+   * HANDOFF.md §3.
    */
   poweredByHeader: false,
   images: {

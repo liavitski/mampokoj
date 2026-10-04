@@ -123,7 +123,7 @@ test.describe('security headers on every document', () => {
     request,
   }) => {
     // The negative space, and the claim most likely to be "fixed" later by
-    // someone reading todo.md item 7 rather than this file. Every <Image> uses
+    // someone reading HANDOFF.md §3 rather than this file. Every <Image> uses
     // the default next/image loader, so the browser only ever requests
     // /_next/image?url=... on our own origin; the optimizer fetches remote bytes
     // server-side. Listing them would widen the policy for nothing.

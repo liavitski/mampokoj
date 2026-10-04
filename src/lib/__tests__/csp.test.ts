@@ -166,7 +166,7 @@ describe('buildCsp', () => {
       // *subresource* requests, so on http://localhost:3000 -- exactly what
       // E2E_BASE_URL targets -- every same-origin script and stylesheet would be
       // requested over https and fail. HSTS covers production instead and is
-      // ignored by browsers when received over http. See SPEC-csp.md.
+      // ignored by browsers when received over http. See HANDOFF.md §3.
       expect(cspDirective(buildCsp({ nonce: NONCE, isDev: false }), 'upgrade-insecure-requests')).toBeUndefined();
       expect(buildCsp({ nonce: NONCE, isDev: false })).not.toContain(
         'upgrade-insecure-requests'

@@ -245,7 +245,7 @@ test.describe('the intercepting modal', () => {
     // route-group trap here -- that rearranging the home page
     // silently stops the interception -- and that was measured against
     // Next.js 16.3.6 while writing this test and does not reproduce
-    // (see todo.md item 5). What this guards is the flow itself: the
+    // (see HANDOFF.md §3). What this guards is the flow itself: the
     // modal from the region filter, which no spec reached before,
     // and the interception however it is ever broken.
     await expect(appShell(page).locator('a[href^="/ad/"]').first()).toBeVisible();

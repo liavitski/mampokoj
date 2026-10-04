@@ -21,7 +21,7 @@ import { buildCsp, NONCE_HEADER } from '@/lib/csp';
  * nonces" -- is zero for this app. `cookies()` in the root layout already makes
  * every HTML route `ƒ`, confirmed against a production build; the three static
  * routes (`/robots.txt`, `/sitemap.xml`, `/opengraph-image`) are not documents.
- * See SPEC-csp.md.
+ * See HANDOFF.md §3.
  */
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');

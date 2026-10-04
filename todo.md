@@ -10,11 +10,17 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1, 2, 3, 4, 5, 6 and 7 shipped** (1–3 on 2026-10-03: `6a95abe`,
-`9d11164`, `4568b25`, all pushed; 4 on 2026-10-04: `f12ce61`, local;
-5 on 2026-10-04: `46cd4db`, local; 6 on 2026-10-04, local, spec in
-`SPEC-og-images.md`; 7 on 2026-10-04, local, spec in `SPEC-csp.md`).
-Each is marked in place. Items 8–11 are open.
+**Status: items 1–8 shipped** (1–3 on 2026-10-03: `6a95abe`,
+`9d11164`, `4568b25`; 4 on 2026-10-04: `f12ce61`; 5 on 2026-10-04: `46cd4db`;
+6 on 2026-10-04, spec in `SPEC-og-images.md`; 7 on 2026-10-04, spec in
+`SPEC-csp.md`; 8 on 2026-10-04 — narrowed to one route, see below).
+Each is marked in place. Items 9–11 are open.
+
+**On "pushed":** every commit above is on `main`; `main` is **9 ahead of
+`origin/main`**, so items 4–8 are committed and unpushed rather than local-only.
+Writing them down as "local" was true when noted and stopped being true when the
+commits landed, which is the same failure mode as the rest of this file: a status
+recorded once and then trusted.
 
 Worth knowing before continuing down the list: item 3 was filed as docs alignment
 and was actually two live defects, including a submit button that had never been
@@ -23,7 +29,9 @@ Item 6 is the same in a different way: it was measured against `pnpm dev` first 
 that measurement came out **wrong**, because the docs' precedence rule holds of a
 production build and not of the dev server. Item 7 is the same a third time and
 inverted: it was filed as "start report-only and tighten from the console", and
-measuring first removed three of its four planned origins.
+measuring first removed three of its four origins. Item 8 is the same a fourth
+time: the fix as written would have regressed the 404 status fix that item 1's
+predecessor shipped, and the docs say so in `loading.md` in one paragraph.
 
 The order below is value-per-effort, not doc order. Items 1–5 are small and
 independent of each other.
@@ -524,22 +532,73 @@ that mattered.
 
 ---
 
-## 8. Missing `loading.tsx` on two routes
+## 8. ~~Missing `loading.tsx` on two routes~~ — shipped 2026-10-04, one route not two
 
 **Docs:** [`production-checklist.md:66`](node_modules/next/dist/docs/01-app/02-guides/production-checklist.md)
-— use loading UI and Suspense to stream.
+— use loading UI and Suspense to stream. Mechanics in
+[`loading.md`](node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/loading.md).
 
-**Now:** `(browse)/loading.tsx` and `dashboard/[userId]/loading.tsx` exist.
-`/ad/[adId]` and `/moderation` have none, so navigating to either blocks on the
+**Was:** `(browse)/loading.tsx` and `dashboard/[userId]/loading.tsx` existed.
+`/ad/[adId]` and `/moderation` had none, so navigating to either blocked on the
 full page with no indication.
 
-**Fix:** small skeleton components in the existing `.styles.tsx` pattern.
-`/ad/[adId]` is the one with a caveat — it is normally reached through the
-intercepting modal, which renders beside a grid that is already loaded, so a
-skeleton there is only seen on a direct visit or a cold client navigation.
-Decide whether that is worth it rather than adding it by symmetry.
+**The caveat was not the real obstacle, and this entry's suggested fix was half
+wrong.** It proposed adding a skeleton to both routes and asked only whether
+`/ad/[adId]` was *worth* one. The answer is that it **cannot** have one, and the
+docs say so directly — `loading.md:101-122`: streaming sends the headers, and
+afterwards "`notFound` … cannot update the status code of the response." So a
+skeleton there would put `/ad/[adId]` back to answering **HTTP 200** for an ad
+that does not exist — HANDOFF §9.4, the soft-404 defect that `(browse)/loading.tsx`
+exists to *not* cause. `noindex-private-routes.test.ts:164` already asserts that
+file's absence for this reason; the fix would have deleted a guard to satisfy a
+symmetry argument.
 
-**Effort:** S.
+**Done — `/moderation` only.** `src/app/moderation/loading.tsx`, a Server
+Component skeleton reusing `Wrapper`/`Heading`/`Section`/`QueueItem` from the
+page's own `page.styles.tsx` so the fallback and the page cannot drift apart.
+The headings render as real text because they are static text the server
+already knows (`loading.md:50`, "a small but meaningful part of future
+screens"). Placeholders are `aria-hidden` behind one `role="status"` sentence,
+because a screen-reader user walking six empty list items learns nothing.
+
+**Why this route is safe and the ad route is not**, since that is the whole
+decision: `/moderation` never throws `notFound()` or `redirect()`. `requireUserId()`
+returns `null` rather than redirecting, and the refusal path renders
+`<h3>Not allowed.</h3>` — 200 either way, so streaming changes nothing about it.
+`loading.test.tsx` pins that precondition against `page.tsx`, so adding a
+`notFound()` here later is caught rather than shipped.
+
+**Verified:** `pnpm verify` green (698 unit tests, +9 new); `/ad/[adId]` still
+answers 404 against a **production** `next start` (not `pnpm dev` — see the item 6
+lesson); all 59 e2e green. Confirmed by hand in a browser that the skeletons
+render on a real `/moderation` load.
+
+**What is *not* covered, so the count above is not read as more than it is.** No
+automated test sees a moderator's view of this. The e2e suite is anonymous and
+read-only by design (`playwright.config.ts` §2.1), so a spec could only reach the
+refusal path, never the two-query queue the skeleton exists for; and the fallback
+cannot be made observable without stalling the response, at which point the
+fragile part would be the interception rather than the app.
+
+So the nine tests cover the component's markup and the *placement* of the file —
+that it is a sibling of the `page.tsx` it fronts, with no route group between,
+which is what decides whether Next wires it at all. Placement is the part that
+breaks silently: every other test in the file imports `loading.tsx` directly, so
+a misplaced one passes them all while the route renders no fallback. Both guards
+were mutation-checked (moving `page.tsx` into `moderation/(queue)/`, and
+splitting the two files across directories, each fail the test named for it).
+
+That placement risk is not hypothetical in this repo: `loading.tsx` at the app
+root caused the §9.4 soft-404, and moving the home page into `(browse)` broke
+the modal interception. Two route-placement mistakes already, both silent, both
+found by a test that was asserting something else.
+
+**This is the list's fourth item filed as a docs-alignment task and the second
+to have its stated fix narrowed by reading the code.** Item 3 hid two live
+defects; item 6's measurement came out wrong under `pnpm dev`; item 7 lost three
+of four planned origins to measurement; item 8's fix would have regressed a
+previously-shipped fix. **The recurring lesson is the one at the top of this
+file: read the component and the docs before doing the item.**
 
 ---
 

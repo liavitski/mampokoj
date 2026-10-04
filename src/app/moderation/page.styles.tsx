@@ -278,3 +278,49 @@ export const Row = styled.div`
   gap: 8px;
   flex-wrap: wrap;
 `;
+
+/*
+ * The loading state's placeholders. `loading.tsx` imports these from here rather
+ * than defining its own so the fallback and the page cannot drift apart: same
+ * grid, same row, same bar geometry, and the content swaps into a layout that is
+ * already the right shape.
+ *
+ * These live at the end of the file, below the real page, because they are the
+ * only part of it that renders with no data behind them.
+ */
+
+/**
+ * A column of placeholder bars standing in for one row's contents.
+ *
+ * Sized to the row it replaces — title, two meta lines, the number — so the
+ * fallback is roughly as tall as the queue that replaces it and the swap does
+ * not move anything.
+ */
+export const Skeleton = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+`;
+
+/**
+ * One grey bar.
+ *
+ * `$width` is a length rather than a percentage because the bars are meant to
+ * differ from each other: three bars the same width read as a table, where the
+ * real rows have a long title and two short ones. Varying them says "text of
+ * unknown length" instead.
+ *
+ * `--color-border` for the fill, on `--color-card-background` behind it: the
+ * border token is already the app's "a line you can see against this surface"
+ * value in both themes, so the fallback follows light and dark without a second
+ * set of tokens. Deliberately not animated — a pulsing skeleton on a page whose
+ * data is two queries is motion spent on nothing, and `globals.css` already
+ * collapses transitions under `prefers-reduced-motion` anyway.
+ */
+export const SkeletonBar = styled.div<{ $width: string }>`
+  width: ${({ $width }) => $width};
+  height: 12px;
+  border-radius: 6px;
+  background-color: var(--color-border);
+`;

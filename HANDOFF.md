@@ -6,8 +6,8 @@ Facts only. Anything recoverable from `git log`, the code comments or the README
 not repeated here, and neither is the history of how a bug got fixed — if you want
 the history of a decision, `git log -S` finds it.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **625 tests
-  across 61 files**, `next build` succeeds. `pnpm test:e2e` adds **43 Playwright
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **627 tests
+  across 61 files**, `next build` succeeds. `pnpm test:e2e` adds **44 Playwright
   specs** (§2.1), run by hand and not wired into CI.
 - **Database:** one Neon database (`neondb`) shared by development *and* production
   (§3). **200 generated ads, 398 images**, all seeded, every photo URL resolving.
@@ -99,16 +99,16 @@ reasoning; what follows is only what belongs here.
 the guide it comes from. Cache Components and Instant Navigation are excluded by
 decision, with the reasoning recorded there. Read it before §9.4.
 
-**Items 1, 2 and 3 are shipped** (see *Also shipped* above). Item 3 found two live
-defects rather than a docs mismatch, which is the argument for continuing down the
-list rather than stopping: read a component before assuming an entry describes a
-style problem.
+**Items 1–5 are shipped** (1–3 in *Also shipped* above; 4 and 5 recorded
+in `todo.md`). Item 3 found two live defects rather than a docs mismatch,
+which is the argument for continuing down the list rather than stopping:
+read a component before assuming an entry describes a style problem.
 
-**The next session should start at `todo.md` item 4**, then work down the list, then
-§9.4. Item 4 (`useSearchParams()` for a value the server already has) is small and
-independent. Nothing is blocking: §9.1–§9.3 are closed, and the two items that
-needed a decision (E2E's scope, and retiring `withUserLock`) have both been taken.
-What is left is items 4–11, §9.4, and the two deliberate omissions in §2.3.
+**The next session should start at `todo.md` item 6**, then work down the
+list, then §9.4. Nothing is blocking: §9.1–§9.3 are closed, and the two
+items that needed a decision (E2E's scope, and retiring `withUserLock`)
+have both been taken. What is left is items 6–11, §9.4, and the two
+deliberate omissions in §2.3.
 
 **One entry on `todo.md` is now known to be bigger than filed.** Item 3's
 progressive enhancement is *not achieved* — the forms live in a modal, so the
@@ -120,7 +120,7 @@ evidence about how often JavaScript actually fails for real users.
 
 ### 2.1 End-to-end tests: local-only, by hand
 
-`pnpm test:e2e` runs 43 specs covering browse → region filter → load more → ad
+`pnpm test:e2e` runs 44 specs covering browse → region filter → load more → ad
 detail → intercepting modal → not-found → moderation-adjacent SEO. Config is
 `playwright.config.ts`, specs in `e2e/`.
 
@@ -215,15 +215,21 @@ that limit is stated in the guard's header rather than papered over.
 **The home page stays at `src/app/page.tsx`, and its `loading.tsx` lives in a
 `(browse)` group rather than beside it.** This looks like a mistake twice over — the
 group has exactly one file that does not need to be there, and the obvious
-arrangement is `page.tsx` next to `loading.tsx`. Moving it **breaks the
-intercepting modal**, because `@modal/(.)ad/[adId]` resolves `(.)` by
-**route-segment level** and a route group counts toward that level even though it
-adds no URL segment. The symptom is quiet: the URL still changes on a card click,
-so only the assertions that the grid is *still mounted behind the dialog* notice.
-`(..)` cannot fix it — Next rejects it at the root level. The reason it is not
-simply `src/app/loading.tsx` is the 404 status (§9.4).
-`noindex-private-routes.test.ts` asserts both halves, because the failure mode in
-both directions is a test that still passes.
+arrangement is `page.tsx` next to `loading.tsx`. Moving it was long believed
+to **break the intercepting modal**, because `@modal/(.)ad/[adId]` resolves
+`(.)` by **route-segment level** and a route group was thought to count
+toward that level even though it adds no URL segment. Measured against
+Next.js 16.3.6 (todo.md item 5): **it does not** — the modal intercepts
+with the home page inside `(browse)` (dev and a production build) and
+with everything at root, group deleted. What the `(browse)` move does
+break is `tsc`: the generated route types and `home-cursor.test.ts` /
+`home-metadata.test.ts` import `@/app/page` by path, so `pnpm verify`
+refuses the rearrangement before it can ship — the type-checker, not an
+e2e test, is the guard. The reason the group exists at all is the 404
+status (§9.4), re-verified while measuring: `loading.tsx` at root
+answers 200 for a missing ad. `noindex-private-routes.test.ts` asserts
+the no-root-`loading.tsx` half, because the failure mode in both
+directions is a test that still passes.
 
 **No `/region/[code]` routes.** Region filtering is `?region=`. A new path segment
 changes the level at which `@modal/(.)ad/[adId]` intercepts, which silently stops

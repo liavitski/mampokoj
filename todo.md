@@ -10,15 +10,16 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1, 2, 3 and 4 shipped** (1–3 on 2026-10-03: `6a95abe`,
-`9d11164`, `4568b25`, all pushed; 4 on 2026-10-04: `f12ce61`, local).
-Each is marked in place. Items 5–11 are open.
+**Status: items 1, 2, 3, 4 and 5 shipped** (1–3 on 2026-10-03: `6a95abe`,
+`9d11164`, `4568b25`, all pushed; 4 on 2026-10-04: `f12ce61`, local;
+5 on 2026-10-04: `46cd4db`, local).
+Each is marked in place. Items 6–11 are open.
 
 Worth knowing before continuing down the list: item 3 was filed as docs alignment
 and was actually two live defects, including a submit button that had never been
 disabled. **Read a component before assuming an entry describes a style problem.**
 
-The order below is value-per-effort, not doc order. Items 1–4 are small and
+The order below is value-per-effort, not doc order. Items 1–5 are small and
 independent of each other.
 
 ---
@@ -293,7 +294,38 @@ opens an ad from `/?region=XX`.
 assert the dialog appears and the URL changed. Cheap, and it locks the trap
 shut.
 
-**Effort:** XS.
+**Shipped 2026-10-04** (`46cd4db`). One case in `e2e/ad-detail.spec.ts`,
+"opens over a filtered grid". The region is derived from `/api/ads`
+rather than hardcoded: the seed assigns regions at random, so a
+hand-picked region can hold no ads in a given database and the test
+would fail on its own precondition instead of on anything it is for.
+Asserts the URL changed to the card's href (`?region=` does not
+follow — the card links to `/ad/<id>`, not to the current URL with a
+path appended), the dialog appeared, and the grid is still mounted
+behind it. Suite is now 44 specs.
+
+**The trap does not reproduce, and the item is better for knowing
+that.** Both "obvious" rearrangements were measured against
+Next.js 16.3.6: the home page moved into `(browse)` (in dev *and*
+against a production build) and everything at root with the group
+deleted (dev). The modal intercepts in all of them. What the
+`(browse)` move does break is `tsc` — the generated route types and
+`home-cursor.test.ts` / `home-metadata.test.ts` import `@/app/page`
+by path — so `pnpm verify` already refuses the rearrangement before
+it can ship. The type-checker, not an e2e test, is the guard here.
+What *is* real, re-verified while measuring: `loading.tsx` at root
+answers 200 instead of 404 for a missing ad (§9.4's bug), which is
+the reason the group exists. HANDOFF.md §3 carries the corrected
+claim.
+
+**The test can fail, and was made to.** Renaming the intercepting
+directory to a route that does not exist turns the click into a plain
+navigation: the URL still changes, and the test fails on the dialog
+never appearing — the same shape as any real interception failure.
+The dialog and grid-behind assertions, not the URL, are what notice
+it.
+
+**Effort:** XS, as estimated.
 
 ---
 

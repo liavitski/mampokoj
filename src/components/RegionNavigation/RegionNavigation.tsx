@@ -6,6 +6,7 @@ import styled from 'styled-components';
 import { CZ_REGIONS, WEIGHTS } from '@/constants';
 import Link from 'next/link';
 import type { RegionCode } from '@/types/db-types';
+import type { Route } from 'next';
 import {
   useRouter,
 } from 'next/navigation';
@@ -27,7 +28,20 @@ function RegionNavigation({ currentRegion }: RegionNavigationProps) {
     <nav onMouseLeave={() => setHoveredNavItem(null)}>
       <RegionListWrapper>
         {CZ_REGIONS.map((region) => {
-          const href = `/?region=${region.code}`;
+          /*
+           * The `Route` annotation is what makes this checked rather than
+           * asserted. `typedRoutes` (`next.config.ts`) only forms a template
+           * literal type when there is a contextual one to infer from, so an
+           * unannotated `const` widens to `string` and `router.push` then
+           * rejects it. With the annotation, `region.code` distributes over
+           * the fourteen codes and every one of them is checked against the
+           * generated route table -- rename `?region=` and this fails to
+           * compile, rather than 14 links quietly going nowhere.
+           *
+           * `as Route` on the whole expression would pass the check without
+           * performing it.
+           */
+          const href: Route = `/?region=${region.code}`;
 
           return (
             <LinkWrapper key={region.code}>

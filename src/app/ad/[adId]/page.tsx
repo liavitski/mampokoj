@@ -10,9 +10,20 @@ import { absoluteUrl, adMetaDescription } from '@/lib/seo';
 import { APP_TITLE } from '@/constants';
 import AdStructuredData from './ad-structured-data';
 
-type AdPageProps = {
-  params: Promise<{ adId: string }>;
-};
+/**
+ * `PageProps<'/ad/[adId]'>`, generated from the filesystem into
+ * `.next/types/routes.d.ts`. The hand-written `{ adId: string }` params shape
+ * this replaces was a fourth copy of the same fact, and the reason
+ * `validator.ts` exists is to check these signatures against the real route
+ * table -- which means the copy and the table could disagree, and nothing would
+ * have said so.
+ *
+ * Note the route literal has no `(browse)` or `@modal` in it. Route groups do
+ * not appear in a URL, so the intercepting modal at `@modal/(.)ad/[adId]`
+ * resolves to the same `/ad/[adId]` and both pages take this same type. The
+ * generated `validator.ts` says so explicitly, checking the modal's default
+ * export against `AppPageConfig<"/ad/[adId]">`.
+ */
 
 /**
  * One read per request, shared by the metadata and the page.
@@ -62,9 +73,7 @@ const getAd = cache(getValidatedAd);
  */
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ adId: string }>;
-}): Promise<Metadata> {
+}: Pick<PageProps<'/ad/[adId]'>, 'params'>): Promise<Metadata> {
   const { adId } = await params;
   const ad = await getAd(adId);
 
@@ -112,7 +121,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function AdPage({ params }: AdPageProps) {
+export default async function AdPage({ params }: PageProps<'/ad/[adId]'>) {
   const { adId } = await params;
   const ad = await getAd(adId);
 

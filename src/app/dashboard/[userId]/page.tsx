@@ -33,11 +33,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-type UserDashboardPageProps = {
-  params: Promise<{ userId: string }>;
-};
-
-async function UserDashboardPage({ params }: UserDashboardPageProps) {
+async function UserDashboardPage({
+  params,
+}: PageProps<'/dashboard/[userId]'>) {
   const serverUserId = await requireUserId();
   const { userId } = await params;
 

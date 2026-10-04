@@ -75,9 +75,20 @@ describe('the moderation all-ads pager', () => {
     checkedAt: null,
   });
 
-  const render = async (searchParams: Record<string, string> = {}) =>
+  /**
+ * `params: Promise.resolve({})` because `PageProps<'/moderation'>` declares it.
+ * `/moderation` has no dynamic segment, so the router resolves `params` to `{}`
+ * -- `page.md`, "Static routes resolve `params` to `{}`" -- and the page never
+ * reads it.
+ */
+  const render = async (
+    searchParams: Record<string, string | string[] | undefined> = {}
+  ) =>
     renderToStaticMarkup(
-      await ModerationPage({ searchParams: Promise.resolve(searchParams) })
+      await ModerationPage({
+        params: Promise.resolve({}),
+        searchParams: Promise.resolve(searchParams),
+      })
     );
 
   it('asks for the first page when there is no cursor', async () => {

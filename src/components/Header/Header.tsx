@@ -10,6 +10,7 @@ import AuthButton from '../AuthButton';
 import Icon from '../Icon';
 import { ControlIcon, ControlLabel, ControlLink } from '../HeaderControl';
 import type { Session } from 'next-auth';
+import type { Route } from 'next';
 
 type HeaderProps = {
   initialTheme: Theme;
@@ -34,8 +35,21 @@ function Header({ initialTheme, session }: HeaderProps) {
       <Logo />
 
       <Controls>
+        {/*
+         * `as Route` rather than a plain template. This is the documented escape
+         * hatch for a non-literal href, and it is needed here for a reason that
+         * is not obvious: `typedRoutes` reaches `next/link` but not the
+         * styled-components wrapper around it, so `ControlLink` still sees the
+         * interpolated string as a plain `string` and rejects it. Verified by
+         * annotating a bare `styled(Link)` -- the unstyled `Link` accepts the
+         * same template and the wrapped one does not.
+         *
+         * `/dashboard/[userId]` is the only thing this can be. The cast is a
+         * statement the compiler cannot check, so it is written out here rather
+         * than hidden in a helper that would spread it over every link.
+         */}
         {userId && (
-          <ControlLink href={`/dashboard/${userId}`}>
+          <ControlLink href={`/dashboard/${userId}` as Route}>
             <ControlLabel>My Ads</ControlLabel>
             <ControlIcon>
               <Icon id="user" strokeWidth={1.5} />

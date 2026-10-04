@@ -32,12 +32,16 @@ import ToastProvider from '@/components/ToastProvider';
 export const metadata = rootMetadata;
 export const viewport = rootViewport;
 
-type RootLayoutProps = Readonly<{
-  children: React.ReactNode;
-  modal: React.ReactNode;
-}>;
-
-async function RootLayout({ children, modal }: RootLayoutProps) {
+/**
+ * `LayoutProps<'/'>`, generated. Its `LayoutSlotMap` is what supplies the
+ * `modal` key -- the `@modal` parallel route -- so the hand-written
+ * `Readonly<{ children; modal }>` this replaces was a second, unverified copy
+ * of a mapping Next derives from the directory tree. Adding a `@sidebar`
+ * alongside `@modal` now types `props.sidebar` here without this file being
+ * edited, and forgetting it is a `tsc` error rather than `undefined` rendered
+ * into the document.
+ */
+async function RootLayout({ children, modal }: LayoutProps<'/'>) {
   const cookieStore = await cookies();
   const theme: Theme =
     cookieStore.get(COLOR_THEME_COOKIE_NAME)?.value === 'dark'

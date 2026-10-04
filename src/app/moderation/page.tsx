@@ -110,11 +110,7 @@ function AdTitle({ adId, title }: { adId: string; title: string }) {
  * convention would be its own defect. It is also the more honest answer: the
  * route exists, and pretending otherwise teaches nothing.
  */
-type ModerationPageProps = {
-  searchParams: Promise<{ cursorCreatedAt?: string; cursorId?: string }>;
-};
-
-async function ModerationPage({ searchParams }: ModerationPageProps) {
+async function ModerationPage({ searchParams }: PageProps<'/moderation'>) {
   const serverUserId = await requireUserId();
 
   if (

@@ -351,6 +351,18 @@ failed. Measuring the precondition is part of the check, not a detour from it. (
 first attempt at verifying `utapi.deleteFiles` passed against a bucket holding 0
 files.)
 
+- **Never assert against gitignored local state — a test that reads `.env` is
+  green here and red on every CI run, and the two are asserting different facts.**
+  `env-check.test.ts` had a baseline case that spawned the checker and required
+  exit 0, which was only satisfiable by the developer's own `.env`. CI has none,
+  so that case — and one other — failed on all five runs since it was written
+  while the typecheck failure above masked it. Supply the environment from a
+  constant in the test file, and assert that constant's keys against the
+  checker's own list, because `dotenv` silently fills any gap: dropping one
+  variable keeps every case green locally and only turns red in CI. Relatedly,
+  **masked failures hide each other** — CI stopped at the typecheck error, so a
+  second independent red sat behind it unnoticed for a day. Read the log from the
+  first failing step, not the last one.
 - **Revert the fix and confirm it fails before believing a test proves something.**
   `expect(mocks.x).toHaveBeenCalled()` proves nothing.
 - **Assert on what the code under test produced, not on what the test produced.**

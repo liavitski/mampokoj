@@ -109,6 +109,31 @@ describe('typedRoutes is enabled', () => {
 
     expect(tsconfig.include).toContain('.next/types/**/*.ts');
   });
+
+  /**
+   * The generated types only exist after something has produced them. `.next` and
+   * `next-env.d.ts` are both gitignored, so a fresh checkout -- which is exactly
+   * what CI runs -- has neither, and `tsc --noEmit` on its own then reports
+   * `TS2304: Cannot find name 'PageProps'` in every route file.
+   *
+   * `next typegen` is the command that produces them without a full build
+   * (`next` CLI docs, `next typegen`: "useful for IDE autocomplete and CI
+   * type-checking"). Asserting the script contains it is the only way to keep the
+   * ordering correct: the type-check has to run after generation, and a test that
+   * only ran `tsc` could not tell whether `.next/types` was stale or absent.
+   *
+   * **Mutation:** `typecheck: "tsc --noEmit"` makes this fail, and that is the
+   * exact state that turned CI red -- eight files, one error each, on a commit
+   * that passed `pnpm verify` locally because a dev server had left a populated
+   * `.next` behind.
+   */
+  it('typecheck generates the route types before tsc reads them', async () => {
+    const { scripts } = JSON.parse(
+      await readFile(join(process.cwd(), 'package.json'), 'utf8')
+    ) as { scripts: Record<string, string> };
+
+    expect(scripts.typecheck).toBe('next typegen && tsc --noEmit');
+  });
 });
 
 describe('every route takes the generated prop types', () => {

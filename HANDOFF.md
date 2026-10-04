@@ -197,6 +197,22 @@ Each is deliberate and pinned by a test where a comment would not hold.
 
 Each of these cost real time.
 
+- **`pnpm typecheck` is green locally and red in CI, because `PageProps` and
+  `Route` do not exist until something generates them.** `.next/` and
+  `next-env.d.ts` are both gitignored, so a fresh clone has no
+  `.next/types/routes.d.ts`, and `tsc --noEmit` on its own then fails with
+  `TS2304: Cannot find name 'PageProps'` in every route file. A dev server or a
+  prior `next build` leaves that directory populated, which is why
+  `pnpm verify` passed on the machine that wrote the code and the commit went
+  red on arrival. The fix is in `package.json`: `typecheck` is
+  `next typegen && tsc --noEmit`, the command that emits the route types
+  without a full build (`next` CLI docs, `next typegen` — "useful for IDE
+  autocomplete and CI type-checking"). `src/__tests__/typed-routes.test.ts`
+  asserts that exact script string, because the failure mode is *ordering* and no
+  test that runs after the fact can see it. Note the same applies to
+  `next-env.d.ts`, which `next typegen` also writes and which `tsconfig.json`
+  includes — a missing file there fails differently.
+
 - **`pnpm test:e2e` silently tests a stale build.** `reuseExistingServer: true` reuses
   whatever is on :3000 **without checking it matches the working tree**. Mutate
   `next.config.ts`, `src/proxy.ts` or `src/lib/csp.ts` and the suite will cheerfully

@@ -7,8 +7,8 @@ not repeated here, and neither is the history of how a bug got fixed — if you 
 the history of a decision, `git log -S` finds it. Shipped `todo.md` items are
 marked in place there; this file carries only what a future session cannot re-derive.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **627 tests
-  across 61 files**, `next build` succeeds. `pnpm test:e2e` adds **44 Playwright
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **664 tests
+  across 65 files**, `next build` succeeds. `pnpm test:e2e` adds **48 Playwright
   specs** (§2.1), run by hand and not wired into CI.
 - **Database:** one Neon database (`neondb`) shared by development *and* production
   (§3). **200 generated ads, 398 images**, all seeded, every photo URL resolving.
@@ -57,14 +57,20 @@ against the Next.js 16.3.6 docs in `node_modules/next/dist/docs/`, each citing
 the guide it comes from. Cache Components and Instant Navigation are excluded by
 decision, with the reasoning recorded there. Read it before §9.4.
 
-**Items 1–5 are shipped**, each marked in place in `todo.md` with its reasoning.
+**Items 1–6 are shipped**, each marked in place in `todo.md` with its reasoning.
 Item 3 found two live defects rather than a docs mismatch — read a component
 before assuming an entry describes a style problem. Its progressive-enhancement
 goal is *not achieved* and was declined: the forms live in a modal, so the
 server-rendered HTML holds no `<form>` at all; the full reasoning and the
 revisit-trigger are in `todo.md`.
 
-**The next session starts at `todo.md` item 6**, then works down the list, then
+**Item 6 (generated OG images) is specced in `SPEC-og-images.md`, and its central
+measurement is a trap — see §4.** The first version of it was built against the
+*wrong* environment: `generate-metadata.md:114` says file-based metadata overrides
+`generateMetadata`, which is true of a production build and false in `pnpm dev`.
+Measured on both sides before believing either.
+
+**The next session starts at `todo.md` item 7**, then works down the list, then
 §9.4. Nothing is blocking: §9.1–§9.3 are closed, and the two items that needed a
 decision (E2E's scope, retiring `withUserLock`) are taken. What is left is items
 6–11, §9.4, and the deliberate omissions in §2.3.
@@ -126,10 +132,15 @@ Three things this suite found that unit tests could not:
 
 ### 2.3 Deliberately not done
 
-- **No OG image for the home page.** The root card is inherited by every route
-  that does not override it, and a site-wide default would advertise a listing
-  that does not exist. The ad page uses the ad's own photo. A generated `next/og`
-  image per region is the natural follow-up.
+- ~~**No OG image for the home page.**~~ **Shipped** (todo.md item 6):
+  `src/app/opengraph-image.tsx` draws the site card, and `/ad/[adId]` overrides it
+  with a card carrying that ad's photo, price, city and region. The earlier note
+  here — "a generated `next/og` image per region is the natural follow-up" — was
+  **wrong**: the region is a `?region=` query parameter and an image route receives
+  `params`, never `searchParams`, so fourteen cards are not reachable from this
+  route shape. One picture serves all fourteen and the region travels in
+  `og:title`. The root card is also inherited by `/dashboard`, `/moderation` and the
+  404, which are `noindex` and disallowed, so nothing indexes it.
 - **No image sitemaps — and this one needs re-deciding, not inheriting.** They were
   declined *because* `images.url` pointed at files that no longer exist and
   advertising 200 dead URLs to Google is worse than none. Those URLs resolve
@@ -361,6 +372,22 @@ Each of these cost real time.
   next**, against an unmounted component, and lands its `showToast`/`router.push`
   calls in the *following* test's mocks. Three tests failed this way while passing
   alone. Release and await, in a `finally` where possible.
+- **Which `og:image` wins depends on the environment, and the docs describe only
+  one of them.** With an ad's photo in `generateMetadata.openGraph.images` *and* an
+  `opengraph-image.tsx` in the same segment, one commit, two answers: `pnpm dev`
+  emits **the photo and no card at all**; a production build emits **the card and
+  drops the photo**. `generate-metadata.md:114` ("file-based metadata has the
+  higher priority") describes the build. So a card verified only against `pnpm dev`
+  can look right and be absent in production, and the reverse is how this was nearly
+  shipped backwards. The pages therefore declare **no** `images`, which makes the
+  file convention the sole authority in both — do not "restore the photo alongside
+  the card".
+- **Handing satori a URL it cannot read 500s the whole image route** (`Unsupported
+  image type`, then `Image size cannot be determined`). A mime it does not know is
+  *not* an error there: it draws a filled block where the photo should be, which is
+  worse than no photo because it looks deliberate. Hence `src/lib/og-photo.ts` —
+  fetch the bytes, take the mime from the bytes, fall back to a text-only card.
+  Dangling photo rows make this reachable rather than hypothetical (§2.2).
 - **A stale `next start` on :3000 will be reused by the E2E suite**
   (`reuseExistingServer: true`) and will be broken by any `pnpm verify` running a
   rebuild underneath it. This produced 11 convincing failures against correct code.

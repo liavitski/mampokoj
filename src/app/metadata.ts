@@ -41,11 +41,14 @@ export const rootMetadata: Metadata = {
    * Setting only `twitter` is why so many links share as a bare URL; setting
    * only `openGraph` leaves X guessing at the card size.
    *
-   * No `images` here on purpose. The root card is shared by every route that
-   * does not override it -- which today is the 404 page -- and a site-wide
-   * default image would be advertising a listing that does not exist. The ad
-   * page supplies its own photo; the home page has no single correct image, and
-   * adding one is a deliberate follow-up rather than a default.
+   * No `images` here on purpose, and `src/app/opengraph-image.tsx` is where the
+   * site card lives instead. Declaring the picture in the metadata object rather
+   * than as a file convention is not merely a different spelling: the two
+   * disagree about which wins *by environment* -- the metadata image is emitted
+   * in development and dropped in a production build -- so a page that declared
+   * both would advertise one picture to a developer and another to every
+   * crawler. The file convention is the one authority that holds in both, and
+   * `/ad/[adId]` overrides it with a card of its own.
    */
   openGraph: {
     type: 'website',

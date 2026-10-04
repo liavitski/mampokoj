@@ -10,14 +10,18 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1, 2, 3, 4 and 5 shipped** (1–3 on 2026-10-03: `6a95abe`,
+**Status: items 1, 2, 3, 4, 5 and 6 shipped** (1–3 on 2026-10-03: `6a95abe`,
 `9d11164`, `4568b25`, all pushed; 4 on 2026-10-04: `f12ce61`, local;
-5 on 2026-10-04: `46cd4db`, local).
-Each is marked in place. Items 6–11 are open.
+5 on 2026-10-04: `46cd4db`, local; 6 on 2026-10-04, local, spec in
+`SPEC-og-images.md`).
+Each is marked in place. Items 7–11 are open.
 
 Worth knowing before continuing down the list: item 3 was filed as docs alignment
 and was actually two live defects, including a submit button that had never been
 disabled. **Read a component before assuming an entry describes a style problem.**
+Item 6 is the same in a different way: it was measured against `pnpm dev` first and
+that measurement came out **wrong**, because the docs' precedence rule holds of a
+production build and not of the dev server.
 
 The order below is value-per-effort, not doc order. Items 1–5 are small and
 independent of each other.
@@ -348,6 +352,67 @@ already bounds what the crawler is told about; the image route is uncached per
 ad, so give it a sensible `cacheLife` or accept the regeneration cost.
 
 **Effort:** M.
+
+**Shipped 2026-10-04.** `src/app/ad/[adId]/opengraph-image.tsx` (the ad's photo
+beside its title, price, city and region), `src/app/opengraph-image.tsx` (the site
+card), `src/lib/og-card.ts` (the allowlist of what a card may show),
+`src/lib/og-photo.ts` (fetching one photo defensively). The spec is
+`SPEC-og-images.md`. 26 new cases across four files, plus four Playwright specs in
+`e2e/seo.spec.ts`.
+
+**The precedence rule is not the one the docs state, and it is not the same in
+both environments.** `generate-metadata.md:114` says file-based metadata overrides
+`generateMetadata`. Measured twice on one commit with the ad's photo present in
+`generateMetadata.openGraph.images`:
+
+| | `og:image` emitted |
+|---|---|
+| `pnpm dev` | the photo — and **no card at all** |
+| production build | the generated card — the photo is dropped |
+
+So the documented precedence holds of a build and not of development, and declaring
+both is the one arrangement that is wrong somewhere in a way a developer cannot
+see. `page.tsx` therefore declares no `images`, which makes the file convention the
+sole authority in both. **A card change has to be verified against
+`E2E_BASE_URL=… pnpm test:e2e`, never against `pnpm dev` alone** — the dev server
+shows the opposite of what ships. (This is the same reason §2.1 already says to run
+the suite against a production build before a release.)
+
+**What the card shows, and what it deliberately does not.** The photo is fetched by
+`loadOgPhoto` rather than handed to satori as a URL, because that was measured as a
+**500 for the whole route**: `Unsupported image type`, then `Image size cannot be
+determined`. Dangling photo rows are an expected state here (§2.2 in `HANDOFF.md`),
+so one dead URL would have cost an ad its picture entirely. Three guards, each with
+its own measurement behind it: the response must be `image/*`, its bytes must be an
+image `sniffImageType` recognises, and a render that fails anyway falls back to the
+text-only card instead of 500-ing. The mime comes from the bytes rather than the
+header for a measured reason — a mime satori does not know is *not* an error there,
+it draws a filled block where the photo should be.
+
+**Two costs, stated rather than buried.** `og:image:alt` is the file's constant
+instead of the ad's title (`alt` is a static export, so it cannot carry it), and the
+card is no longer the bare photo. Neither is reversible by accident: putting a photo
+back into `generateMetadata` does not improve the card, it deletes it in development.
+
+**Not asserted anywhere, deliberately:** that the card *looks* right. Glyph coverage,
+layout and photo placement were checked by fetching both card URLs from a production
+build and looking at the pictures. A PNG cannot be asserted for any of it, and a
+snapshot of its bytes would only prove the renderer is deterministic. That pass found
+the one defect the tests could not: the price was printed twice on the card, once on
+its own line and once inside the facts line.
+
+**Uncacheable by decision.** No `revalidate`, no `cacheLife`. See
+[Deliberately not doing](#deliberately-not-doing): a cached card keeps a taken-down
+ad's title, price and photo readable from a stable public URL long after
+`deleteAdAsModerator` has removed the ad. The cost is one render per share, paid by
+the crawler.
+
+**A per-region home card is impossible, not deferred.** The region is a `?region=`
+query parameter and an image route receives `params`, never `searchParams`
+(`opengraph-image.md`, the props table). All fourteen region pages therefore share
+one picture and the region travels in `og:title`, where it already was.
+`HANDOFF.md` §2.3 suggested a per-region image as the natural follow-up; that was
+wrong for this route shape and is corrected there.
 
 ---
 

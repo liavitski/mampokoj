@@ -40,10 +40,25 @@ const getAd = cache(getValidatedAd);
  * without `openGraph` it arrives as a bare link with the page title repeated
  * above it.
  *
- * The image is the ad's own photo when it has one. Every seeded ad currently
- * points at a file that no longer exists (`HANDOFF.md` §2.2), so this can be a
- * dead URL in development -- which is a reason to fix the seed, not to
- * hardcode a placeholder that would override a real photo the moment one exists.
+ * **No `images` here, deliberately.** The picture comes from
+ * `opengraph-image.tsx` in this segment, which draws the ad's own photo beside
+ * its title, price, city and region. Leaving this object without an image is what
+ * makes that file the single authority for the card -- and it has to be, because
+ * the two disagree about who wins, *by environment*. Measured on both, same
+ * commit, 16.3.6:
+ *
+ *   pnpm dev            og:image is the photo; no card is emitted at all
+ *   production build    og:image is the generated card; the photo is dropped
+ *
+ * `generate-metadata.md:114` ("file-based metadata has the higher priority")
+ * describes the second. Keeping both would mean the card exists only in
+ * production while a developer opening the page sees the plain photo -- so the
+ * card has to be verified against a build, never against `pnpm dev` alone.
+ *
+ * The cost of giving up the raw photo as `og:image`, stated so it is not later
+ * mistaken for a regression: `og:image:alt` is the file's constant rather than
+ * the ad's title, while the title and description beside the card are unchanged
+ * and still per-ad. `metadata-routes.test.ts` pins both halves.
  */
 export async function generateMetadata({
   params,
@@ -76,7 +91,6 @@ export async function generateMetadata({
 
   const description = adMetaDescription(ad);
   const url = absoluteUrl(`/ad/${ad.id}`);
-  const image = ad.images[0]?.url;
 
   return {
     title: ad.title,
@@ -89,13 +103,11 @@ export async function generateMetadata({
       url,
       siteName: APP_TITLE,
       locale: 'cs_CZ',
-      ...(image ? { images: [{ url: image, alt: ad.title }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title: ad.title,
       description,
-      ...(image ? { images: [image] } : {}),
     },
   };
 }

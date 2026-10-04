@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIResponse } from '@playwright/test';
 
 import { PAGE_SIZE } from '../src/constants';
 import { appShell, gridReady } from './support/app-shell';
@@ -305,5 +305,129 @@ test.describe('crawler-facing files', () => {
     // practice. If the database were ever empty the assertion below would be
     // satisfied vacuously -- so it is stated rather than assumed.
     expect(body).toMatch(/\/ad\/[0-9a-f-]{36}/);
+  });
+});
+/**
+ * The generated share cards.
+ *
+ * What a chat app does with a link is: read the `og:image`, fetch that URL, and
+ * show the bytes. None of that is reachable from the metadata objects the unit
+ * tests assert on -- *which* image wins, and what those bytes are, are both
+ * Next's to decide at render time. Measured while building this: the metadata
+ * image silently beat the file convention on `/ad/[adId]`, so the first version
+ * of these routes emitted no card at all, and a test that only read the exported
+ * metadata would have passed the whole time.
+ */
+test.describe('generated share cards', () => {
+  /** The width and height the PNG itself declares, from its IHDR chunk. */
+  function renderedSize(bytes: Buffer) {
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  }
+
+  /**
+   * The card URL as a path this server can be asked for.
+   *
+   * `og:image` is absolute, built from `metadataBase` -- which is
+   * `NEXTAUTH_URL`, so it names port 3000 while this suite may be pointed at a
+   * production build on 3100. Fetching the absolute URL would therefore test the
+   * wrong server, and against nothing at all when 3000 is not running. The
+   * absoluteness is asserted separately, because a *relative* `og:image` is
+   * ignored outright by some platforms.
+   */
+  function cardPath(ogImage: string) {
+    const url = new URL(ogImage);
+
+    // Absolute, and on the origin the metadata declares rather than the one this
+    // suite happens to be talking to.
+    expect(url.origin).not.toBe('');
+    expect(url.pathname).toContain('/opengraph-image');
+
+    return `${url.pathname}${url.search}`;
+  }
+
+  async function expectAPng(response: APIResponse) {
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('image/png');
+
+    const bytes = await response.body();
+
+    // The PNG signature, then the dimensions already advertised in
+    // `og:image:width` / `og:image:height`.
+    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    expect(renderedSize(bytes)).toEqual({ width: 1200, height: 630 });
+  }
+
+  test('an ad shares its own card, and the card is a real PNG', async ({
+    page,
+    request,
+  }) => {
+    await page.goto('/');
+
+    const href = await appShell(page)
+      .locator('a[href^="/ad/"]')
+      .first()
+      .getAttribute('href');
+
+    await page.goto(href!);
+
+    const ogImage = await page
+      .locator('meta[property="og:image"]')
+      .getAttribute('content');
+    const twitterImage = await page
+      .locator('meta[name="twitter:image"]')
+      .getAttribute('content');
+
+    // The generated route, not the ad's photo. This is the assertion the whole
+    // feature turns on: with `openGraph.images` set in `generateMetadata`, Next
+    // emitted the photo and *no* card, and the card file was dead code.
+    expect(cardPath(ogImage!)).toContain(`${href}/opengraph-image`);
+
+    // One `opengraph-image` file serves both formats, so X gets the same render.
+    // Asserted rather than assumed: a missing `twitter:image` is exactly how a
+    // link shares as a bare URL on X.
+    expect(twitterImage).toBe(ogImage);
+
+    await expectAPng(await request.get(cardPath(ogImage!)));
+  });
+
+  test('the home page shares the site card', async ({ page, request }) => {
+    await page.goto('/');
+
+    const ogImage = await page
+      .locator('meta[property="og:image"]')
+      .getAttribute('content');
+
+    await expectAPng(await request.get(cardPath(ogImage!)));
+  });
+
+  test('a region page shares the site card and names its region in the title', async ({
+    page,
+  }) => {
+    // The one thing a per-region card could not do: the region is a `?region=`
+    // query parameter, and an image route receives `params` and never
+    // `searchParams`. So all fourteen region pages share one picture and the
+    // region travels in `og:title` -- asserted here because that arrangement is
+    // what replaces the idea of fourteen cards.
+    await page.goto('/?region=PR');
+
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      /Praha/
+    );
+    await expect(
+      page.locator('meta[property="og:image"]')
+    ).toHaveAttribute('content', /\/opengraph-image/);
+  });
+
+  test('the card of an ad that is gone answers 404', async ({ request }) => {
+    // A takedown has to reach the picture too. `deleteAdAsModerator` makes the
+    // page answer 404, and this route is a second, public, cacheable surface
+    // carrying the ad's title, price and photo -- none of which any assertion
+    // made against the page could see.
+    const missing = await request.get(
+      `/ad/${crypto.randomUUID()}/opengraph-image`
+    );
+
+    expect(missing.status()).toBe(404);
   });
 });

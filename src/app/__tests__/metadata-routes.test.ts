@@ -102,7 +102,39 @@ describe('ad page metadata', () => {
     });
   });
 
-  it('shares the ad photo when it has one', async () => {
+  it('declares no image of its own, so the generated card is the og:image', async () => {
+    getValidatedAd.mockResolvedValue(ad);
+
+    const meta = await generateAdMetadata({
+      params: Promise.resolve({ adId: 'ad-1' }),
+    });
+
+    /**
+     * The single most load-bearing assertion about this route.
+     *
+     * `generate-metadata.md:114` says file-based metadata overrides
+     * `generateMetadata`, and against 16.3.6 that is true of a production build
+     * and false in development -- measured on the same commit, with the photo
+     * present in this object:
+     *
+     *   pnpm dev          og:image is the photo, and no card is emitted at all
+     *   production build  og:image is the generated card, and the photo is dropped
+     *
+     * So a page that declared both would advertise one picture to a developer and
+     * another to every crawler, and the card would be verifiable only against a
+     * build. Declaring no image here makes the file convention the sole authority
+     * in both environments; that is what this asserts, and putting the photo back
+     * does not "improve" the card -- it deletes it in development.
+     */
+    expect(meta.openGraph).not.toHaveProperty('images');
+    expect(meta.twitter).not.toHaveProperty('images');
+  });
+
+  it('still declares the title, description and url the card sits beside', async () => {
+    // The narrowing above is only about the image. Everything else a share needs
+    // -- the text a platform renders next to the picture -- is unchanged, and an
+    // `expect(...).toHaveProperty('openGraph')` alone would pass against a
+    // metadata object that had lost all of it.
     getValidatedAd.mockResolvedValue(ad);
 
     const meta = await generateAdMetadata({
@@ -110,18 +142,34 @@ describe('ad page metadata', () => {
     });
 
     expect(meta.openGraph).toMatchObject({
-      images: [{ url: 'https://ufs.sh/photo.jpg' }],
+      title: ad.title,
+      url: 'https://mampokoj.vercel.app/ad/ad-1',
     });
+    expect(meta.twitter).toMatchObject({ title: ad.title });
+    expect(meta.description).toContain('Kladno');
   });
 
-  it('omits images rather than emitting an empty one', async () => {
-    getValidatedAd.mockResolvedValue({ ...ad, images: [] });
+  it('has a generated card at the route the og:image will point to', async () => {
+    // The other half of the pair above: a page that declares no image *and* has
+    // no image convention would advertise no picture at all.
+    const image = await import('@/app/ad/[adId]/opengraph-image');
 
-    const meta = await generateAdMetadata({
-      params: Promise.resolve({ adId: 'ad-1' }),
-    });
+    expect(typeof image.default).toBe('function');
+    expect(image.size).toEqual({ width: 1200, height: 630 });
+    expect(image.contentType).toBe('image/png');
+    expect(image.alt.length).toBeGreaterThan(0);
+  });
 
-    expect(meta.openGraph).not.toHaveProperty('images');
+  it('has a card at the app root, which is what the home page shares', async () => {
+    // `/` declares no images either, for the same reason -- and the root
+    // segment's card is the one a shared home link gets. `robots.ts` disallows
+    // `/dashboard/` and `/moderation`, which inherit this card and are therefore
+    // never fetched by anything that would index the picture.
+    const image = await import('@/app/opengraph-image');
+
+    expect(typeof image.default).toBe('function');
+    expect(image.size).toEqual({ width: 1200, height: 630 });
+    expect(image.contentType).toBe('image/png');
   });
 
   it('asks for a large summary card on Twitter', async () => {

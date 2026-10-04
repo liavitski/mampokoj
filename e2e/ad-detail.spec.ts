@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { adCard, appShell } from './support/app-shell';
+import { adCard, appShell, gridReady } from './support/app-shell';
 
 /**
  * The ad detail page, and the intercepting modal that renders the same card.
@@ -199,6 +199,55 @@ test.describe('the intercepting modal', () => {
 
     // The grid is still behind it, which is the whole point of intercepting
     // rather than navigating.
+    await expect(appShell(page).locator('a[href^="/ad/"]').first()).toBeVisible();
+  });
+
+  test('opens over a filtered grid', async ({ page, request }) => {
+    // The region comes from the API rather than being hardcoded: the seed
+    // assigns regions at random, so a region chosen by hand could hold no
+    // ads in a given database, and the test would then fail on its own
+    // precondition instead of on anything this test is for. The first ad's
+    // region has, by construction, at least one ad -- so the grid rendered
+    // for `?region=` holds a card to click.
+    const response = await request.get('/api/ads');
+    expect(response.ok()).toBe(true);
+
+    const body = (await response.json()) as { items: { region: string }[] };
+    expect(
+      body.items.length,
+      'the API returned no ads, so no region can be filtered by'
+    ).toBeGreaterThan(0);
+
+    const region = body.items[0]!.region;
+
+    await page.goto(`/?region=${region}`);
+    await gridReady(page);
+
+    const firstCard = appShell(page).locator('a[href^="/ad/"]').first();
+    const href = await firstCard.getAttribute('href');
+
+    await firstCard.click();
+
+    // The URL updates to the card's own href, which is what makes the
+    // address bar shareable. The `?region=` parameter does not follow: the
+    // card links to `/ad/<id>`, not to the current URL with a path appended.
+    await expect(page).toHaveURL(new RegExp(`${href}$`));
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+
+    // The grid is still behind the dialog, which is the point of
+    // intercepting rather than navigating. These last two assertions
+    // are the ones that notice a broken interception: without it the
+    // click is a plain navigation to the detail page, the URL still
+    // changes, and only a dialog that appears and a grid that stays
+    // on the page can tell the difference. HANDOFF.md §3 records a
+    // route-group trap here -- that rearranging the home page
+    // silently stops the interception -- and that was measured against
+    // Next.js 16.3.6 while writing this test and does not reproduce
+    // (see todo.md item 5). What this guards is the flow itself: the
+    // modal from the region filter, which no spec reached before,
+    // and the interception however it is ever broken.
     await expect(appShell(page).locator('a[href^="/ad/"]').first()).toBeVisible();
   });
 

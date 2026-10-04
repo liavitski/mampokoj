@@ -5,6 +5,31 @@ import { getIndexableAds } from '@/server/queries/select';
 import { absoluteUrl, SITEMAP_AD_LIMIT } from '@/lib/seo';
 
 /**
+ * **Rendered per request, deliberately.** A metadata route is static by default
+ * (`sitemap.js` is "a special Route Handler that is cached by default unless it
+ * uses a Request-time API or dynamic config option", per the Next.js docs), and
+ * the default is wrong twice over here:
+ *
+ * - **A build-time sitemap is stale by construction.** The ad entries come from
+ *   the database, and ads are created and taken down by users between deploys. A
+ *   prerendered `/sitemap.xml` is frozen at the moment of the build, so a site
+ *   with real traffic would advertise yesterday's inventory and list ads that no
+ *   longer exist, until someone happened to redeploy.
+ * - **It also made the build require a live database.** The route was `○` in the
+ *   build output, so `next build` prerendered it, which called
+ *   `getIndexableAds`. CI's `DATABASE_URL` is deliberately an unroutable
+ *   placeholder, so the build died with `Failed to parse URL from
+ *   https://api.0.0.1/sql` — the Neon driver rewriting `127.0.0.1` into a host
+ *   it could not resolve. `ci.yml` states that no route runs during the build
+ *   "because every route here is dynamic", and that claim was false as of this
+ *   file; this line is what makes it true.
+ *
+ * Every other route in the app is already `ƒ` for the same reason, so this also
+ * removes the last exception rather than adding a special case.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * `sitemap.xml`: every URL on the site that should be indexed.
  *
  * Three kinds of entry, and the omissions are the interesting part:

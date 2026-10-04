@@ -197,6 +197,20 @@ Each is deliberate and pinned by a test where a comment would not hold.
 
 Each of these cost real time.
 
+- **A metadata route is static by default, so a `sitemap.ts` that queries the database
+  makes `next build` require one.** `/sitemap.xml` was `○` in the build output, so the
+  build prerendered it and called `getIndexableAds`. Locally that worked against the
+  real `DATABASE_URL`; in CI it died with `Failed to parse URL from
+  https://api.0.0.1/sql` — the Neon driver rewriting the unroutable `127.0.0.1`
+  placeholder into a host it could not resolve. The commit had never been through a
+  green CI run, so nothing local could have caught it. The fix is
+  `export const dynamic = 'force-dynamic'`, which is also the honest behaviour: a
+  build-time sitemap freezes the ad list, so ads created or taken down between
+  deploys never appear and removed ones keep being advertised. **After this, every
+  route that renders on a request is `ƒ`; `/robots.txt` and `/opengraph-image` are the
+  only prerendered ones and the only two that read no database. Adding a third static
+  route that queries breaks the build.** `ci.yml` says this where the placeholder is
+  set.
 - **`pnpm typecheck` is green locally and red in CI, because `PageProps` and
   `Route` do not exist until something generates them.** `.next/` and
   `next-env.d.ts` are both gitignored, so a fresh clone has no

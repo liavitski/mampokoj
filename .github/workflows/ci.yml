@@ -64,10 +64,18 @@ jobs:
         env:
           # The build must not depend on a real database connection, and it does
           # not make one: `src/server/db/index.ts` reads this at module scope to
-          # construct the client, and no route runs during the build because
-          # every route here is dynamic. What it does need is a *well-formed*
-          # string, since an absent one throws "DATABASE_URL is missing" while
-          # collecting page data.
+          # construct the client, and no query runs during the build. What it
+          # does need is a *well-formed* string, since an absent one throws
+          # "DATABASE_URL is missing" while collecting page data.
+          #
+          # The two routes still prerendered at build time -- `/robots.txt` and
+          # `/opengraph-image` -- are precisely the two that read no database, so
+          # this placeholder is never dialled. That is a property to preserve,
+          # not a coincidence: a metadata route is static by default, and
+          # `/sitemap.xml` read the database until it was made `force-dynamic`.
+          # Adding a third static route that queries here breaks the build with
+          # `Failed to parse URL from https://api.0.0.1/sql`, which is the Neon
+          # driver resolving this host and failing to.
           #
           # So a placeholder is the default and a secret is the override. With
           # no secret configured -- an unset `${{ secrets.X }}` expands to an

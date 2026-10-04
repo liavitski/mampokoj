@@ -256,6 +256,30 @@ describe('sitemap', () => {
     else process.env.NEXTAUTH_URL = saved;
   });
 
+  /**
+   * The route reads the database, so it must not be prerendered at build time.
+   *
+   * A metadata route is static by default, which broke two things at once: the
+   * ad entries froze at build time — so ads created or taken down after a deploy
+   * never appeared, and removed ones kept being advertised — and `next build`
+   * itself needed a live database, dying in CI against the deliberately
+   * unroutable `DATABASE_URL` placeholder with `Failed to parse URL from
+   * https://api.0.0.1/sql`.
+   *
+   * Asserted here because the calling tests below all *mock* `getIndexableAds`.
+   * Every one of them passes identically whether or not this export is present,
+   * so the build-time behaviour is the one thing in this file that unit tests
+   * cannot see — it needs `next build` to observe, which is what CI is for.
+   *
+   * **Mutation:** deleting `export const dynamic = 'force-dynamic'` makes this
+   * fail, and restores the CI build failure.
+   */
+  it('renders per request rather than at build time', async () => {
+    const { dynamic } = await import('@/app/sitemap');
+
+    expect(dynamic).toBe('force-dynamic');
+  });
+
   it('lists the home page first, so it is the first URL a crawler meets', async () => {
     const entries = await sitemap();
 

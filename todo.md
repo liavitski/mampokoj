@@ -10,11 +10,11 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1–8 shipped** (1–3 on 2026-10-03: `6a95abe`,
+**Status: items 1–9 shipped** (1–3 on 2026-10-03: `6a95abe`,
 `9d11164`, `4568b25`; 4 on 2026-10-04: `f12ce61`; 5 on 2026-10-04: `46cd4db`;
 6 on 2026-10-04, spec in `SPEC-og-images.md`; 7 on 2026-10-04, spec in
-`SPEC-csp.md`; 8 on 2026-10-04 — narrowed to one route, see below).
-Each is marked in place. Items 9–11 are open.
+`SPEC-csp.md`; 8 on 2026-10-04 — narrowed to one route, see below; 9 on
+2026-10-04). Each is marked in place. Items 10–11 are open.
 
 **On "pushed":** every commit above is on `main`; `main` is **9 ahead of
 `origin/main`**, so items 4–8 are committed and unpushed rather than local-only.
@@ -32,6 +32,11 @@ inverted: it was filed as "start report-only and tighten from the console", and
 measuring first removed three of its four origins. Item 8 is the same a fourth
 time: the fix as written would have regressed the 404 status fix that item 1's
 predecessor shipped, and the docs say so in `loading.md` in one paragraph.
+Item 9 is the same a fifth time and the sharpest yet: filed as "a type-only
+change with no runtime effect", and the hand-written type it removed was *wrong*
+about what a repeated query parameter is — `?region=PR&region=JM` has always been
+an array, and the page only handled it because the wrong type made
+`isRegionCode` answer `false`.
 
 The order below is value-per-effort, not doc order. Items 1–5 are small and
 independent of each other.
@@ -602,28 +607,119 @@ file: read the component and the docs before doing the item.**
 
 ---
 
-## 9. Hand-written route prop types, `typedRoutes` off
+## 9. ~~Hand-written route prop types, `typedRoutes` off~~ — shipped 2026-10-04
 
 **Docs:** this version generates route types — `PageProps<'/ad/[adId]'>` and
-friends — instead of asking you to declare the shape yourself.
+friends — instead of asking you to declare the shape yourself, and
+`02-typescript.md` covers `typedRoutes` for `href` under "Statically Typed Links".
 
-**Now:** every page declares its own prop type by hand
-(`src/app/page.tsx:25`, `src/app/ad/[adId]/page.tsx`, `src/app/dashboard/[userId]/page.tsx:35`).
-`typedRoutes` is not enabled in `next.config.ts`.
+**Was:** every page declared its own prop type by hand
+(`src/app/page.tsx:25`, `src/app/ad/[adId]/page.tsx`,
+`src/app/dashboard/[userId]/page.tsx:35`), the root layout declared
+`Readonly<{ children; modal }>` to mirror the `@modal` slot, and `typedRoutes`
+was off in `next.config.ts`.
 
-**Fix:** enable `typedRoutes`, switch the pages to the generated
-`PageProps<'/…'>` types, and let `tsc` find the mismatches. This is a
-type-only change with no runtime effect, so it is safe to do on its own — but do
-it *before* item 1, not after, so the new `error.tsx` files are not written
-against a convention that is about to change.
+**Shipped 2026-10-04.** `typedRoutes: true`, all six route files on the generated
+types, 24 new cases in `src/__tests__/typed-routes.test.ts` plus four in
+`home-cursor.test.ts`. `pnpm verify` green (722 tests, +24); all 59 e2e green
+against `pnpm dev`; the four navigations were also driven by hand in a real
+browser.
 
-Worth knowing when editing `src/app/layout.tsx`: it cannot be imported by a test
-(it pulls in `next/font/google` and the UploadThing SSR plugin), which is why
-`metadata.ts` and `not-found.styles.tsx` exist as separate modules. That reason
-applies to `global-error.tsx` too, and is the reason it should not import
-`next/font`.
+### The item said "type-only, no runtime effect". It was not.
 
-**Effort:** S.
+**The hand-written `searchParams` type was a lie, and switching to the generated
+one exposed it.** `{ region?: string; cursorCreatedAt?: string; cursorId?: string }`
+asserted single strings. The truth is `Record<string, string | string[] |
+undefined>`, because `/?region=PR&region=JM` has always produced an array — and
+the page has always handled it, by accident, in the most defensible way available:
+`isRegionCode(['PR','JM'])` compared an array against fourteen strings and
+returned `false`, so a repeated parameter landed in the same "No ads found for
+this region" branch as a code outside the fourteen. **Verified against the
+pre-change file** rather than reasoned about: identical markup, and `getAds` is
+never called.
+
+So the behaviour is unchanged and now has a name. `readRegion` and
+`isUnreadableRegion` in `src/app/page.tsx` separate the two answers, because they
+differ: an *absent* `region` means "no filter, show everything" and an
+*unreadable* one means "a filter was asked for and cannot be read". Collapsing
+them would render the whole site for every hand-edited URL. **Mutated both ways**:
+`isUnreadableRegion` returning `false` fails three of the four new cases; making
+`readRegion` take `region[0]` fails none — the second is not a bug but it is
+worth knowing that the load-bearing half is the boolean, not the reader.
+
+The cursor parameters needed no such treatment: `cursorParamsSchema.safeParse`
+takes `unknown`, so a repeated `?cursorId=a&cursorId=b` is rejected by the schema
+and reads as no cursor, which is the correct answer for two cursors.
+
+### `typedRoutes` reaches `next/link` but not `styled(Link)` — one cast is unchecked
+
+Four navigations were checked by `tsc` once the flag was on, and they resolve
+three different ways. **The difference is worth knowing before adding a link:**
+
+| site | what it does | checked? |
+|---|---|---|
+| `RegionNavigation.tsx` | `const href: Route = \`/?region=${region.code}\`` | yes, all fourteen codes |
+| `RegionSelectBlock.tsx` | `` `/?region=${value as RegionCode}` `` as `Route` | yes, via the union |
+| `AdSummaryCard.tsx` | `` href={`/ad/${id}`} ``, no cast | yes |
+| `Header.tsx` | `` href={`/dashboard/${userId}` as Route} `` | **no** |
+
+**`typedRoutes` only forms a template literal type when there is a contextual one
+to infer from**, so an unannotated `const href = \`/?region=${region.code}\`` widens
+to `string` and `router.push` rejects it. The `Route` annotation is what makes the
+first row check anything — and it distributes over `CZ_REGIONS`' fourteen literal
+codes, so renaming the query parameter fails to compile. **Verified by mutation:**
+dropping the annotation reintroduces two `tsc` errors; widening to
+`${region.code as string}` also fails, because the union stops being literal.
+
+`RegionSelectBlock` casts to `RegionCode` rather than to `Route` **on purpose**:
+the value comes from a Radix `onValueChange`, which is typed `(value: string) =>
+void` and cannot be narrowed, so *some* cast is unavoidable — but casting to the
+fourteen-member union keeps the `Route` annotation load-bearing, where `as Route`
+on the finished string would silence `push` and check nothing.
+
+`Header.tsx`'s cast checks nothing, because `ControlLink = styled(Link)`. Confirmed
+directly: annotating a bare `styled(Link)` in a scratch file rejects the same
+template that an unstyled `Link` accepts. It is the one unchecked cast in the
+codebase and the comment at the call site says so. **`typed-routes.test.ts` names
+it explicitly**, so a reader finding an `as Route` can tell which kind it is, and
+the assertion fails if styled-components ever starts propagating the generic.
+
+### What the generated types say about route groups
+
+`@modal/(.)ad/[adId]/page.tsx` takes **`PageProps<'/ad/[adId]'>`, not a route of
+its own** — neither a parallel-route slot nor an intercept appears in a URL. Next's
+own generated `validator.ts` checks that file against
+`AppPageConfig<"/ad/[adId]">`, so writing anything else there would contradict the
+framework rather than the file. Likewise `LayoutProps<'/'>`'s `LayoutSlotMap` is
+where the `modal` key comes from, which is the `@modal` directory appearing in a
+type: adding a `@sidebar` beside it now types `props.sidebar` without editing the
+layout, and forgetting to destructure it is a `tsc` error rather than `undefined`
+rendered into the document.
+
+`opengraph-image.tsx` keeps its inline `params` and is right to: there is no
+generated image-route helper (verified — none exists in `.next/types/routes.d.ts`,
+and `opengraph-image.md` documents the inline shape).
+
+### Why the tests read source rather than render
+
+Every guarantee above is a property of the type-checker, and no `tsc` run is
+observable from inside a test. A test that rendered each page would pass
+identically before and after, so it would prove nothing about what shipped.
+`typed-routes.test.ts` asserts the declarations instead, paired with the mutation
+that each one catches. The list of route files is **derived from the filesystem**,
+so a sixth `page.tsx` cannot be added without either appearing in the table or
+being deliberately excluded.
+
+The one behavioural change in this item is asserted by rendering rather than by
+source — four cases in `home-cursor.test.ts`, including one that the absent and
+unreadable cases render *differently*.
+
+**Not verified:** nothing visual or behavioural changed, so there is no browser
+pass worth recording beyond the four navigations — which were driven by hand
+anyway: plain click navigates, cmd-click opens a second tab, the Radix select
+pushes `?region=KV`, and the modal still intercepts over a filtered grid.
+
+**Effort:** S as estimated, with `tsc` doing about half the work.
 
 ---
 

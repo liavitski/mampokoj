@@ -7,8 +7,8 @@ not repeated here, and neither is the history of how a bug got fixed — if you 
 the history of a decision, `git log -S` finds it. Shipped `todo.md` items are
 marked in place there; this file carries only what a future session cannot re-derive.
 
-- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **664 tests
-  across 65 files**, `next build` succeeds. `pnpm test:e2e` adds **48 Playwright
+- **Baseline:** `pnpm verify` green — lint 0 warnings, `tsc` clean, **722 tests
+  across 68 files**, `next build` succeeds. `pnpm test:e2e` adds **59 Playwright
   specs** (§2.1), run by hand and not wired into CI.
 - **Database:** one Neon database (`neondb`) shared by development *and* production
   (§3). **200 generated ads, 398 images**, all seeded, every photo URL resolving.
@@ -17,9 +17,11 @@ marked in place there; this file carries only what a future session cannot re-de
 - **Production is live** at `mampokoj.vercel.app` and the moderation queue works
   there (§9.3). **Env vars are set in the Vercel dashboard by hand** — §1, which is
   the item most likely to waste an afternoon.
-- **Git:** clean tree on `main`, **ahead of `origin/main` by `todo.md` items 4 and
-  5** (local, unpushed). Everything before those is pushed. A handoff file does not
-  name its own commit hash for that reason — `git log` does.
+- **Git:** tree clean once work is committed; `main` runs **ahead of
+  `origin/main`** by several `todo.md` items (committed, unpushed) — check
+  `git log origin/main..main` for the current count. A handoff file does not
+  name its own commit hash for that reason, and does not claim a clean tree on
+  its own honour.
 
 ---
 

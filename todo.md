@@ -10,8 +10,9 @@ this list, and not to be added to it. The reasoning is recorded under
 [Deliberately not doing](#deliberately-not-doing) so a future session does not
 re-derive it.
 
-**Status: items 1, 2 and 3 shipped 2026-10-03** (`6a95abe`, `9d11164`, `4568b25`,
-all pushed). Each is marked in place. Items 4–11 are open.
+**Status: items 1, 2, 3 and 4 shipped** (1–3 on 2026-10-03: `6a95abe`,
+`9d11164`, `4568b25`, all pushed; 4 on 2026-10-04: `f12ce61`, local).
+Each is marked in place. Items 5–11 are open.
 
 Worth knowing before continuing down the list: item 3 was filed as docs alignment
 and was actually two live defects, including a submit button that had never been
@@ -259,7 +260,21 @@ removes the one client hook in the tree that would force a `<Suspense>` boundary
 under Cache Components — irrelevant today, but it is the reason the hook is
 worth removing rather than leaving.
 
-**Effort:** XS.
+**Shipped 2026-10-04** (`f12ce61`). `AdGrid` takes `region?: string` and the
+page passes its validated `region` down (an invalid region returns before
+`AdGrid` renders, so the prop is `undefined` or a real code); `MainColumn`,
+the other call site, passes its own prop through. Seven cases in
+`src/components/AdGrid/__tests__/AdGrid.test.tsx` — the `next/navigation`
+mock went with the hook, and two new cases pin the contract: the load-more
+request carries `region=PR` when given a region, and omits `region=` when
+not. The comment at `e2e/load-more.spec.ts:212` described the old mechanism
+and is corrected.
+
+Verified in a real browser, not just by `pnpm verify`: the full Playwright
+suite, 43/43, including "keeps the region applied while paging", which
+exists to catch exactly this regression.
+
+**Effort:** XS, as estimated.
 
 ---
 

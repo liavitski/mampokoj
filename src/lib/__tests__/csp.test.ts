@@ -118,14 +118,33 @@ describe('buildCsp', () => {
       expect(imgSrc).toContain('data:');
     });
 
-    it('does not allow Google OAuth hosts, which are server-side only', () => {
-      // accounts.google.com is a top-level navigation from a next-auth page,
-      // which no shipped CSP directive gates; oauth2.googleapis.com and
-      // openidconnect.googleapis.com are fetched by the Node process.
+    it('allows Google OAuth only as a form-action redirect target', () => {
+      // next-auth starts sign-in by POSTing the form to
+      // /api/auth/signin/google, which answers 302 → accounts.google.com
+      // with this same policy attached. The browser enforces
+      // form-action against that redirect target, so the provider's
+      // origin must be named there or sign-in dies silently on the
+      // sign-in page. It must appear nowhere else:
+      // oauth2.googleapis.com and openidconnect.googleapis.com are
+      // fetched by the Node process, and no page resource ever
+      // loads from a Google host.
       const policy = buildCsp({ nonce: NONCE, isDev: false });
 
-      expect(policy).not.toContain('accounts.google.com');
+      expect(cspDirective(policy, 'form-action')).toContain(
+        'https://accounts.google.com'
+      );
       expect(policy).not.toContain('googleapis.com');
+      for (const directive of [
+        'img-src',
+        'connect-src',
+        'script-src',
+        'font-src',
+      ]) {
+        expect(
+          cspDirective(policy, directive),
+          `${directive} should not name a Google host`
+        ).not.toContain('accounts.google.com');
+      }
     });
 
     it('allows the presigned UploadThing upload host for any region', () => {
@@ -152,7 +171,7 @@ describe('buildCsp', () => {
       ['frame-src', "'none'"],
       ['base-uri', "'self'"],
       ['default-src', "'self'"],
-      ['form-action', "'self'"],
+      ['form-action', "'self' https://accounts.google.com"],
     ])('%s is %s', (directive, expected) => {
       // frame-ancestors is the clickjacking control, and /moderation performs
       // destructive actions on click -- the reason this item exists at all.

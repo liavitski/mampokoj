@@ -104,6 +104,20 @@ Each is deliberate and pinned by a test where a comment would not hold.
   styled-components is not mounted); and styled-components re-injects on the client.
   Because `'unsafe-inline'` is present a `style-src` nonce would be *ignored*
   anyway, so threading one in would add code and buy nothing.
+- **`form-action` names `https://accounts.google.com`, and dropping it
+  breaks Google sign-in with no symptom but a console line.** The proxy
+  stamps the CSP on *every* response, including next-auth's answer to the
+  sign-in form — `302 → accounts.google.com`. The browser enforces
+  `form-action` against that redirect target, so `'self'` alone aborted
+  the navigation to Google: the POST reached the server, the OAuth state
+  cookies were set, and the visitor still sat on the sign-in page, which
+  reads as "the button does nothing". Google is the one provider (§6), so
+  this is the only cross-origin destination a form submission is ever
+  redirected to; the origin is named, not wildcarded. The trap is that
+  every check that does not click the real button stays green — the
+  sign-in page renders, the button looks fine, and only
+  `e2e/security-headers.spec.ts`'s "the Google sign-in form is not
+  blocked by form-action" catches it.
 - **The CSP keeps the UploadThing SSR plugin's inline script, and there is no
   `report-to`.** Removing the plugin would delete a global injection from every page
   and `@uploadthing/react` does fall back to a same-origin fetch — rejected because

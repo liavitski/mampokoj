@@ -114,7 +114,7 @@ test.describe('security headers on every document', () => {
       expect(directives['base-uri'], `base-uri on ${route}`).toBe("'self'");
       expect(directives['object-src'], `object-src on ${route}`).toBe("'none'");
       expect(directives['form-action'], `form-action on ${route}`).toBe(
-        "'self'"
+        "'self' https://accounts.google.com"
       );
     }
   });
@@ -302,6 +302,35 @@ test.describe('the policy in a real browser', () => {
     // the sharpest choice: it *is* an `images.remotePatterns` origin, so a
     // future reader can see it is allowed as an image and not as a connection.
     expect(await attempt('https://picsum.photos/')).toBe('blocked');
+  });
+
+  test('the Google sign-in form is not blocked by form-action', async ({
+    page,
+  }) => {
+    // The regression test for the form-action entry above. The sign-in
+    // form POSTs to /api/auth/signin/google, which answers
+    // 302 → accounts.google.com with this same CSP attached. If
+    // form-action names only 'self', the browser aborts that redirect
+    // and the visitor is left on the sign-in page -- the request
+    // reached the server and the OAuth cookies were set, so nothing
+    // in the app or the logs says anything went wrong. Only a console
+    // violation records it.
+    //
+    // The navigation to Google itself may fail for reasons that are
+    // not this app's business (a redirect_uri mismatch on localhost,
+    // no network), so the assertion is the absence of a CSP violation,
+    // not a successful sign-in.
+    const violations: string[] = [];
+    page.on('console', (message) => {
+      if (/violates the following Content Security Policy/i.test(message.text())) {
+        violations.push(message.text());
+      }
+    });
+
+    await page.goto('/api/auth/signin', { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: 'Sign in with Google' }).click();
+
+    expect(violations).toEqual([]);
   });
 
   test("styled-components' stylesheet survives style-src 'unsafe-inline'", async ({

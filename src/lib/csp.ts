@@ -113,7 +113,23 @@ export function buildCsp({ nonce, isDev }: { nonce: string; isDev: boolean }) {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "frame-src 'none'",
-    "form-action 'self'",
+    /**
+     * `form-action` also gates the *redirect* a form submission ends in.
+     * The proxy stamps this policy on every response, so next-auth's
+     * answer to the sign-in form -- `302 → accounts.google.com` --
+     * carries it, and the browser enforces the policy against that
+     * redirect target before navigating there. `'self'` alone therefore
+     * aborted the OAuth hop: the POST reached the server, the OAuth
+     * state cookies were set, and the user still landed back on the
+     * sign-in page with no error -- sign-in looked dead.
+     *
+     * Google is the one provider (`api/auth/[...nextauth]/route.ts`),
+     * so this is the only cross-origin destination any form submission
+     * is ever redirected to. Remove the origin and Google sign-in
+     * breaks silently; every test that does not click the real button
+     * stays green.
+     */
+    "form-action 'self' https://accounts.google.com",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${UPLOADTHING_ROUTER_CONFIG_HASH}${
       isDev ? " 'unsafe-eval'" : ''
     }`,
